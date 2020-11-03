@@ -1,7 +1,8 @@
 import { v4 } from "https://deno.land/std@0.76.0/uuid/mod.ts";
 
-import { TribleDB } from "./tribledb.js";
-import { A, E, TRIBLE_SIZE, V } from "./trible.js";
+import { VALUE_PART } from "./part.js";
+import { TribleDB, UnsafeQuery } from "./tribledb.js";
+import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
 
 const id = Symbol("id");
 
@@ -113,8 +114,8 @@ class IDSequence {
 }
 
 const entityProxy = function entityProxy(kb, ctx, entity_id) {
-  const attrs_batch = makePART(VALUE_SIZE).batch();
-  const inverse_attrs_batch = makePART(VALUE_SIZE).batch();
+  const attrs_batch = VALUE_PART.batch();
+  const inverse_attrs_batch = VALUE_PART.batch();
   for (const [attr, { id: attr_id, isInverse }] of Object.entries(ctx)) {
     const a_id = new Uint8Array(VALUE_SIZE);
     ctx[id].encoder(attr_id, a_id);

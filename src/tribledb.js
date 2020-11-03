@@ -1,8 +1,14 @@
-import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
-import { makePART } from "./part.js";
-
-const TRIBLE_PART = makePART(TRIBLE_SIZE);
-const VALUE_PART = makePART(VALUE_SIZE);
+import {
+  A,
+  E,
+  equal_id,
+  TRIBLE_SIZE,
+  V,
+  v1zero,
+  V2,
+  VALUE_SIZE,
+} from "./trible.js";
+import { TRIBLE_PART, VALUE_PART } from "./part.js";
 
 const EAV = 0;
 const EVA = 1;
@@ -164,7 +170,7 @@ class ConstantCursor {
   }
 
   seek(value) {
-    for (let i = 0; i < VALUE_LENGTH; i++) {
+    for (let i = 0; i < VALUE_SIZE; i++) {
       if (this.constant[i] !== value[i]) {
         if (this.constant[i] < value[i]) this.valid = false;
         return false;
@@ -219,7 +225,7 @@ class IndexCursor {
   }
 
   push(ascending) {
-    this.cursor.push(VALUE_LENGTH, ascending);
+    this.cursor.push(VALUE_SIZE, ascending);
   }
 
   pop() {
@@ -287,7 +293,7 @@ class TripleCursor {
 
   peek() {
     if (this.valid) {
-      const r = new Uint8Array(VALUE_LENGTH);
+      const r = new Uint8Array(VALUE_SIZE);
       const p = this.cursor.peek();
       for (let i = 0; i < p.length; i++) {
         r[r.length - p.length + i] = p[i];
@@ -303,7 +309,7 @@ class TripleCursor {
 
   seek(value) {
     const len = INDEX_INFIX[this.index][this.depth];
-    for (let i = 0; i < VALUE_LENGTH - len; i++) {
+    for (let i = 0; i < VALUE_SIZE - len; i++) {
       if (value[i] !== 0) {
         this.valid = false;
         return;
@@ -528,4 +534,4 @@ class TribleDB {
   }
 }
 
-export { TribleDB };
+export { TribleDB, UnsafeQuery };

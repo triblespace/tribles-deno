@@ -1,3 +1,5 @@
+import { TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
+
 const makePART = function (KEY_LENGTH) {
   const linearNodeSize = 16;
   const indirectNodeSize = 64;
@@ -514,4 +516,7 @@ const makePART = function (KEY_LENGTH) {
   return new PARTree();
 };
 
-export { makePART };
+const TRIBLE_PART = makePART(TRIBLE_SIZE);
+const VALUE_PART = makePART(VALUE_SIZE);
+
+export { makePART, TRIBLE_PART, VALUE_PART };

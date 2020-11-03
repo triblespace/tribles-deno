@@ -4,19 +4,18 @@ import {
 } from "https://deno.land/std@0.75.0/testing/asserts.ts";
 import { v4 } from "https://deno.land/std@0.76.0/uuid/mod.ts";
 
-import { id, TribleKB } from "./triblekb.js";
-import { types } from "./types.js";
+import { id, TribleKB, types } from "../mod.js";
 
 Deno.test("Integration", () => {
   const observation_attr = v4.generate();
   const state_open = v4.generate();
   const state_done = v4.generate();
 
+  // Define a context, mapping between js data and tribles.
   const todo_ctx = {
-    [id]: { ...types.id, id: v4.generate },
+    [id]: { ...types.id, id: v4.generate() },
     observationOf: {
       isLink: true,
-      isMany: true,
       id: observation_attr,
     },
     observedAs: {
@@ -35,7 +34,7 @@ Deno.test("Integration", () => {
       ...types.spacetimestamp,
       id: v4.generate(),
     },
-    creator: {
+    createdBy: {
       isLink: true,
       id: v4.generate(),
     },
@@ -45,30 +44,36 @@ Deno.test("Integration", () => {
     },
   };
   const kb = new TribleKB();
+
+  // Add some data.
+  const observation_id = v4.generate();
   let todos = new TribleKB().with(todo_ctx, ([t]) => [
     {
       task: "Get soymilk!",
       observedAs: [
-        { state: state_open, stamp: { t: 0n, x: 0n, y: 0n, z: 0n } },
+        {
+          [id]: observation_id,
+          state: state_open,
+          stamp: { t: 0n, x: 0n, y: 0n, z: 0n },
+        },
       ],
-      creator: { name: "jp" },
+      createdBy: { name: "jp" },
     },
   ]);
 
-  assertEquals([
-    ...todos.find(todo_ctx, ({ observation, stamp, task }) => [
+  // Query some data.
+  const [first_result] = todos.find(
+    todo_ctx,
+    ({ observation, stamp, task }) => [
       {
-        [id]: observation,
+        [id]: observation.walk(), //Walk will create a proxy object which allows us to navigate the graph as a JS tree.
         stamp: stamp.at(0),
-        observationOf: { task },
-        creator: { name: "jp" },
+        observationOf: { task, createdBy: { name: "jp" } },
       },
-    ]),
-  ], [
-    {
-      observation: observation_id,
-      task: "Get soy!",
-      stamp: { t: 0n, x: 0n, y: 0n, z: 0n },
-    },
-  ]);
+    ],
+  );
+
+  assertEquals(first_result.observation.state[id], state_open); //Notice the walk() in action.
+  assertEquals(first_result.task, "Get soymilk!");
+  assertEquals(first_result.stamp, { t: 0n, x: 0n, y: 0n, z: 0n });
 });
