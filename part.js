@@ -1,4 +1,4 @@
-makePART = function (KEY_LENGTH) {
+const makePART = function (KEY_LENGTH) {
   const linearNodeSize = 16;
   const indirectNodeSize = 64;
 
@@ -513,3 +513,5 @@ makePART = function (KEY_LENGTH) {
 
   return new PARTree();
 };
+
+export { makePART };

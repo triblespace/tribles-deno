@@ -1,3 +1,8 @@
+import { v4 } from "https://deno.land/std@0.76.0/uuid/mod.ts";
+
+import { TribleDB } from "./tribledb.js";
+import { A, E, TRIBLE_SIZE, V } from "./trible.js";
+
 const id = Symbol("id");
 
 class Variable {
@@ -103,7 +108,7 @@ class IDSequence {
     return this;
   }
   next() {
-    return { value: uuid.v4() };
+    return { value: v4.generate() };
   }
 }
 
@@ -305,6 +310,15 @@ const entities_to_facts = (ctx, unknowns, root, facts = []) => {
         ctx[w.parent_attr].isLink ||
         ctx[w.parent_attr].isInverse) &&
       isPojo(w.value)
+      // Note: It's tempting to perform more specific error checks here.
+      // E.g. catching cases where a change from a cardinality many to a cardinality one
+      // still passes an array instead of a POJO.
+      // However this is not possible, since the 'id' type is configurable through the context,
+      // and with JS being too dynamic to perform an appropriate type check.
+      // The cardinality example above might, for instance, use a context in which id's
+      // are represented as arrays of numbers. In which case an array be a valid id.
+      // And again without knowing the type of the array there is no non-trivial/performant
+      // way to distinguish between the byte array of an id, and an entity array.
     ) {
       let entity_id = w.value[id] || unknowns.next().value;
       if (w.parent_id) {
@@ -547,7 +561,7 @@ const compile_query = (ctx, raw_facts) => {
 };
 
 class TribleKB {
-  constructor(db = emptydb) {
+  constructor(db = new TribleDB()) {
     this.db = db;
   }
   with(ctx, cfn) {
@@ -598,4 +612,4 @@ class TribleKB {
   }
 }
 
-export { TribleKB };
+export { id, TribleKB };

@@ -4,13 +4,16 @@ import {
 } from "https://deno.land/std@0.75.0/testing/asserts.ts";
 import { v4 } from "https://deno.land/std@0.76.0/uuid/mod.ts";
 
-import { TribleKB } from "./triblekb.js";
+import { id, TribleKB } from "./triblekb.js";
 import { types } from "./types.js";
 
 Deno.test("Integration", () => {
   const observation_attr = v4.generate();
+  const state_open = v4.generate();
+  const state_done = v4.generate();
+
   const todo_ctx = {
-    [id]: { ...id_type, id: v4.generate },
+    [id]: { ...types.id, id: v4.generate },
     observationOf: {
       isLink: true,
       isMany: true,
@@ -21,7 +24,7 @@ Deno.test("Integration", () => {
       id: observation_attr,
     },
     task: {
-      ...shortstring_type,
+      ...types.shortstring,
       id: v4.generate(),
     },
     state: {
@@ -29,11 +32,43 @@ Deno.test("Integration", () => {
       id: v4.generate(),
     },
     stamp: {
-      ...spacetime_type,
+      ...types.spacetimestamp,
+      id: v4.generate(),
+    },
+    creator: {
+      isLink: true,
+      id: v4.generate(),
+    },
+    name: {
+      ...types.shortstring,
       id: v4.generate(),
     },
   };
-  const kb = new TripleKB();
+  const kb = new TribleKB();
+  let todos = new TribleKB().with(todo_ctx, ([t]) => [
+    {
+      task: "Get soymilk!",
+      observedAs: [
+        { state: state_open, stamp: { t: 0n, x: 0n, y: 0n, z: 0n } },
+      ],
+      creator: { name: "jp" },
+    },
+  ]);
 
-  assertEquals(x, 3);
+  assertEquals([
+    ...todos.find(todo_ctx, ({ observation, stamp, task }) => [
+      {
+        [id]: observation,
+        stamp: stamp.at(0),
+        observationOf: { task },
+        creator: { name: "jp" },
+      },
+    ]),
+  ], [
+    {
+      observation: observation_id,
+      task: "Get soy!",
+      stamp: { t: 0n, x: 0n, y: 0n, z: 0n },
+    },
+  ]);
 });

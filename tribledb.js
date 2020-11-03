@@ -1,8 +1,8 @@
-import { makePART } from "part.js";
+import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
+import { makePART } from "./part.js";
 
-const FACT_LENGTH = 64;
-
-const VALUE_LENGTH = 32;
+const TRIBLE_PART = makePART(TRIBLE_SIZE);
+const VALUE_PART = makePART(VALUE_SIZE);
 
 const EAV = 0;
 const EVA = 1;
@@ -245,7 +245,7 @@ class IndexConstraint {
 
 class CollectionConstraint {
   constructor(variable, collection) {
-    const index_batch = makePART(VALUE_LENGTH).batch();
+    const index_batch = VALUE_PART.batch();
     for (const c of collection) {
       index_batch.put(c);
     }
@@ -461,39 +461,39 @@ class UnsafeQuery {
 
 class TribleDB {
   constructor(
-    fact_count = 0,
+    indices = new Array(INDEX_COUNT).fill(TRIBLE_PART),
+    blobs = VALUE_PART,
+    trible_count = 0,
     blobs_count = 0,
     blobs_size = 0,
-    indices = new Array(INDEX_COUNT).fill(makePART(FACT_LENGTH)),
-    blobs = makePART(VALUE_LENGTH),
   ) {
-    this.fact_count = fact_count;
+    this.trible_count = trible_count;
     this.blobs_count = blobs_count;
     this.blobs_size = blobs_size;
     this.indices = indices;
     this.blobs = blobs;
   }
 
-  with(facts, blobs) {
-    let fact_count = this.fact_count;
+  with(tribles, blobs) {
+    let trible_count = this.trible_count;
     let blobs_count = this.blobs_count;
     let blobs_size = this.blobs_size;
     let [index, ...rindices] = this.indices;
     let batches = rindices.map((i) => i.batch());
-    for (let f = 0; f < facts.length; f++) {
-      const fact = facts[f];
-      const idx = index.put(fact);
+    for (let f = 0; f < tribles.length; f++) {
+      const trible = tribles[f];
+      const idx = index.put(trible);
       if (idx === index) {
         continue;
       }
       index = idx;
       for (let i = 1; i < INDEX_COUNT; i++) {
-        const reordered_fact = index_order[i](fact);
-        if (reordered_fact) {
-          batches[i - 1].put(reordered_fact);
+        const reordered_trible = index_order[i](trible);
+        if (reordered_trible) {
+          batches[i - 1].put(reordered_trible);
         }
       }
-      fact_count++;
+      trible_count++;
     }
     let nblobs = this.blobs;
     if (blobs) {
@@ -511,11 +511,11 @@ class TribleDB {
       return this;
     }
     return new TribleDB(
-      fact_count,
-      blobs_count,
-      blobs_size,
       [index, ...batches.map((b) => b.complete())],
       nblobs,
+      trible_count,
+      blobs_count,
+      blobs_size,
     );
   }
 
@@ -527,3 +527,5 @@ class TribleDB {
     return this.blobs.get(k);
   }
 }
+
+export { TribleDB };

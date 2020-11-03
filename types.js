@@ -3,6 +3,6 @@ import { shortstring } from "./types/shortstring.js";
 import { longstring } from "./types/longstring.js";
 import { spacetimestamp } from "./types/spacetimestamp.js";
 
-const types = { id, shortsting, longstring, spacetimestamp };
+const types = { id, shortstring, longstring, spacetimestamp };
 
 export { types };
