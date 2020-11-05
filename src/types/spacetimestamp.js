@@ -64,43 +64,47 @@ const bytesToBigInt = (b, offset, length) => {
   return n;
 };
 
-const spacetimestamp = {
-  encoder: (v, b) => {
-    const { t, x, y, z } = v;
-    if (t > 0xffffffffffffffffn) {
-      throw Error(
-        "Error encoding spacetimestamp: Not in valid range: 0 <= t <= 2^64-1.",
-      );
-    }
-    if (x > 0xffffffffffffffffn) {
-      throw Error(
-        "Error encoding spacetimestamp: Not in valid range: 0 <= x <= 2^64-1.",
-      );
-    }
-    if (y > 0xffffffffffffffffn) {
-      throw Error(
-        "Error encoding spacetimestamp: Not in valid range: 0 <= y <= 2^64-1.",
-      );
-    }
-    if (z > 0xffffffffffffffffn) {
-      throw Error(
-        "Error encoding spacetimestamp: Not in valid range: 0 <= z <= 2^64-1.",
-      );
-    }
-    const xyz = (spread(x) << 2n) | (spread(y) << 1n) | spread(z);
-    bigIntToBytes(t, b, 0, 8);
-    bigIntToBytes(xyz, b, 8, 24);
-    return null;
-  },
-  decoder: (b, blob) => {
-    const t = bytesToBigInt(b, 0, 8);
-    const xyz = bytesToBigInt(b, 8, 24);
-    const x = unspread(xyz >> 2n);
-    const y = unspread(xyz >> 1n);
-    const z = unspread(xyz);
+function spacetimestamp_encoder(v, b) {
+  const { t, x, y, z } = v;
+  if (t > 0xffffffffffffffffn) {
+    throw Error(
+      "Error encoding spacetimestamp: Not in valid range: 0 <= t <= 2^64-1.",
+    );
+  }
+  if (x > 0xffffffffffffffffn) {
+    throw Error(
+      "Error encoding spacetimestamp: Not in valid range: 0 <= x <= 2^64-1.",
+    );
+  }
+  if (y > 0xffffffffffffffffn) {
+    throw Error(
+      "Error encoding spacetimestamp: Not in valid range: 0 <= y <= 2^64-1.",
+    );
+  }
+  if (z > 0xffffffffffffffffn) {
+    throw Error(
+      "Error encoding spacetimestamp: Not in valid range: 0 <= z <= 2^64-1.",
+    );
+  }
+  const xyz = (spread(x) << 2n) | (spread(y) << 1n) | spread(z);
+  bigIntToBytes(t, b, 0, 8);
+  bigIntToBytes(xyz, b, 8, 24);
+  return null;
+}
 
-    return { t, x, y, z };
-  },
+function spacetimestamp_decoder(b, blob) {
+  const t = bytesToBigInt(b, 0, 8);
+  const xyz = bytesToBigInt(b, 8, 24);
+  const x = unspread(xyz >> 2n);
+  const y = unspread(xyz >> 1n);
+  const z = unspread(xyz);
+
+  return { t, x, y, z };
+}
+
+const spacetimestamp = {
+  encoder: spacetimestamp_encoder,
+  decoder: spacetimestamp_decoder,
 };
 
 export { spacetimestamp };
