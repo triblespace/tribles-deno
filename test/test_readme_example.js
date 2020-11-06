@@ -19,7 +19,7 @@ Deno.test("Integration", () => {
       id: observation_attr,
     },
     observedAs: {
-      isInverse: true,
+      isInverseLink: true,
       id: observation_attr,
     },
     task: {

@@ -116,10 +116,10 @@ class IDSequence {
 const entityProxy = function entityProxy(kb, ctx, entity_id) {
   const attrs_batch = VALUE_PART.batch();
   const inverse_attrs_batch = VALUE_PART.batch();
-  for (const [attr, { id: attr_id, isInverse }] of Object.entries(ctx)) {
+  for (const [attr, { id: attr_id, isInverseLink }] of Object.entries(ctx)) {
     const a_id = new Uint8Array(VALUE_SIZE);
     ctx[id].encoder(attr_id, a_id);
-    if (isInverse) {
+    if (isInverseLink) {
       inverse_attrs_batch.put(a_id, (attrs = []) => [...attrs, attr]);
     } else {
       attrs_batch.put(a_id, (attrs = []) => [...attrs, attr]);
@@ -134,7 +134,7 @@ const entityProxy = function entityProxy(kb, ctx, entity_id) {
   const lookup = (o, attr) => {
     const a_id = new Uint8Array(VALUE_SIZE);
     ctx[id].encoder(ctx[attr].id, a_id);
-    if (ctx[attr].isInverse) {
+    if (ctx[attr].isInverseLink) {
       const res = new UnsafeQuery([[2, 1, 0]], [e_id, a_id], [], 3).on(kb.db);
       let result;
       let decoder;
@@ -199,8 +199,8 @@ const entityProxy = function entityProxy(kb, ctx, entity_id) {
           return false;
         }
 
-        if (attr in o || ctx[attr].isMany || ctx[attr].isInverse) {
-          // This does include isInverse, because of an interaction between the distributed OWA
+        if (attr in o || ctx[attr].isMany || ctx[attr].isInverseLink) {
+          // This does include isInverseLink, because of an interaction between the distributed OWA
           // and the local CWA. We do not have knowledge about all other distributed entities,
           // therefore we can only assume an isMany relationship.
           return true;
@@ -309,7 +309,7 @@ const entities_to_facts = (ctx, unknowns, root, facts = []) => {
     if (
       (!w.parent_id ||
         ctx[w.parent_attr].isLink ||
-        ctx[w.parent_attr].isInverse) &&
+        ctx[w.parent_attr].isInverseLink) &&
       isPojo(w.value)
       // Note: It's tempting to perform more specific error checks here.
       // E.g. catching cases where a change from a cardinality many to a cardinality one
@@ -323,7 +323,7 @@ const entities_to_facts = (ctx, unknowns, root, facts = []) => {
     ) {
       let entity_id = w.value[id] || unknowns.next().value;
       if (w.parent_id) {
-        if (ctx[w.parent_attr].isInverse) {
+        if (ctx[w.parent_attr].isInverseLink) {
           facts.push({
             path: w.path,
             fact: [entity_id, w.parent_attr, w.parent_id],
@@ -341,7 +341,7 @@ const entities_to_facts = (ctx, unknowns, root, facts = []) => {
             `Error at path [${w.path}]: No attribute named '${attr}' in ctx.`,
           );
         }
-        if (ctx[attr].isInverse) {
+        if (ctx[attr].isInverseLink) {
           if (!(value instanceof Array)) {
             throw Error(
               `Error at path [${w.path}]: Inverse Attribute '${attr}' needs an array.`,
@@ -355,7 +355,7 @@ const entities_to_facts = (ctx, unknowns, root, facts = []) => {
               parent_attr: attr,
             });
           }
-        } else if (ctx[attr].isMany || ctx[attr].isInverse) {
+        } else if (ctx[attr].isMany || ctx[attr].isInverseLink) {
           if (!(value instanceof Array)) {
             if (ctx[attr].isMany) {
               throw Error(
@@ -385,7 +385,7 @@ const entities_to_facts = (ctx, unknowns, root, facts = []) => {
         }
       }
     } else {
-      if (ctx[w.parent_attr].isInverse) {
+      if (ctx[w.parent_attr].isInverseLink) {
         facts.push({
           path: w.path,
           fact: [w.value, w.parent_attr, w.parent_id],
@@ -412,7 +412,7 @@ const encode_facts = function (ctx, raw_facts, facts = [], blobs = []) {
     let encoded_value = V(fact);
     let blob;
     try {
-      blob = ctx[ctx[attr].isLink || ctx[attr].isInverse ? id : attr].encoder(
+      blob = ctx[ctx[attr].isLink || ctx[attr].isInverseLink ? id : attr].encoder(
         value,
         encoded_value,
       );
@@ -502,7 +502,7 @@ const compile_query = (ctx, raw_facts) => {
     }
     try {
       if (value instanceof Variable) {
-        const decoder = ctx[attr].isLink ? ctx[id].decoder : ctx[attr].decoder;
+        const decoder = ctx[attr].isLink || ctx[attr].isInverseLink ? ctx[id].decoder : ctx[attr].decoder;
         if (variables[value.index]) {
           if (variables[value.index].decoder !== decoder) {
             throw new Error(
