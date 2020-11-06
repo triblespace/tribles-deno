@@ -535,11 +535,13 @@ const compile_query = (ctx, raw_facts) => {
         }
         encoded_value = value;
       } else {
-        if (ctx[attr].isLink) {
-          ctx[id].encoder(value, encoded_value);
-        } else {
-          ctx[attr].encoder(value, encoded_value);
+        const encoder = ctx[attr].isLink || ctx[attr].isInverseLink
+          ? ctx[id].encoder
+          : ctx[attr].encoder;
+        if (!encoder) {
+          throw Error("No encoder in context.");
         }
+        encoder(value, encoded_value);
         constants = constants.put(encoded_value, () => ({}));
       }
     } catch (error) {
