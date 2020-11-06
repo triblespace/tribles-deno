@@ -126,7 +126,7 @@ Deno.test("Integration", () => {
 # Background and Fundamentals
 ## Triples and Tribles (and Blobs)
 The fundamental building block of the _tribles_ ecosystem is the _trible_.
-_Tribles_, are _b_ inary _triples_, encoded as 64byte long immutable values, that consists of three parts, an entity, an attribute, a value,
+_Tribles_, are **b**inary _triples_, encoded as 64byte long immutable values, that consists of three parts, an entity, an attribute, a value,
 or to use their semantic web names, a subject, a predicate, and an object.
 Entity and attribute are both 16byte wide, and hold a random or pseudorandom identifier like a UUID. [2]
 The value is 32byte wide and can hold arbitrary data.
