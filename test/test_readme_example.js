@@ -49,7 +49,7 @@ Deno.test("Integration", () => {
   const observation_id = v4.generate();
   let todos = new TribleKB().with(todo_ctx, ([t]) => [
     {
-      task: "Get soymilk!",
+      task: "Get almondmilk!",
       observedAs: [
         {
           [id]: observation_id,
@@ -74,6 +74,6 @@ Deno.test("Integration", () => {
   );
 
   assertEquals(first_result.observation.state[id], state_open); //Notice the walk() in action.
-  assertEquals(first_result.task, "Get soymilk!");
+  assertEquals(first_result.task, "Get almondmilk!");
   assertEquals(first_result.stamp, { t: 0n, x: 0n, y: 0n, z: 0n });
 });
