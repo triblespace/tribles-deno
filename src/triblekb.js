@@ -412,7 +412,13 @@ const encode_facts = function (ctx, raw_facts, facts = [], blobs = []) {
     let encoded_value = V(fact);
     let blob;
     try {
-      blob = ctx[ctx[attr].isLink || ctx[attr].isInverseLink ? id : attr].encoder(
+      const encoder = ctx[attr].isLink || ctx[attr].isInverseLink
+        ? ctx[id].encoder
+        : ctx[attr].encoder;
+      if (!encoder) {
+        throw Error("No encoder in context.");
+      }
+      blob = encoder(
         value,
         encoded_value,
       );
@@ -502,7 +508,12 @@ const compile_query = (ctx, raw_facts) => {
     }
     try {
       if (value instanceof Variable) {
-        const decoder = ctx[attr].isLink || ctx[attr].isInverseLink ? ctx[id].decoder : ctx[attr].decoder;
+        const decoder = ctx[attr].isLink || ctx[attr].isInverseLink
+          ? ctx[id].decoder
+          : ctx[attr].decoder;
+        if (!decoder) {
+          throw Error("No decoder in context.");
+        }
         if (variables[value.index]) {
           if (variables[value.index].decoder !== decoder) {
             throw new Error(
