@@ -16,6 +16,7 @@ So far the following components have been implemented.
   - Shortstring
   - Longstring
   - Spacetimestamp
+  - float64
 
 Currently to be done and missing is:
 
