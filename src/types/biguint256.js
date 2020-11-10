@@ -1,6 +1,6 @@
 import { bigIntToBytes, bytesToBigInt } from "./util.js";
 
-function bigint256_encoder(v, b) {
+function biguint256_encoder(v, b) {
   if (
     v > 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn ||
     v < 0n
@@ -13,13 +13,13 @@ function bigint256_encoder(v, b) {
   return null;
 }
 
-function bigint256_decoder(b, blob) {
+function biguint256_decoder(b, blob) {
   return bytesToBigInt(b, 0, 32);
 }
 
-const bigint256 = ({
-  encoder: bigint256_encoder,
-  decoder: bigint256_decoder,
+const biguint256 = ({
+  encoder: biguint256_encoder,
+  decoder: biguint256_decoder,
 });
 
-export { bigint256 };
+export { biguint256 };
