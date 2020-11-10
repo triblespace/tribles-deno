@@ -1,3 +1,5 @@
+import { bigIntToBytes, bytesToBigInt } from "./util.js";
+
 const spread = (x) => {
   let X = BigInt(x);
   X = (X | (X << 64n)) &
@@ -43,25 +45,6 @@ const unspread = (x) => {
     0b1111111111111111111111111111111111111111111111111111111111111111n;
 
   return X;
-};
-
-const bigIntToBytes = (bn, b, offset, length) => {
-  let n = bn;
-  for (let i = offset + length - 1; offset <= i; i--) {
-    b[i] = new Number(n & 0xffn);
-    n = n >> 8n;
-  }
-  return b;
-};
-
-const bytesToBigInt = (b, offset, length) => {
-  let n = 0n;
-  const end = offset + length;
-  for (let i = offset; i < end; i++) {
-    n = n << 8n;
-    n = n | BigInt(b[i]);
-  }
-  return n;
 };
 
 function spacetimestamp_encoder(v, b) {
