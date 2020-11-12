@@ -139,7 +139,7 @@ This separation of long and short data has a few advantages:
   - It allows for interesting optimisations when indexing the now fixed size tribles.
 
 The lengths of E,A, and V were chosen so that the frequency of collisions in IDs or Hashes
-is far less likely than the system producing bad data from CPU errors. [3]
+is far less likely than the system producing bad data from CPU errors. Furthermore 64byte coincides nicely with the cache line size on most systems (year 2020). [3]
 
 ## TribleDB and TribleKB
 _Tribles_ are stored in TribleDB, a persistent (not in the durable, but immutable sense), append only, in memory database.
