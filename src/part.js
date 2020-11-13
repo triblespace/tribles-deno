@@ -137,7 +137,7 @@ const makePART = function (KEY_LENGTH) {
     }
     put(depth, key, upsert, owner) {
       let value = upsert ? upsert(this.value) : null;
-      if (owner && this.owner === owner) {
+      if (this.owner === owner) {
         this.value = value;
         return this;
       }
@@ -191,9 +191,19 @@ const makePART = function (KEY_LENGTH) {
       return new PARTBatch(this.child, {});
     }
 
+    /*
+    difference(other) {
+      if(this.child.owner === other.child.owner) {
+        return new PARTree();
+      } else {
+        return 
+      }
+    } */
+
     put(key, upsert = null) {
+      const owner = {};
       if (this.child) {
-        const nchild = this.child.put(0, key, upsert, this.owner);
+        const nchild = this.child.put(0, key, upsert, owner);
         if (this.child === nchild) return this;
         return new PARTree(nchild);
       }
@@ -202,8 +212,8 @@ const makePART = function (KEY_LENGTH) {
         new PARTPathNode(
           0,
           path,
-          new PARTLeaf(upsert ? upsert(undefined) : null, null),
-          null,
+          new PARTLeaf(upsert ? upsert(undefined) : null, owner),
+          owner,
         ),
       );
     }
@@ -224,7 +234,7 @@ const makePART = function (KEY_LENGTH) {
   }
 
   class PARTPathNode {
-    constructor(depth, path, child, owner = null) {
+    constructor(depth, path, child, owner) {
       this.depth = depth;
       this.path = path;
       this.child = child;
@@ -252,7 +262,7 @@ const makePART = function (KEY_LENGTH) {
           upsert,
           owner,
         );
-        if (owner && this.owner === owner) {
+        if (this.owner === owner) {
           this.child = nchild;
           return this;
         } else if (this.child === nchild) return this;
@@ -295,7 +305,7 @@ const makePART = function (KEY_LENGTH) {
 
       if (matchLength === 0) return nchild;
 
-      if (owner && this.owner === owner) {
+      if (this.owner === owner) {
         this.child = nchild;
         this.path = this.path.subarray(0, matchLength);
         return this;
@@ -310,7 +320,7 @@ const makePART = function (KEY_LENGTH) {
   }
 
   class PARTLinearNode {
-    constructor(index, children, owner = null) {
+    constructor(index, children, owner) {
       this.index = index;
       this.children = children;
       this.owner = owner;
@@ -354,7 +364,7 @@ const makePART = function (KEY_LENGTH) {
       if (child) {
         //We need to update the child where this key would belong.
         const nchild = this.children[pos].put(depth + 1, key, upsert, owner);
-        if (owner && this.owner === owner) {
+        if (this.owner === owner) {
           this.children[pos] = nchild;
           return this;
         } else if (child === nchild) return this;
@@ -369,7 +379,7 @@ const makePART = function (KEY_LENGTH) {
       }
       if (this.children.length < linearNodeSize) {
         //We append a new child for this key.
-        if (owner && this.owner === owner) {
+        if (this.owner === owner) {
           this.children.push(nchild);
           this.index[this.children.length - 1] = key[depth];
           return this;
@@ -392,7 +402,7 @@ const makePART = function (KEY_LENGTH) {
   }
 
   class PARTIndirectNode {
-    constructor(index, children, owner = null) {
+    constructor(index, children, owner) {
       this.index = index;
       this.children = children;
       this.owner = owner;
@@ -421,7 +431,7 @@ const makePART = function (KEY_LENGTH) {
       if (child) {
         //We need to update the child where this key would belong.
         const nchild = child.put(depth + 1, key, upsert, owner);
-        if (owner && this.owner === owner) {
+        if (this.owner === owner) {
           this.children[pos] = nchild;
           return this;
         } else if (child === nchild) return this;
@@ -440,7 +450,7 @@ const makePART = function (KEY_LENGTH) {
       }
       if (this.children.length < indirectNodeSize) {
         //We append a new child for this key.
-        if (owner && this.owner === owner) {
+        if (this.owner === owner) {
           this.children.push(nchild);
           this.index[key[depth]] = this.children.length;
           return this;
@@ -463,7 +473,7 @@ const makePART = function (KEY_LENGTH) {
   }
 
   class PARTDirectNode {
-    constructor(children, owner = null) {
+    constructor(children, owner) {
       this.children = children;
       this.owner = owner;
     }
@@ -503,7 +513,7 @@ const makePART = function (KEY_LENGTH) {
           nchild = new PARTPathNode(depth + 1, path, nchild, owner);
         }
       }
-      if (owner && this.owner === owner) {
+      if (this.owner === owner) {
         this.children[pos] = nchild;
         return this;
       } else if (child === nchild) return this;

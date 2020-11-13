@@ -1,7 +1,7 @@
 import { v4 } from "https://deno.land/std@0.76.0/uuid/mod.ts";
 
 import { VALUE_PART } from "./part.js";
-import { TribleDB, UnsafeQuery } from "./tribledb.js";
+import { IndexConstraint, TribleDB, UnsafeQuery } from "./tribledb.js";
 import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
 
 const id = Symbol("id");
@@ -607,7 +607,10 @@ class TribleKB {
         [],
         variable_count,
         variable_count,
-        vars.variables.map((v) => v.ascending),
+        [
+          ...new Array(bindings.length).fill(true),
+          ...vars.variables.map((v) => v.ascending),
+        ],
       ).on(this.db)
     ) {
       yield Object.fromEntries(

@@ -1,5 +1,5 @@
 function shortstring_encoder(v, b) {
-  let d = new TextEncoder("utf-8").encode(v);
+  const d = new TextEncoder("utf-8").encode(v);
   if (d.length > 32) {
     throw Error("String is too long for encoding.");
   }

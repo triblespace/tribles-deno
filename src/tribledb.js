@@ -534,4 +534,11 @@ class TribleDB {
   }
 }
 
-export { TribleDB, UnsafeQuery };
+export {
+  CollectionConstraint,
+  ConstantConstraint,
+  IndexConstraint,
+  TribleDB,
+  TripleConstraint,
+  UnsafeQuery,
+};
