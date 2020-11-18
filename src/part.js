@@ -130,27 +130,6 @@ const makePART = function (KEY_LENGTH) {
     }
   }
 
-  class PARTLeaf {
-    constructor(value, owner) {
-      this.value = value;
-      this.owner = owner;
-    }
-    put(depth, key, upsert, owner) {
-      let value = upsert ? upsert(this.value) : null;
-      if (this.owner === owner) {
-        this.value = value;
-        return this;
-      }
-      if (value === this.value) {
-        return this;
-      }
-      return new PARTLeaf(value, owner);
-    }
-    seek(depth, v, ascending) {
-      throw new Error("Can't seek on PARTLeaf!");
-    }
-  }
-
   class PARTBatch {
     constructor(child, owner) {
       this.owner = owner;
@@ -183,6 +162,89 @@ const makePART = function (KEY_LENGTH) {
     }
   }
 
+  function _makeNode(children, owner, depth) {
+    const len = children.length;
+    if (len === 0) {
+      return null;
+    }
+    if (len === 1) {
+      const [[index, child]] = children;
+      if (child instanceof PARTPathNode) {
+        if (
+          child.depth <= depth && (index === child.path[depth - child.depth])
+        ) {
+          return child;
+        }
+        const path = new Uint8Array(child.path.length + 1);
+        path[0] = index;
+        path.set(child.path, 1);
+        return new PARTPathNode(depth, path, child.child, owner);
+      }
+      const path = new Uint8Array(1);
+      path[0] = index;
+      return new PARTPathNode(depth, path, child, owner);
+    }
+    if (len < linearNodeSize) {
+      const nindex = new Uint8Array(children.length);
+      const nchildren = children.map(([index, child], i) => {
+        nindex[i] = index;
+        return child;
+      });
+      nindex[nchildren.length - 1] = key[depth];
+      return new PARTLinearNode(nindex, nchildren, owner);
+    }
+    if (len < indirectNodeSize) {
+            const nindex = new Uint8Array(256);
+            const nchildren = children.map(([index, child], i) => {
+              nindex[index] = i+1;
+              return child;
+            });
+            return new PARTIndirectNode(nindex, nchildren, owner);
+    }
+    const nchildren = new Array(256);
+    for (let i = 0; i < children.length; i++) {
+      const [index, child] = children[i];
+      nchildren[index] = child;
+    }
+    return new PARTDirectNode(nchildren, owner);
+  }
+
+  function _difference(
+    l_node,
+    r_node,
+    owner,
+    depth = 0,
+  ) {
+    let children = [];
+
+    let [l_index, l_child] = l_node.seek(depth, 0, true);
+    search:
+    while (l_child) {
+      const [r_index, r_child] = r_node.seek(depth, l_index, true);
+      if (!r_child) {
+        while (l_child) {
+          children.push([l_index, l_child]);
+          let [l_index, l_child] = r_node.seek(depth, l_index + 1, true);
+        }
+        break search;
+      }
+      while (l_index < r_index) {
+        children.push([l_index, l_child]);
+        let [l_index, l_child] = r_node.seek(depth, l_index + 1, true);
+        if (!l_child) break search;
+      }
+      if ((depth < (KEY_LENGTH - 1)) && (l_index === r_index)) {
+        if (l_child.owner !== r_child.owner) {
+          const diff = _difference(l_child, r_child);
+          if (diff) {
+            children.push([l_index, diff]);
+          }
+        }
+      }
+    }
+    return _makeNode(children, owner, depth);
+  }
+
   class PARTree {
     constructor(child = null) {
       this.child = child;
@@ -190,15 +252,6 @@ const makePART = function (KEY_LENGTH) {
     batch() {
       return new PARTBatch(this.child, {});
     }
-
-    /*
-    difference(other) {
-      if(this.child.owner === other.child.owner) {
-        return new PARTree();
-      } else {
-        return 
-      }
-    } */
 
     put(key, upsert = null) {
       const owner = {};
@@ -228,8 +281,44 @@ const makePART = function (KEY_LENGTH) {
       }
       return node.value;
     }
+
     cursor() {
       return new PARTCursor(this);
+    }
+
+    difference(other) {
+      let this_node = this.child;
+      let other_node = other.child;
+      if (other.child === null) {
+        return new PARTree(this_node);
+      }
+      if (this.child === null || this.child.owner === other.child.owner) {
+        return new PARTree();
+      } else {
+        const owner = {};
+        return PARTree(difference_(this_node, other_node, owner));
+      }
+    }
+  }
+
+  class PARTLeaf {
+    constructor(value, owner) {
+      this.value = value;
+      this.owner = owner;
+    }
+    put(depth, key, upsert, owner) {
+      let value = upsert ? upsert(this.value) : null;
+      if (this.owner === owner) {
+        this.value = value;
+        return this;
+      }
+      if (value === this.value) {
+        return this;
+      }
+      return new PARTLeaf(value, owner);
+    }
+    seek(depth, v, ascending) {
+      throw new Error("Can't seek on PARTLeaf!");
     }
   }
 
