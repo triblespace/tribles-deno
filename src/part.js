@@ -159,6 +159,7 @@ const makePART = function (KEY_LENGTH) {
           this.owner,
         );
       }
+      return this;
     }
   }
 
@@ -190,7 +191,6 @@ const makePART = function (KEY_LENGTH) {
         nindex[i] = index;
         return child;
       });
-      nindex[nchildren.length - 1] = key[depth];
       return new PARTLinearNode(nindex, nchildren, owner);
     }
     if (len < indirectNodeSize) {
@@ -210,36 +210,47 @@ const makePART = function (KEY_LENGTH) {
   }
 
   function _difference(
-    l_node,
-    r_node,
+    left_node,
+    right_node,
     owner,
     depth = 0,
   ) {
-    let children = [];
+    const children = [];
 
-    let [l_index, l_child] = l_node.seek(depth, 0, true);
+    let [left_index, left_child] = left_node.seek(depth, 0, true);
     search:
-    while (l_child) {
-      const [r_index, r_child] = r_node.seek(depth, l_index, true);
-      if (!r_child) {
-        while (l_child) {
-          children.push([l_index, l_child]);
-          [l_index, l_child] = r_node.seek(depth, l_index + 1, true);
+    while (left_child) {
+      const [right_index, right_child] = right_node.seek(
+        depth,
+        left_index,
+        true,
+      );
+      if (!right_child) {
+        while (left_child) {
+          children.push([left_index, left_child]);
+          [left_index, left_child] = left_node.seek(
+            depth,
+            left_index + 1,
+            true,
+          );
         }
         break search;
       }
-      while (l_index < r_index) {
-        children.push([l_index, l_child]);
-        [l_index, l_child] = r_node.seek(depth, l_index + 1, true);
-        if (!l_child) break search;
+      while (left_index < right_index) {
+        children.push([left_index, left_child]);
+        [left_index, left_child] = left_node.seek(depth, left_index + 1, true);
+        if (!left_child) break search;
       }
-      if ((depth < (KEY_LENGTH - 1)) && (l_index === r_index)) {
-        if (l_child.owner !== r_child.owner) {
-          const diff = _difference(l_child, r_child, owner, depth + 1);
+      if ((left_index === right_index)) {
+        if (
+          (depth < (KEY_LENGTH - 1)) && (left_child.owner !== right_child.owner)
+        ) {
+          const diff = _difference(left_child, right_child, owner, depth + 1);
           if (diff) {
-            children.push([l_index, diff]);
+            children.push([left_index, diff]);
           }
         }
+        [left_index, left_child] = left_node.seek(depth, left_index + 1, true);
       }
     }
     return _makeNode(children, owner, depth);
@@ -296,7 +307,7 @@ const makePART = function (KEY_LENGTH) {
         return new PARTree();
       } else {
         const owner = {};
-        return PARTree(_difference(this_node, other_node, owner));
+        return new PARTree(_difference(this_node, other_node, owner));
       }
     }
 
