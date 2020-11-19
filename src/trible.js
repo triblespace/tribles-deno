@@ -35,4 +35,13 @@ const equal_id = (a, b) => {
   );
 };
 
-export { A, E, equal_id, TRIBLE_SIZE, V, V1, v1zero, V2, VALUE_SIZE };
+const equal = (a, b) => {
+  const ua = new Uint32Array(a.buffer, a.byteOffset, 16);
+  const ub = new Uint32Array(b.buffer, b.byteOffset, 16);
+  for (let i = 0; i < 16; i++) {
+    if (ua[i] !== ub[i]) return false;
+  }
+  return true;
+};
+
+export { A, E, equal, equal_id, TRIBLE_SIZE, V, V1, v1zero, V2, VALUE_SIZE };

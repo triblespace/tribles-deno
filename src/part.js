@@ -194,12 +194,12 @@ const makePART = function (KEY_LENGTH) {
       return new PARTLinearNode(nindex, nchildren, owner);
     }
     if (len < indirectNodeSize) {
-            const nindex = new Uint8Array(256);
-            const nchildren = children.map(([index, child], i) => {
-              nindex[index] = i+1;
-              return child;
-            });
-            return new PARTIndirectNode(nindex, nchildren, owner);
+      const nindex = new Uint8Array(256);
+      const nchildren = children.map(([index, child], i) => {
+        nindex[index] = i + 1;
+        return child;
+      });
+      return new PARTIndirectNode(nindex, nchildren, owner);
     }
     const nchildren = new Array(256);
     for (let i = 0; i < children.length; i++) {
@@ -224,18 +224,18 @@ const makePART = function (KEY_LENGTH) {
       if (!r_child) {
         while (l_child) {
           children.push([l_index, l_child]);
-          let [l_index, l_child] = r_node.seek(depth, l_index + 1, true);
+          [l_index, l_child] = r_node.seek(depth, l_index + 1, true);
         }
         break search;
       }
       while (l_index < r_index) {
         children.push([l_index, l_child]);
-        let [l_index, l_child] = r_node.seek(depth, l_index + 1, true);
+        [l_index, l_child] = r_node.seek(depth, l_index + 1, true);
         if (!l_child) break search;
       }
       if ((depth < (KEY_LENGTH - 1)) && (l_index === r_index)) {
         if (l_child.owner !== r_child.owner) {
-          const diff = _difference(l_child, r_child);
+          const diff = _difference(l_child, r_child, owner, depth + 1);
           if (diff) {
             children.push([l_index, diff]);
           }
@@ -296,8 +296,21 @@ const makePART = function (KEY_LENGTH) {
         return new PARTree();
       } else {
         const owner = {};
-        return PARTree(difference_(this_node, other_node, owner));
+        return PARTree(_difference(this_node, other_node, owner));
       }
+    }
+
+    [Symbol.iterator]() {
+      const cursor = this.cursor();
+      if (cursor.valid) cursor.push(KEY_LENGTH);
+      return {
+        next() {
+          if (!cursor.valid) return { done: true };
+          const value = cursor.peek();
+          cursor.next();
+          return { value };
+        },
+      };
     }
   }
 
