@@ -1,4 +1,4 @@
-import { v4 } from "https://deno.land/std@0.76.0/uuid/mod.ts";
+import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 
 import { VALUE_PART } from "./part.js";
 import { IndexConstraint, TribleDB, UnsafeQuery } from "./tribledb.js";

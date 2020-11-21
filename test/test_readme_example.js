@@ -1,8 +1,8 @@
 import {
   assertArrayIncludes,
   assertEquals,
-} from "https://deno.land/std@0.75.0/testing/asserts.ts";
-import { v4 } from "https://deno.land/std@0.76.0/uuid/mod.ts";
+} from "https://deno.land/std@0.78.0/testing/asserts.ts";
+import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 
 import { id, TribleKB, types } from "../mod.js";
 

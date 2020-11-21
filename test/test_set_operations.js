@@ -1,12 +1,12 @@
 import {
   assertArrayIncludes,
   assertEquals,
-} from "https://deno.land/std@0.75.0/testing/asserts.ts";
+} from "https://deno.land/std@0.78.0/testing/asserts.ts";
 import { v4 } from "https://deno.land/std@0.76.0/uuid/mod.ts";
 import {
   decode,
   encode,
-} from "https://deno.land/std@0.76.0/encoding/base64.ts";
+} from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
 import fc from "https://cdn.skypack.dev/fast-check";
 fc.configureGlobal(
