@@ -578,6 +578,15 @@ class TribleKB {
   constructor(db = new TribleDB()) {
     this.db = db;
   }
+
+  withRaw(tribles, blobs) {
+    const db = this.db.with(tribles, blobs);
+    if (db === this.db) {
+      return this;
+    }
+    return new TribleKB(db);
+  }
+
   with(ctx, cfn) {
     let ids = new IDSequence();
     const entities = cfn(ids);
