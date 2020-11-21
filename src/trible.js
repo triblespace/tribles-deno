@@ -16,32 +16,62 @@ const V1_END = 48;
 const V2_START = 48;
 const V2_END = 64;
 
-const E = (f) => f.subarray(E_START, E_END);
-const A = (f) => f.subarray(A_START, A_END);
-const V = (f) => f.subarray(V_START, V_END);
-const V1 = (f) => f.subarray(V1_START, V1_END);
-const V2 = (f) => f.subarray(V2_START, V2_END);
+const E = (trible) => trible.subarray(E_START, E_END);
+const A = (trible) => trible.subarray(A_START, A_END);
+const V = (trible) => trible.subarray(V_START, V_END);
+const V1 = (trible) => trible.subarray(V1_START, V1_END);
+const V2 = (trible) => trible.subarray(V2_START, V2_END);
 
-const v1zero = (f) => {
-  const uf = new Uint32Array(f.buffer, f.byteOffset, 4);
-  return uf[0] === 0 && uf[1] === 0 && uf[2] === 0 && uf[3] === 0;
+const v1zero = (trible) => {
+  const view = new Uint32Array(trible.buffer, trible.byteOffset, 4);
+  return view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0;
 };
 
-const equal_id = (a, b) => {
-  const ua = new Uint32Array(a.buffer, a.byteOffset, 4);
-  const ub = new Uint32Array(b.buffer, b.byteOffset, 4);
+const equal_id = (tribleA, tribleB) => {
+  const viewA = new Uint32Array(tribleA.buffer, tribleA.byteOffset, 4);
+  const viewB = new Uint32Array(tribleB.buffer, tribleB.byteOffset, 4);
   return (
-    ua[0] === ub[0] && ua[1] === ub[1] && ua[2] === ub[2] && ua[3] === ub[3]
+    viewA[0] === viewB[0] && viewA[1] === viewB[1] && viewA[2] === viewB[2] &&
+    viewA[3] === viewB[3]
   );
 };
 
-const equal = (a, b) => {
-  const ua = new Uint32Array(a.buffer, a.byteOffset, 16);
-  const ub = new Uint32Array(b.buffer, b.byteOffset, 16);
+const equal = (tribleA, tribleB) => {
+  const viewA = new Uint32Array(tribleA.buffer, tribleA.byteOffset, 16);
+  const viewB = new Uint32Array(tribleB.buffer, tribleB.byteOffset, 16);
   for (let i = 0; i < 16; i++) {
-    if (ua[i] !== ub[i]) return false;
+    if (viewA[i] !== viewB[i]) return false;
   }
   return true;
 };
 
-export { A, E, equal, equal_id, TRIBLE_SIZE, V, V1, v1zero, V2, VALUE_SIZE };
+const isTransactionMarker = (trible) => {
+  const view = new Uint32Array(trible.buffer, trible.byteOffset, 8);
+  for (let i = 0; i < 8; i++) {
+    if (view[i] !== 0) return false;
+  }
+  return true;
+};
+
+const isValidTransaction = (trible, hash) => {
+  const viewT = new Uint32Array(trible.buffer, trible.byteOffset + 32, 8);
+  const viewH = new Uint32Array(hash.buffer, hash.byteOffset, 8);
+  for (let i = 0; i < 8; i++) {
+    if (viewT[i] !== viewH[i]) return false;
+  }
+  return true;
+};
+
+export {
+  A,
+  E,
+  equal,
+  equal_id,
+  isTransactionMarker,
+  TRIBLE_SIZE,
+  V,
+  V1,
+  v1zero,
+  V2,
+  VALUE_SIZE,
+};
