@@ -68,6 +68,7 @@ export {
   equal,
   equal_id,
   isTransactionMarker,
+  isValidTransaction,
   TRIBLE_SIZE,
   V,
   V1,
