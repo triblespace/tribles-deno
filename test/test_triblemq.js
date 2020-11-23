@@ -6,7 +6,11 @@ import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 
 import { id, TribleKB, TribleMQ, types } from "../mod.js";
 
-Deno.test("Check loopback.", () => {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+Deno.test("Check loopback.", async () => {
   // Define a context, mapping between js data and tribles.
   const knights_ctx = {
     [id]: { ...types.uuid },
@@ -37,8 +41,10 @@ Deno.test("Check loopback.", () => {
   );
 
   const mq = new TribleMQ();
-  mq.run();
-  mq.toOutbox(knightskb);
+  await mq.run();
+  await mq.toOutbox(knightskb);
+  await sleep(1000);
+  await mq.stop();
 
   //assertEquals(mq.inbox(), mq.outbox());
 });

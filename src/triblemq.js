@@ -10,23 +10,7 @@ import {
 } from "./blake2s.js";
 import { TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
 
-const READ_BUFFER_SIZE = 1024; //TODO change in the future based on throughput/laterncy considerations.
-
-async function sendTransactionTo(tribles, receivers) {
-  const triblesByteLength = TRIBLE_SIZE * tribles.length;
-  const transaction = new Uint8Array(triblesByteLength + TRIBLE_SIZE);
-  tribles.forEach((t, i) => transaction.set(t, TRIBLE_SIZE * i));
-
-  blake2s32(
-    transaction.subarray(0, triblesByteLength),
-    transaction.subarray(
-      triblesByteLength + (TRIBLE_SIZE - VALUE_SIZE),
-      triblesByteLength + TRIBLE_SIZE,
-    ),
-  );
-
-  return Promise.all(receivers.map((con) => con.write(transaction)));
-}
+const READ_BUFFER_SIZE = 64; //TODO change in the future based on throughput/laterncy considerations.
 
 class TribleMQ {
   constructor(
@@ -36,11 +20,15 @@ class TribleMQ {
   ) {
     this.queryableAddr = queryableAddr;
     this.queryAddr = queryAddr;
-    this.queryServer = null;
-    this.queryingCons = [];
+    this.incomingQueryListener = null;
+    this.incomingQueryListenerWorker = null;
+    this.incomingQueryCons = new Set();
+    this.incomingQueryWrites = new Set();
     this.queryCon = null;
+    this.queryWorker = null;
     this._inbox = new TribleKB();
     this._outbox = new TribleKB();
+    this.running = false;
   }
 
   inbox() {
@@ -52,38 +40,51 @@ class TribleMQ {
   }
 
   async run() {
-    const listener = Deno.listen(
-      { ...this.queryableAddr, transport: "tcp" },
-    );
+    console.log("running!")
+    this.running = true;
+    try {
+      this.incomingQueryListener = Deno.listen(
+        { ...this.queryableAddr, transport: "tcp" },
+      );
+      console.log("starting listener!")
+      this.incomingQueryListenerWorker = this.runQueryListener();
 
-    (async () => {
-      for await (const con of listener) {
-        const tribles = [
-          ...this._outbox.db.indices[0],
-        ];
-        this.queryingCons.push(con);
-        if (0 < tribles.length) {
-          sendTransactionTo(tribles, [con]);
-        }
-      }
-    })();
+      this.queryCon = await Deno.connect(
+        { ...this.queryAddr, transport: "tcp" },
+      );
+      this.queryWorker = this.runQuery();
+    } catch (error) {
+      this.running = false;
+      throw error;
+    }
+    return this;
+  }
 
-    this.queryCon = await Deno.connect(
-      { ...this.queryAddr, transport: "tcp" },
-    );
+  async stop() {
+    console.log("stopping!")
+    await Promise.all(this.incomingQueryWrites);
+    this.running = false;
+    this.queryCon.close();
+    this.incomingQueryListener.close();
+    this.incomingQueryCons.forEach((con) => con.close());
+    await this.queryWorker;
+    return this;
+  }
 
-    (async () => {
+  async runQuery() {
+    try {
+      console.log("running query!");
       let tmpInbox = this._inbox;
       let hashCtx = blake2sInit(32, null);
-      const trible = new Uint8Array(32);
+      const trible = new Uint8Array(TRIBLE_SIZE);
       const b = new BufReader(this.queryCon, READ_BUFFER_SIZE);
-      while (true) {
+      while (this.running) {
         await b.readFull(trible);
         console.log("got trible!");
-        if (isTransactionMarker(b)) {
+        if (isTransactionMarker(trible)) {
           console.log("complete transaction!");
           const hash = blake2sFinal(hashCtx, new Uint8Array(32));
-          if (isValidTransaction(b, hash)) {
+          if (isValidTransaction(trible, hash)) {
             console.log("valid transaction!");
             this._inbox = tmpInbox;
           } else {
@@ -96,20 +97,64 @@ class TribleMQ {
           tmpInbox = tmpInbox.withRaw([trible], []); //TODO: Do some benchmarks and check if we should do some batching here.
         }
       }
-    })();
-
-    return this;
+    } catch(error){
+      console.log(error);
+    }
   }
 
-  async toOutbox(outbox_value) {
+  async runQueryListener() {
+    console.log("Listener started!")
+    for await (const con of this.incomingQueryListener) {
+      this.incomingQueryCons.add(con);
+      console.log("Incoming query!")
+      const tribles = [
+        ...this._outbox.db.indices[0],
+      ];
+      if (0 < tribles.length) {
+        this.sendTransaction(tribles, [con]);
+      }
+    }
+  }
+
+  async sendTransaction(tribles) {
+    console.log("Sending:", tribles.length)
+    const triblesByteLength = TRIBLE_SIZE * tribles.length;
+    const transaction = new Uint8Array(triblesByteLength + TRIBLE_SIZE);
+    tribles.forEach((t, i) => transaction.set(t, TRIBLE_SIZE * i));
+
+    blake2s32(
+      transaction.subarray(0, triblesByteLength),
+      transaction.subarray(
+        triblesByteLength + (TRIBLE_SIZE - VALUE_SIZE),
+        triblesByteLength + TRIBLE_SIZE,
+      ),
+    );
+
+    return Promise.all(
+      Array.from(this.incomingQueryCons, (con) => {
+        console.log(con);
+        const write = con.write(transaction);
+        this.incomingQueryWrites.add(write);
+        return write.then((value) => {
+          this.incomingQueryWrites.delete(write);
+          return value;
+        }, (reason) => {
+          this.incomingQueryWrites.delete(write);
+          return reason;
+        });
+      }),
+    );
+  }
+
+  async toOutbox(outboxValue) {
     const tribles = [
-      ...this._outbox.db.indices[0].difference(outbox_value.db.indices[0]),
+      ...this._outbox.db.indices[0].difference(outboxValue.db.indices[0]),
     ];
     if (0 < tribles.length) {
-      await sendTransactionTo(tribles, this.queryingCons);
+      await this.sendTransaction(tribles);
     }
-    this._outbox = outbox_value;
-    return outbox_value;
+    this._outbox = outboxValue;
+    return outboxValue;
   }
 }
 
