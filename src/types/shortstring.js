@@ -1,4 +1,4 @@
-function shortstring_encoder(v, b) {
+function shortstringEncoder(v, b) {
   const d = new TextEncoder("utf-8").encode(v);
   if (d.length > 32) {
     throw Error("String is too long for encoding.");
@@ -13,7 +13,7 @@ function shortstring_encoder(v, b) {
   return null;
 }
 
-function shortstring_decoder(b, blob) {
+function shortstringDecoder(b, blob) {
   const i = b.indexOf(0);
   if (i !== -1) {
     b = b.subarray(0, i);
@@ -22,8 +22,8 @@ function shortstring_decoder(b, blob) {
 }
 
 const shortstring = ({
-  encoder: shortstring_encoder,
-  decoder: shortstring_decoder,
+  encoder: shortstringEncoder,
+  decoder: shortstringDecoder,
 });
 
 export { shortstring };

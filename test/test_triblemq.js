@@ -12,16 +12,16 @@ function sleep(ms) {
 
 Deno.test("Check loopback.", async () => {
   // Define a context, mapping between js data and tribles.
-  const knights_ctx = {
+  const knightsCtx = {
     [id]: { ...types.uuid },
     name: { id: v4.generate(), ...types.longstring },
     loves: { id: v4.generate(), isLink: true },
     titles: { id: v4.generate(), ...types.shortstring, isMany: true },
   };
-  knights_ctx["lovedBy"] = { id: knights_ctx.loves.id, isInverseLink: true };
+  knightsCtx["lovedBy"] = { id: knightsCtx.loves.id, isInverseLink: true };
   // Add some data.
-  let knightskb = new TribleKB().with(
-    knights_ctx,
+  const knightskb = new TribleKB().with(
+    knightsCtx,
     (
       [romeo, juliet],
     ) => [

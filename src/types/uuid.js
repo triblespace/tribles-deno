@@ -4,7 +4,7 @@ import {
 } from "https://deno.land/std@0.78.0/uuid/_common.ts";
 import { NIL_UUID, v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 
-function uuid_encoder(v, b) {
+function uuidEncoder(v, b) {
   if (!v4.validate(v)) {
     throw Error("Provided value is not an encodable uuid.");
   }
@@ -16,13 +16,13 @@ function uuid_encoder(v, b) {
   return null;
 }
 
-function uuid_decoder(b, blob) {
+function uuidDecoder(b, blob) {
   return bytesToUuid(b.subarray(b.length - 16));
 }
 
 const uuid = ({
-  encoder: uuid_encoder,
-  decoder: uuid_decoder,
+  encoder: uuidEncoder,
+  decoder: uuidDecoder,
 });
 
 export { uuid };

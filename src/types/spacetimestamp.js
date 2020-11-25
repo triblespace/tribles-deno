@@ -47,7 +47,7 @@ const unspread = (x) => {
   return X;
 };
 
-function spacetimestamp_encoder(v, b) {
+function spacetimestampEncoder(v, b) {
   const { t, x, y, z } = v;
   if (t > 0xffffffffffffffffn) {
     throw Error(
@@ -75,7 +75,7 @@ function spacetimestamp_encoder(v, b) {
   return null;
 }
 
-function spacetimestamp_decoder(b, blob) {
+function spacetimestampDecoder(b, blob) {
   const t = bytesToBigInt(b, 0, 8);
   const xyz = bytesToBigInt(b, 8, 24);
   const x = unspread(xyz >> 2n);
@@ -86,8 +86,8 @@ function spacetimestamp_decoder(b, blob) {
 }
 
 const spacetimestamp = {
-  encoder: spacetimestamp_encoder,
-  decoder: spacetimestamp_decoder,
+  encoder: spacetimestampEncoder,
+  decoder: spacetimestampDecoder,
 };
 
 export { spacetimestamp };

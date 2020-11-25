@@ -87,14 +87,14 @@ class VariableProvider {
   }
 
   arrange() {
-    let v_probe = 0;
+    let vProbe = 0;
     for (const v of [...this.unnamedVariables, ...this.namedVariables]) {
       if (v.index === null) {
-        while (this.variables[v_probe]) {
-          v_probe++;
+        while (this.variables[vProbe]) {
+          vProbe++;
         }
-        v.index = v_probe;
-        this.variables[v_probe] = v;
+        v.index = vProbe;
+        this.variables[vProbe] = v;
       }
     }
   }
@@ -120,47 +120,47 @@ class IDSequence {
   }
 }
 
-const entityProxy = function entityProxy(kb, ctx, entity_id) {
-  const attrs_batch = VALUE_PART.batch();
-  const inverse_attrs_batch = VALUE_PART.batch();
-  for (const [attr, { id: attr_id, isInverseLink }] of Object.entries(ctx)) {
-    const a_id = new Uint8Array(VALUE_SIZE);
-    ctx[id].encoder(attr_id, a_id);
+const entityProxy = function entityProxy(kb, ctx, entityId) {
+  const attrsBatch = VALUE_PART.batch();
+  const inverseAttrsBatch = VALUE_PART.batch();
+  for (const [attr, { id: attrId, isInverseLink }] of Object.entries(ctx)) {
+    const aId = new Uint8Array(VALUE_SIZE);
+    ctx[id].encoder(attrId, aId);
     if (isInverseLink) {
-      inverse_attrs_batch.put(a_id, (attrs = []) => [...attrs, attr]);
+      inverseAttrsBatch.put(aId, (attrs = []) => [...attrs, attr]);
     } else {
-      attrs_batch.put(a_id, (attrs = []) => [...attrs, attr]);
+      attrsBatch.put(aId, (attrs = []) => [...attrs, attr]);
     }
   }
-  const attrs_by_id = attrs_batch.complete();
-  const inverse_attrs_by_id = inverse_attrs_batch.complete();
+  const attrsById = attrsBatch.complete();
+  const inverseAttrsById = inverseAttrsBatch.complete();
 
-  const e_id = new Uint8Array(VALUE_SIZE);
-  ctx[id].encoder(entity_id, e_id);
+  const eId = new Uint8Array(VALUE_SIZE);
+  ctx[id].encoder(entityId, eId);
 
   const lookup = (o, attr) => {
-    const a_id = new Uint8Array(VALUE_SIZE);
-    ctx[id].encoder(ctx[attr].id, a_id);
+    const aId = new Uint8Array(VALUE_SIZE);
+    ctx[id].encoder(ctx[attr].id, aId);
     if (ctx[attr].isInverseLink) {
       const res = unsafeQuery(
         [
-          new ConstantConstraint(0, e_id),
-          new ConstantConstraint(1, a_id),
+          new ConstantConstraint(0, eId),
+          new ConstantConstraint(1, aId),
           new TripleConstraint(kb.db, [2, 1, 0]),
         ],
         3,
       );
-      let result;
-      let decoder;
-      decoder = (v, b) => entityProxy(kb, ctx, ctx[id].decoder(v, b));
-      result = [...res].map(([_e, _a, v]) => decoder(v, () => kb.db.blob(v)));
+      const decoder = (v, b) => entityProxy(kb, ctx, ctx[id].decoder(v, b));
+      const result = [...res].map(([_e, _a, v]) =>
+        decoder(v, () => kb.db.blob(v))
+      );
 
       return { found: true, result };
     } else {
       const res = unsafeQuery(
         [
-          new ConstantConstraint(0, e_id),
-          new ConstantConstraint(1, a_id),
+          new ConstantConstraint(0, eId),
+          new ConstantConstraint(1, aId),
           new TripleConstraint(kb.db, [0, 1, 2]),
         ],
         3,
@@ -187,7 +187,7 @@ const entityProxy = function entityProxy(kb, ctx, entity_id) {
   };
 
   return new Proxy(
-    { [id]: entity_id },
+    { [id]: entityId },
     {
       get: function (o, attr) {
         if (!(attr in ctx)) {
@@ -210,7 +210,7 @@ const entityProxy = function entityProxy(kb, ctx, entity_id) {
         }
         return undefined;
       },
-      set: function ({}, attr) {
+      set: function (_, attr) {
         throw TypeError(
           "Error: Entities are not writable, please use 'with' on the walked KB.",
         );
@@ -226,12 +226,12 @@ const entityProxy = function entityProxy(kb, ctx, entity_id) {
           // therefore we can only assume an isMany relationship.
           return true;
         }
-        const a_id = new Uint8Array(VALUE_SIZE);
-        ctx[id].encoder(ctx[attr].id, a_id);
+        const aId = new Uint8Array(VALUE_SIZE);
+        ctx[id].encoder(ctx[attr].id, aId);
         const { done } = unsafeQuery(
           [
-            new ConstantConstraint(0, e_id),
-            new ConstantConstraint(1, a_id),
+            new ConstantConstraint(0, eId),
+            new ConstantConstraint(1, aId),
             new TripleConstraint(kb.db, [0, 1, 2]),
           ],
           3,
@@ -240,23 +240,23 @@ const entityProxy = function entityProxy(kb, ctx, entity_id) {
           .next();
         return !done;
       },
-      deleteProperty: function ({}, attr) {
+      deleteProperty: function (_, attr) {
         throw TypeError(
           "Error: Entities are not writable, furthermore KBs are append only.",
         );
       },
-      setPrototypeOf: function ({}) {
+      setPrototypeOf: function (_) {
         throw TypeError(
           "Error: Entities are not writable and can only be POJOs.",
         );
       },
-      isExtensible: function ({}) {
+      isExtensible: function (_) {
         return true;
       },
-      preventExtensions: function ({}) {
+      preventExtensions: function (_) {
         return false;
       },
-      defineProperty: function ({}, attr) {
+      defineProperty: function (_, attr) {
         throw TypeError(
           "Error: Entities are not writable, please use 'with' on the walked KB.",
         );
@@ -283,33 +283,33 @@ const entityProxy = function entityProxy(kb, ctx, entity_id) {
         }
         return undefined;
       },
-      ownKeys: function ({}) {
-        let attrs = [id];
+      ownKeys: function (_) {
+        const attrs = [id];
         for (
           const [e, a, v] of unsafeQuery(
             [
-              new ConstantConstraint(0, e_id),
-              new IndexConstraint(1, attrs_by_id),
+              new ConstantConstraint(0, eId),
+              new IndexConstraint(1, attrsById),
               new TripleConstraint(kb.db, [0, 1, 2]),
             ],
             3,
             2,
           )
         ) {
-          attrs.push(...attrs_by_id.get(a));
+          attrs.push(...attrsById.get(a));
         }
         for (
           const [e, a, v] of unsafeQuery(
             [
-              new ConstantConstraint(0, e_id),
+              new ConstantConstraint(0, eId),
               new TripleConstraint(kb.db, [2, 1, 0]),
-              new IndexConstraint(1, inverse_attrs_by_id),
+              new IndexConstraint(1, inverseAttrsById),
             ],
             3,
             2,
           )
         ) {
-          attrs.push(...inverse_attrs_by_id.get(a));
+          attrs.push(...inverseAttrsById.get(a));
         }
         return attrs;
       },
@@ -324,15 +324,15 @@ const isPojo = (obj) => {
   return Object.getPrototypeOf(obj) === Object.prototype;
 };
 
-const entities_to_facts = (ctx, unknowns, root, facts = []) => {
+const entitiesToFacts = (ctx, unknowns, root, facts = []) => {
   const work = [];
-  const root_is_array = root instanceof Array;
-  const root_is_object = typeof root === "object" && root !== null;
-  if (root_is_array) {
+  const rootIsArray = root instanceof Array;
+  const rootIsObject = typeof root === "object" && root !== null;
+  if (rootIsArray) {
     for (const [index, entity] of root.entries()) {
       work.push({ path: [index], value: entity });
     }
-  } else if (root_is_object) {
+  } else if (rootIsObject) {
     work.push({ path: [], value: root });
   } else throw Error(`Root must be array of entities or entity, got:\n${root}`);
 
@@ -353,17 +353,17 @@ const entities_to_facts = (ctx, unknowns, root, facts = []) => {
       // And again without knowing the type of the array there is no non-trivial/performant
       // way to distinguish between the byte array of an id, and an entity array.
     ) {
-      let entity_id = w.value[id] || unknowns.next().value;
+      const entityId = w.value[id] || unknowns.next().value;
       if (w.parent_id) {
         if (ctx[w.parent_attr].isInverseLink) {
           facts.push({
             path: w.path,
-            fact: [entity_id, w.parent_attr, w.parent_id],
+            fact: [entityId, w.parent_attr, w.parent_id],
           });
         } else {
           facts.push({
             path: w.path,
-            fact: [w.parent_id, w.parent_attr, entity_id],
+            fact: [w.parent_id, w.parent_attr, entityId],
           });
         }
       }
@@ -383,7 +383,7 @@ const entities_to_facts = (ctx, unknowns, root, facts = []) => {
             work.push({
               path: [...w.path, attr, i],
               value: v,
-              parent_id: entity_id,
+              parent_id: entityId,
               parent_attr: attr,
             });
           }
@@ -403,7 +403,7 @@ const entities_to_facts = (ctx, unknowns, root, facts = []) => {
             work.push({
               path: [...w.path, attr, i],
               value: v,
-              parent_id: entity_id,
+              parent_id: entityId,
               parent_attr: attr,
             });
           }
@@ -411,7 +411,7 @@ const entities_to_facts = (ctx, unknowns, root, facts = []) => {
           work.push({
             path: [...w.path, attr],
             value,
-            parent_id: entity_id,
+            parent_id: entityId,
             parent_attr: attr,
           });
         }
@@ -433,15 +433,15 @@ const entities_to_facts = (ctx, unknowns, root, facts = []) => {
   return facts;
 };
 
-const encode_facts = function (ctx, raw_facts, facts = [], blobs = []) {
+const encodeFacts = function (ctx, rawFacts, facts = [], blobs = []) {
   for (
     const {
       path,
       fact: [entity, attr, value],
-    } of raw_facts
+    } of rawFacts
   ) {
     const fact = new Uint8Array(TRIBLE_SIZE);
-    let encoded_value = V(fact);
+    const encodedValue = V(fact);
     let blob;
     try {
       const encoder = ctx[attr].isLink || ctx[attr].isInverseLink
@@ -452,7 +452,7 @@ const encode_facts = function (ctx, raw_facts, facts = [], blobs = []) {
       }
       blob = encoder(
         value,
-        encoded_value,
+        encodedValue,
       );
     } catch (err) {
       throw Error(
@@ -478,13 +478,13 @@ const encode_facts = function (ctx, raw_facts, facts = [], blobs = []) {
 
     facts.push(fact);
     if (blob) {
-      blobs.push([encoded_value, blob]);
+      blobs.push([encodedValue, blob]);
     }
   }
   return { facts, blobs };
 };
 
-const compile_query = (ctx, raw_facts) => {
+const compileQuery = (ctx, raw_facts) => {
   let constants = VALUE_PART;
   const variables = [];
   const facts = [];
@@ -494,9 +494,9 @@ const compile_query = (ctx, raw_facts) => {
       fact: [entity, attr, value],
     } of raw_facts
   ) {
-    let encoded_entity;
-    let encoded_attr = new Uint8Array(VALUE_SIZE);
-    let encoded_value = new Uint8Array(VALUE_SIZE);
+    let encodedEntity;
+    const encodedAttr = new Uint8Array(VALUE_SIZE);
+    let encodedValue = new Uint8Array(VALUE_SIZE);
 
     try {
       if (entity instanceof Variable) {
@@ -519,11 +519,11 @@ const compile_query = (ctx, raw_facts) => {
             path: path.slice(0, -1),
           };
         }
-        encoded_entity = entity;
+        encodedEntity = entity;
       } else {
-        encoded_entity = new Uint8Array(VALUE_SIZE);
-        ctx[id].encoder(entity, encoded_entity);
-        constants = constants.put(encoded_entity, () => ({}));
+        encodedEntity = new Uint8Array(VALUE_SIZE);
+        ctx[id].encoder(entity, encodedEntity);
+        constants = constants.put(encodedEntity, () => ({}));
       }
     } catch (error) {
       throw Error(
@@ -531,8 +531,8 @@ const compile_query = (ctx, raw_facts) => {
       );
     }
     try {
-      ctx[id].encoder(ctx[attr].id, encoded_attr);
-      constants = constants.put(encoded_attr, () => ({}));
+      ctx[id].encoder(ctx[attr].id, encodedAttr);
+      constants = constants.put(encodedAttr, () => ({}));
     } catch (error) {
       throw Error(
         `Error encoding attribute at [${path.slice}]: ${error.message}`,
@@ -565,7 +565,7 @@ const compile_query = (ctx, raw_facts) => {
             path,
           };
         }
-        encoded_value = value;
+        encodedValue = value;
       } else {
         const encoder = ctx[attr].isLink || ctx[attr].isInverseLink
           ? ctx[id].encoder
@@ -573,17 +573,17 @@ const compile_query = (ctx, raw_facts) => {
         if (!encoder) {
           throw Error("No encoder in context.");
         }
-        encoder(value, encoded_value);
-        constants = constants.put(encoded_value, () => ({}));
+        encoder(value, encodedValue);
+        constants = constants.put(encodedValue, () => ({}));
       }
     } catch (error) {
       throw Error(`Error encoding value at [${path}]: ${error.message}`);
     }
-    facts.push([encoded_entity, encoded_attr, encoded_value]);
+    facts.push([encodedEntity, encodedAttr, encodedValue]);
   }
   const c = constants.cursor();
   c.push(VALUE_SIZE);
-  let bindings = [];
+  const bindings = [];
   for (; c.valid; c.next()) {
     const v = c.value();
     v.index = bindings.length;
@@ -601,7 +601,7 @@ const compile_query = (ctx, raw_facts) => {
       })
     ),
     bindings: bindings,
-    variable_count: bindings.length + variables.length,
+    variableCount: bindings.length + variables.length,
     decoders: variables.map(({ decoder }) => decoder),
   };
 };
@@ -620,10 +620,10 @@ class TribleKB {
   }
 
   with(ctx, cfn) {
-    let ids = new IDSequence();
+    const ids = new IDSequence();
     const entities = cfn(ids);
-    const raw_facts = entities_to_facts(ctx, ids, entities);
-    const { facts, blobs } = encode_facts(ctx, raw_facts);
+    const rawFacts = entitiesToFacts(ctx, ids, entities);
+    const { facts, blobs } = encodeFacts(ctx, rawFacts);
     const ndb = this.db.with(facts, blobs);
     if (ndb !== this.db) {
       return new TribleKB(ndb, this.types);
@@ -631,26 +631,26 @@ class TribleKB {
     return this;
   }
   *find(ctx, qfn) {
-    let vars = new VariableProvider();
+    const vars = new VariableProvider();
     const q = qfn(vars.named());
-    const facts = entities_to_facts(ctx, vars, q);
+    const facts = entitiesToFacts(ctx, vars, q);
     vars.arrange();
 
-    const { query, bindings, variable_count, decoders } = compile_query(
+    const { query, bindings, variableCount, decoders } = compileQuery(
       ctx,
       facts,
     );
 
     for (
-      let r of unsafeQuery(
+      const r of unsafeQuery(
         [
           ...bindings.map(
             (value, variable) => new ConstantConstraint(variable, value),
           ),
           ...query.map((triple) => new TripleConstraint(this.db, triple)),
         ],
-        variable_count,
-        variable_count,
+        variableCount,
+        variableCount,
         [
           ...new Array(bindings.length).fill(true),
           ...vars.variables.map((v) => v.ascending),

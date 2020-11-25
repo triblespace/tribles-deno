@@ -27,7 +27,7 @@ const v1zero = (trible) => {
   return view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0;
 };
 
-const equal_id = (tribleA, tribleB) => {
+const equalId = (tribleA, tribleB) => {
   const viewA = new Uint32Array(tribleA.buffer, tribleA.byteOffset, 4);
   const viewB = new Uint32Array(tribleB.buffer, tribleB.byteOffset, 4);
   return (
@@ -66,7 +66,7 @@ export {
   A,
   E,
   equal,
-  equal_id,
+  equalId as equal_id,
   isTransactionMarker,
   isValidTransaction,
   TRIBLE_SIZE,

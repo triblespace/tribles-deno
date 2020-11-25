@@ -1,18 +1,18 @@
 import { blake2s32 } from "../blake2s.js";
 
-function longstring_encoder(v, b) {
+function longstringEncoder(v, b) {
   const d = new TextEncoder("utf-8").encode(v);
   blake2s32(d, b);
   return d;
 }
 
-function longstring_decoder(b, blob) {
+function longstringDecoder(b, blob) {
   return new TextDecoder("utf-8").decode(blob());
 }
 
 const longstring = ({
-  encoder: longstring_encoder,
-  decoder: longstring_decoder,
+  encoder: longstringEncoder,
+  decoder: longstringDecoder,
 });
 
 export { longstring };

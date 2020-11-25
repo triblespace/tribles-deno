@@ -7,20 +7,20 @@ import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 import { id, TribleKB, types } from "../mod.js";
 
 Deno.test("Integration", () => {
-  const observation_attr = v4.generate();
-  const state_open = v4.generate();
-  const state_done = v4.generate();
+  const observationAttr = v4.generate();
+  const stateOpen = v4.generate();
+  //const stateDone = v4.generate();
 
   // Define a context, mapping between js data and tribles.
-  const todo_ctx = {
+  const todoCtx = {
     [id]: { ...types.uuid, id: v4.generate() },
     observationOf: {
       isLink: true,
-      id: observation_attr,
+      id: observationAttr,
     },
     observedAs: {
       isInverseLink: true,
-      id: observation_attr,
+      id: observationAttr,
     },
     task: {
       ...types.shortstring,
@@ -46,14 +46,14 @@ Deno.test("Integration", () => {
   const kb = new TribleKB();
 
   // Add some data.
-  const observation_id = v4.generate();
-  let todos = new TribleKB().with(todo_ctx, ([t]) => [
+  const observationId = v4.generate();
+  const todos = new TribleKB().with(todoCtx, ([t]) => [
     {
       task: "Get almondmilk!",
       observedAs: [
         {
-          [id]: observation_id,
-          state: state_open,
+          [id]: observationId,
+          state: stateOpen,
           stamp: { t: 0n, x: 0n, y: 0n, z: 0n },
         },
       ],
@@ -62,8 +62,8 @@ Deno.test("Integration", () => {
   ]);
 
   // Query some data.
-  const [first_result] = todos.find(
-    todo_ctx,
+  const [firstResult] = todos.find(
+    todoCtx,
     ({ observation, stamp, task }) => [
       {
         [id]: observation.walk(), //Walk will create a proxy object which allows us to navigate the graph as a JS tree.
@@ -73,23 +73,23 @@ Deno.test("Integration", () => {
     ],
   );
 
-  assertEquals(first_result.observation.state[id], state_open); //Notice the walk() in action.
-  assertEquals(first_result.task, "Get almondmilk!");
-  assertEquals(first_result.stamp, { t: 0n, x: 0n, y: 0n, z: 0n });
+  assertEquals(firstResult.observation.state[id], stateOpen); //Notice the walk() in action.
+  assertEquals(firstResult.task, "Get almondmilk!");
+  assertEquals(firstResult.stamp, { t: 0n, x: 0n, y: 0n, z: 0n });
 });
 
 Deno.test("Find Ascending", () => {
   // Define a context, mapping between js data and tribles.
-  const knights_ctx = {
+  const knightsCtx = {
     [id]: { ...types.uuid },
     name: { id: v4.generate(), ...types.longstring },
     loves: { id: v4.generate(), isLink: true },
     titles: { id: v4.generate(), ...types.shortstring, isMany: true },
   };
-  knights_ctx["lovedBy"] = { id: knights_ctx.loves.id, isInverseLink: true };
+  knightsCtx["lovedBy"] = { id: knightsCtx.loves.id, isInverseLink: true };
   // Add some data.
-  let knightskb = new TribleKB().with(
-    knights_ctx,
+  const knightskb = new TribleKB().with(
+    knightsCtx,
     (
       [romeo, juliet],
     ) => [
@@ -111,7 +111,7 @@ Deno.test("Find Ascending", () => {
   // Query some data.
   const results = [
     ...knightskb.find(
-      knights_ctx,
+      knightsCtx,
       ({ name, title }) => [{ name, titles: [title.at(0).ascend()] }],
     ),
   ];
@@ -125,16 +125,16 @@ Deno.test("Find Ascending", () => {
 
 Deno.test("Find Descending", () => {
   // Define a context, mapping between js data and tribles.
-  const knights_ctx = {
+  const knightsCtx = {
     [id]: { ...types.uuid },
     name: { id: v4.generate(), ...types.longstring },
     loves: { id: v4.generate(), isLink: true },
     titles: { id: v4.generate(), ...types.shortstring, isMany: true },
   };
-  knights_ctx["lovedBy"] = { id: knights_ctx.loves.id, isInverseLink: true };
+  knightsCtx["lovedBy"] = { id: knightsCtx.loves.id, isInverseLink: true };
   // Add some data.
-  let knightskb = new TribleKB().with(
-    knights_ctx,
+  const knightskb = new TribleKB().with(
+    knightsCtx,
     (
       [romeo, juliet],
     ) => [
@@ -155,7 +155,7 @@ Deno.test("Find Descending", () => {
   // Query some data.
   const results = [
     ...knightskb.find(
-      knights_ctx,
+      knightsCtx,
       ({ name, title }) => [{ name, titles: [title.at(0).descend()] }],
     ),
   ];

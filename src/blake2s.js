@@ -207,7 +207,7 @@ var SIGMA = new Uint8Array([
 var v = new Uint32Array(16);
 var m = new Uint32Array(16);
 function blake2sCompress(ctx, last) {
-  var i = 0;
+  let i;
   for (i = 0; i < 8; i++) {
     // init work variables
     v[i] = ctx.h[i];
@@ -281,7 +281,7 @@ function blake2sInit(outlen, key) {
 // Updates a BLAKE2s streaming hash
 // Requires hash context and Uint8Array (byte array)
 function blake2sUpdate(ctx, input) {
-  for (var i = 0; i < input.length; i++) {
+  for (let i = 0; i < input.length; i++) {
     if (ctx.c === 64) {
       // buffer full ?
       ctx.t += ctx.c; // add counters
@@ -303,7 +303,7 @@ function blake2sFinal(ctx, output) {
   blake2sCompress(ctx, true); // final block flag = 1
 
   // little endian convert and store
-  for (var i = 0; i < ctx.outlen; i++) {
+  for (let i = 0; i < ctx.outlen; i++) {
     output[i] = (ctx.h[i >> 2] >> (8 * (i & 3))) & 0xFF;
   }
   return output;

@@ -1,8 +1,7 @@
 import {
   A,
   E,
-  equal_id,
-  TRIBLE_SIZE,
+  equal_id as equalId,
   V,
   v1zero,
   V2,
@@ -41,111 +40,111 @@ INDEX_INFIX[VXX] = [0, 32, 16];
 INDEX_INFIX[XXV] = [0, 16, 32];
 INDEX_INFIX[XXX] = [0, 16];
 
-const index_order = new Array(INDEX_COUNT);
-index_order[EAV] = (triple) => triple;
-index_order[EVA] = (triple) => {
-  const index_ordered_key = new Uint8Array(64);
-  index_ordered_key.set(E(triple), 0);
-  index_ordered_key.set(V(triple), 16);
-  index_ordered_key.set(A(triple), 48);
-  return index_ordered_key;
+const indexOrder = new Array(INDEX_COUNT);
+indexOrder[EAV] = (triple) => triple;
+indexOrder[EVA] = (triple) => {
+  const indexOrderedKey = new Uint8Array(64);
+  indexOrderedKey.set(E(triple), 0);
+  indexOrderedKey.set(V(triple), 16);
+  indexOrderedKey.set(A(triple), 48);
+  return indexOrderedKey;
 };
-index_order[AEV] = (triple) => {
-  const index_ordered_key = new Uint8Array(64);
-  index_ordered_key.set(A(triple), 0);
-  index_ordered_key.set(E(triple), 16);
-  index_ordered_key.set(V(triple), 32);
-  return index_ordered_key;
+indexOrder[AEV] = (triple) => {
+  const indexOrderedKey = new Uint8Array(64);
+  indexOrderedKey.set(A(triple), 0);
+  indexOrderedKey.set(E(triple), 16);
+  indexOrderedKey.set(V(triple), 32);
+  return indexOrderedKey;
 };
-index_order[AVE] = (triple) => {
-  const index_ordered_key = new Uint8Array(64);
-  index_ordered_key.set(A(triple), 0);
-  index_ordered_key.set(V(triple), 16);
-  index_ordered_key.set(E(triple), 48);
-  return index_ordered_key;
+indexOrder[AVE] = (triple) => {
+  const indexOrderedKey = new Uint8Array(64);
+  indexOrderedKey.set(A(triple), 0);
+  indexOrderedKey.set(V(triple), 16);
+  indexOrderedKey.set(E(triple), 48);
+  return indexOrderedKey;
 };
-index_order[VEA] = (triple) => {
-  const index_ordered_key = new Uint8Array(64);
-  index_ordered_key.set(V(triple), 0);
-  index_ordered_key.set(E(triple), 32);
-  index_ordered_key.set(A(triple), 48);
-  return index_ordered_key;
+indexOrder[VEA] = (triple) => {
+  const indexOrderedKey = new Uint8Array(64);
+  indexOrderedKey.set(V(triple), 0);
+  indexOrderedKey.set(E(triple), 32);
+  indexOrderedKey.set(A(triple), 48);
+  return indexOrderedKey;
 };
-index_order[VAE] = (triple) => {
-  const index_ordered_key = new Uint8Array(64);
-  index_ordered_key.set(V(triple), 0);
-  index_ordered_key.set(A(triple), 32);
-  index_ordered_key.set(E(triple), 48);
-  return index_ordered_key;
+indexOrder[VAE] = (triple) => {
+  const indexOrderedKey = new Uint8Array(64);
+  indexOrderedKey.set(V(triple), 0);
+  indexOrderedKey.set(A(triple), 32);
+  indexOrderedKey.set(E(triple), 48);
+  return indexOrderedKey;
 };
-index_order[EXX] = (triple) => {
+indexOrder[EXX] = (triple) => {
   const e = E(triple);
   const a = A(triple);
   const v2 = V2(triple);
-  if (!(v1zero(triple) && equal_id(a, v2))) return null;
-  const index_ordered_key = new Uint8Array(32);
-  index_ordered_key.set(e, 0);
-  index_ordered_key.set(a, 16);
-  return index_ordered_key;
+  if (!(v1zero(triple) && equalId(a, v2))) return null;
+  const indexOrderedKey = new Uint8Array(32);
+  indexOrderedKey.set(e, 0);
+  indexOrderedKey.set(a, 16);
+  return indexOrderedKey;
 };
-index_order[XXE] = (triple) => {
+indexOrder[XXE] = (triple) => {
   const e = E(triple);
   const a = A(triple);
   const v2 = V2(triple);
-  if (!(v1zero(triple) && equal_id(a, v2))) return null;
-  const index_ordered_key = new Uint8Array(32);
-  index_ordered_key.set(a, 0);
-  index_ordered_key.set(e, 16);
-  return index_ordered_key;
+  if (!(v1zero(triple) && equalId(a, v2))) return null;
+  const indexOrderedKey = new Uint8Array(32);
+  indexOrderedKey.set(a, 0);
+  indexOrderedKey.set(e, 16);
+  return indexOrderedKey;
 };
-index_order[AXX] = (triple) => {
+indexOrder[AXX] = (triple) => {
   const e = E(triple);
   const a = A(triple);
   const v2 = V2(triple);
-  if (!(v1zero(triple) && equal_id(e, v2))) return null;
-  const index_ordered_key = new Uint8Array(32);
-  index_ordered_key.set(a, 0);
-  index_ordered_key.set(e, 16);
-  return index_ordered_key;
+  if (!(v1zero(triple) && equalId(e, v2))) return null;
+  const indexOrderedKey = new Uint8Array(32);
+  indexOrderedKey.set(a, 0);
+  indexOrderedKey.set(e, 16);
+  return indexOrderedKey;
 };
-index_order[XXA] = (triple) => {
+indexOrder[XXA] = (triple) => {
   const e = E(triple);
   const a = A(triple);
   const v2 = V2(triple);
-  if (!(v1zero(triple) && equal_id(e, v2))) return null;
-  const index_ordered_key = new Uint8Array(32);
-  index_ordered_key.set(e, 0);
-  index_ordered_key.set(a, 16);
-  return index_ordered_key;
+  if (!(v1zero(triple) && equalId(e, v2))) return null;
+  const indexOrderedKey = new Uint8Array(32);
+  indexOrderedKey.set(e, 0);
+  indexOrderedKey.set(a, 16);
+  return indexOrderedKey;
 };
-index_order[VXX] = (triple) => {
+indexOrder[VXX] = (triple) => {
   const e = E(triple);
   const a = A(triple);
   const v = V(triple);
-  if (equal_id(e, a)) return null;
-  const index_ordered_key = new Uint8Array(48);
-  index_ordered_key.set(v, 0);
-  index_ordered_key.set(e, 32);
-  return index_ordered_key;
+  if (equalId(e, a)) return null;
+  const indexOrderedKey = new Uint8Array(48);
+  indexOrderedKey.set(v, 0);
+  indexOrderedKey.set(e, 32);
+  return indexOrderedKey;
 };
-index_order[XXV] = (triple) => {
+indexOrder[XXV] = (triple) => {
   const e = E(triple);
   const a = A(triple);
   const v = V(triple);
-  if (equal_id(e, a)) return null;
-  const index_ordered_key = new Uint8Array(48);
-  index_ordered_key.set(e, 0);
-  index_ordered_key.set(v, 16);
-  return index_ordered_key;
+  if (equalId(e, a)) return null;
+  const indexOrderedKey = new Uint8Array(48);
+  indexOrderedKey.set(e, 0);
+  indexOrderedKey.set(v, 16);
+  return indexOrderedKey;
 };
-index_order[XXX] = (triple) => {
+indexOrder[XXX] = (triple) => {
   const e = E(triple);
   const a = A(triple);
   const v2 = V2(triple);
-  if (!(v1zero(triple) && equal_id(e, a) && equal_id(e, v2))) return null;
-  const index_ordered_key = new Uint8Array(32);
-  index_ordered_key.set(e, 0);
-  return index_ordered_key;
+  if (!(v1zero(triple) && equalId(e, a) && equalId(e, v2))) return null;
+  const indexOrderedKey = new Uint8Array(32);
+  indexOrderedKey.set(e, 0);
+  return indexOrderedKey;
 };
 
 const order = ([e, a, v]) => (((e < a) << 0) |
@@ -268,20 +267,20 @@ class CollectionConstraint {
   }
 }
 
-const order_to_index = new Uint8Array(63);
-order_to_index[order([0, 1, 2])] = EAV;
-order_to_index[order([0, 2, 1])] = EVA;
-order_to_index[order([1, 0, 2])] = AEV;
-order_to_index[order([2, 0, 1])] = AVE;
-order_to_index[order([1, 2, 0])] = VEA;
-order_to_index[order([2, 1, 0])] = VAE;
-order_to_index[order([0, 1, 1])] = EXX;
-order_to_index[order([1, 0, 0])] = XXE;
-order_to_index[order([1, 0, 1])] = AXX;
-order_to_index[order([0, 1, 0])] = XXA;
-order_to_index[order([1, 1, 0])] = VXX;
-order_to_index[order([0, 0, 1])] = XXV;
-order_to_index[order([0, 0, 0])] = XXX;
+const orderToIndex = new Uint8Array(63);
+orderToIndex[order([0, 1, 2])] = EAV;
+orderToIndex[order([0, 2, 1])] = EVA;
+orderToIndex[order([1, 0, 2])] = AEV;
+orderToIndex[order([2, 0, 1])] = AVE;
+orderToIndex[order([1, 2, 0])] = VEA;
+orderToIndex[order([2, 1, 0])] = VAE;
+orderToIndex[order([0, 1, 1])] = EXX;
+orderToIndex[order([1, 0, 0])] = XXE;
+orderToIndex[order([1, 0, 1])] = AXX;
+orderToIndex[order([0, 1, 0])] = XXA;
+orderToIndex[order([1, 1, 0])] = VXX;
+orderToIndex[order([0, 0, 1])] = XXV;
+orderToIndex[order([0, 0, 0])] = XXX;
 
 class TripleCursor {
   constructor(db, index) {
@@ -340,7 +339,7 @@ class TripleConstraint {
   constructor(db, triple) {
     this.db = db;
     this.triple = triple;
-    this.index = order_to_index[order(triple)];
+    this.index = orderToIndex[order(triple)];
   }
 
   variables() {
@@ -479,7 +478,7 @@ class TribleDB {
       }
       index = idx;
       for (let i = 1; i < INDEX_COUNT; i++) {
-        const reorderedTrible = index_order[i](trible);
+        const reorderedTrible = indexOrder[i](trible);
         if (reorderedTrible) {
           batches[i - 1].put(reorderedTrible);
         }
