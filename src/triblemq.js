@@ -40,13 +40,13 @@ class TribleMQ {
   }
 
   async run() {
-    console.log("running!")
+    console.log("running!");
     this.running = true;
     try {
       this.incomingQueryListener = Deno.listen(
         { ...this.queryableAddr, transport: "tcp" },
       );
-      console.log("starting listener!")
+      console.log("starting listener!");
       this.incomingQueryListenerWorker = this.runQueryListener();
 
       this.queryCon = await Deno.connect(
@@ -61,25 +61,32 @@ class TribleMQ {
   }
 
   async stop() {
-    console.log("stopping!")
-    await Promise.all(this.incomingQueryWrites);
+    console.log("stopping!");
     this.running = false;
-    this.queryCon.close();
     this.incomingQueryListener.close();
+    this.queryCon.close();
     this.incomingQueryCons.forEach((con) => con.close());
     await this.queryWorker;
+    await Promise.all(this.incomingQueryWrites);
+
     return this;
   }
 
   async runQuery() {
     try {
       console.log("running query!");
+      const reader = new BufReader(this.queryCon, READ_BUFFER_SIZE);
+
       let tmpInbox = this._inbox;
       let hashCtx = blake2sInit(32, null);
       const trible = new Uint8Array(TRIBLE_SIZE);
-      const b = new BufReader(this.queryCon, READ_BUFFER_SIZE);
-      while (this.running) {
-        await b.readFull(trible);
+      while (true) {
+        const res = await reader.readFull(trible);
+
+        if (res === null) {
+          console.log("Other side closed query connection.");
+          break;
+        }
         console.log("got trible!");
         if (isTransactionMarker(trible)) {
           console.log("complete transaction!");
@@ -97,16 +104,19 @@ class TribleMQ {
           tmpInbox = tmpInbox.withRaw([trible], []); //TODO: Do some benchmarks and check if we should do some batching here.
         }
       }
-    } catch(error){
-      console.log(error);
+    } catch (error) {
+      if (this.running) {
+        console.log(error);
+        //TODO: Add reconnect code?, and event handling.
+      }
     }
   }
 
   async runQueryListener() {
-    console.log("Listener started!")
+    console.log("Listener started!");
     for await (const con of this.incomingQueryListener) {
       this.incomingQueryCons.add(con);
-      console.log("Incoming query!")
+      console.log("Incoming query!");
       const tribles = [
         ...this._outbox.db.indices[0],
       ];
@@ -117,7 +127,7 @@ class TribleMQ {
   }
 
   async sendTransaction(tribles) {
-    console.log("Sending:", tribles.length)
+    console.log("Sending:", tribles.length);
     const triblesByteLength = TRIBLE_SIZE * tribles.length;
     const transaction = new Uint8Array(triblesByteLength + TRIBLE_SIZE);
     tribles.forEach((t, i) => transaction.set(t, TRIBLE_SIZE * i));

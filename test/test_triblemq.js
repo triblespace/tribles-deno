@@ -43,7 +43,7 @@ Deno.test("Check loopback.", async () => {
   const mq = new TribleMQ();
   await mq.run();
   await mq.toOutbox(knightskb);
-  await sleep(1000);
+  await sleep(100);
   await mq.stop();
 
   //assertEquals(mq.inbox(), mq.outbox());
