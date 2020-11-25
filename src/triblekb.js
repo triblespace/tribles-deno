@@ -1,7 +1,14 @@
 import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 
 import { VALUE_PART } from "./part.js";
-import { IndexConstraint, TribleDB, UnsafeQuery } from "./tribledb.js";
+import {
+  CollectionConstraint,
+  ConstantConstraint,
+  IndexConstraint,
+  TribleDB,
+  TripleConstraint,
+  unsafeQuery,
+} from "./tribledb.js";
 import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
 
 const id = Symbol("id");
@@ -135,7 +142,14 @@ const entityProxy = function entityProxy(kb, ctx, entity_id) {
     const a_id = new Uint8Array(VALUE_SIZE);
     ctx[id].encoder(ctx[attr].id, a_id);
     if (ctx[attr].isInverseLink) {
-      const res = new UnsafeQuery([[2, 1, 0]], [e_id, a_id], [], 3).on(kb.db);
+      const res = unsafeQuery(
+        [
+          new ConstantConstraint(0, e_id),
+          new ConstantConstraint(1, a_id),
+          new TripleConstraint(kb.db, [2, 1, 0]),
+        ],
+        3,
+      );
       let result;
       let decoder;
       decoder = (v, b) => entityProxy(kb, ctx, ctx[id].decoder(v, b));
@@ -143,7 +157,14 @@ const entityProxy = function entityProxy(kb, ctx, entity_id) {
 
       return { found: true, result };
     } else {
-      const res = new UnsafeQuery([[0, 1, 2]], [e_id, a_id], [], 3).on(kb.db);
+      const res = unsafeQuery(
+        [
+          new ConstantConstraint(0, e_id),
+          new ConstantConstraint(1, a_id),
+          new TripleConstraint(kb.db, [0, 1, 2]),
+        ],
+        3,
+      );
       let result;
       let decoder;
       if (ctx[attr].isLink) {
@@ -207,8 +228,15 @@ const entityProxy = function entityProxy(kb, ctx, entity_id) {
         }
         const a_id = new Uint8Array(VALUE_SIZE);
         ctx[id].encoder(ctx[attr].id, a_id);
-        const { done } = new UnsafeQuery([[0, 1, 2]], [e_id, a_id], [], 3, 2)
-          .on(kb.db)
+        const { done } = unsafeQuery(
+          [
+            new ConstantConstraint(0, e_id),
+            new ConstantConstraint(1, a_id),
+            new TripleConstraint(kb.db, [0, 1, 2]),
+          ],
+          3,
+          2,
+        )
           .next();
         return !done;
       },
@@ -258,24 +286,28 @@ const entityProxy = function entityProxy(kb, ctx, entity_id) {
       ownKeys: function ({}) {
         let attrs = [id];
         for (
-          const [e, a, v] of new UnsafeQuery(
-            [[0, 1, 2]],
-            [e_id],
-            [new IndexConstraint(1, attrs_by_id)],
+          const [e, a, v] of unsafeQuery(
+            [
+              new ConstantConstraint(0, e_id),
+              new IndexConstraint(1, attrs_by_id),
+              new TripleConstraint(kb.db, [0, 1, 2]),
+            ],
             3,
             2,
-          ).on(kb.db)
+          )
         ) {
           attrs.push(...attrs_by_id.get(a));
         }
         for (
-          const [e, a, v] of new UnsafeQuery(
-            [[2, 1, 0]],
-            [e_id],
-            [new IndexConstraint(1, inverse_attrs_by_id)],
+          const [e, a, v] of unsafeQuery(
+            [
+              new ConstantConstraint(0, e_id),
+              new TripleConstraint(kb.db, [2, 1, 0]),
+              new IndexConstraint(1, inverse_attrs_by_id),
+            ],
             3,
             2,
-          ).on(kb.db)
+          )
         ) {
           attrs.push(...inverse_attrs_by_id.get(a));
         }
@@ -610,17 +642,20 @@ class TribleKB {
     );
 
     for (
-      let r of new UnsafeQuery(
-        query,
-        bindings,
-        [],
+      let r of unsafeQuery(
+        [
+          ...bindings.map(
+            (value, variable) => new ConstantConstraint(variable, value),
+          ),
+          ...query.map((triple) => new TripleConstraint(this.db, triple)),
+        ],
         variable_count,
         variable_count,
         [
           ...new Array(bindings.length).fill(true),
           ...vars.variables.map((v) => v.ascending),
         ],
-      ).on(this.db)
+      )
     ) {
       yield Object.fromEntries(
         Object.entries(vars.variableNames).map(([name, { index, walked }]) => {

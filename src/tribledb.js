@@ -156,7 +156,7 @@ const order = ([e, a, v]) => (((e < a) << 0) |
   ((e === v) << 5));
 
 class ConstantCursor {
-  constructor(db, constant) {
+  constructor(constant) {
     this.constant = constant;
     this.valid = true;
   }
@@ -196,13 +196,13 @@ class ConstantConstraint {
     return [this.variable];
   }
 
-  toCursor(db) {
-    return new ConstantCursor(db, this.constant);
+  toCursor() {
+    return new ConstantCursor(this.constant);
   }
 }
 
 class IndexCursor {
-  constructor(db, index) {
+  constructor(index) {
     this.cursor = index.cursor();
     this.valid = this.cursor.valid;
   }
@@ -244,18 +244,18 @@ class IndexConstraint {
     return [this.variable];
   }
 
-  toCursor(db) {
-    return new IndexCursor(db, this.index);
+  toCursor() {
+    return new IndexCursor(this.index);
   }
 }
 
 class CollectionConstraint {
   constructor(variable, collection) {
-    const index_batch = VALUE_PART.batch();
+    const indexBatch = VALUE_PART.batch();
     for (const c of collection) {
-      index_batch.put(c);
+      indexBatch.put(c);
     }
-    this.index = index_batch.complete();
+    this.index = indexBatch.complete();
     this.variable = variable;
   }
 
@@ -263,8 +263,8 @@ class CollectionConstraint {
     return [this.variable];
   }
 
-  toCursor(db) {
-    return new IndexCursor(db, this.index);
+  toCursor() {
+    return new IndexCursor(this.index);
   }
 }
 
@@ -337,7 +337,8 @@ class TripleCursor {
 }
 
 class TripleConstraint {
-  constructor(triple) {
+  constructor(db, triple) {
+    this.db = db;
     this.triple = triple;
     this.index = order_to_index[order(triple)];
   }
@@ -358,108 +359,92 @@ class TripleConstraint {
     return this.triple;
   }
 
-  toCursor(db) {
-    return new TripleCursor(db, this.index);
+  toCursor() {
+    return new TripleCursor(this.db, this.index);
   }
 }
 
-class UnsafeQuery {
-  constructor(
-    pattern,
-    prebinding,
-    more_constraints,
-    variable_count,
-    projection_count = variable_count,
-    ascending_variables = new Array(variable_count).fill(true),
-  ) {
-    this.constraints = [
-      ...prebinding.map(
-        (value, variable) => new ConstantConstraint(variable, value),
-      ),
-      ...more_constraints,
-      ...pattern.map((triple) => new TripleConstraint(triple)),
-    ];
-    this.variable_count = variable_count;
-    this.projection_count = projection_count;
-    this.ascending_variables = ascending_variables;
+function* unsafeQuery(
+  constraints,
+  variableCount,
+  projectionCount = variableCount,
+  ascendingVariables = new Array(variableCount).fill(true),
+) {
+  const cursorsAtDepth = [...new Array(variableCount)].map(() => []);
+  for (const constraint of constraints) {
+    const cursor = constraint.toCursor();
+    if (!cursor.valid) {
+      return;
+    }
+    for (const variable of constraint.variables()) {
+      cursorsAtDepth[variable].push(cursor);
+    }
   }
-  *on(db) {
-    let cursors_at_depth = [...new Array(this.variable_count)].map(() => []);
-    for (const constraint of this.constraints) {
-      const cursor = constraint.toCursor(db);
-      if (!cursor.valid) {
+  const bindings = new Array(variableCount);
+  const maxDepth = variableCount - 1;
+  const projectionDepth = projectionCount - 1;
+  let depth = 0;
+  //init
+  let cursors = cursorsAtDepth[depth];
+  cursors.forEach((c) => c.push(ascendingVariables[depth]));
+  //align / search
+  SEARCH:
+  while (true) {
+    let candidateOrigin = 0;
+    if (!cursors[candidateOrigin].valid) {
+      if (depth === 0) {
         return;
       }
-      for (const variable of constraint.variables()) {
-        cursors_at_depth[variable].push(cursor);
-      }
+      cursors.forEach((c) => c.pop());
+      depth--;
+      cursors = cursorsAtDepth[depth];
+      cursors[0].next();
+      //Because we popped, we know that we pushed this level,
+      //therefore all cursors point to the same value.
+      //Which means we can next any of them,
+      //including 0 from which the search will continue.
+
+      continue SEARCH;
     }
-    let bindings = new Array(this.variable_count);
-    let max_depth = this.variable_count - 1;
-    let projection_depth = this.projection_count - 1;
-    let depth = 0;
-    //init
-    let cursors = cursors_at_depth[depth];
-    cursors.forEach((c) => c.push(this.ascending_variables[depth]));
-    //align / search
-    SEARCH:
+    let candidate = cursors[candidateOrigin].peek();
+    let i = candidateOrigin;
     while (true) {
-      let candidate_origin = 0;
-      if (!cursors[candidate_origin].valid) {
+      i = (i + 1) % cursors.length;
+      if (i === candidateOrigin) {
+        bindings[depth] = candidate;
+        if (depth === maxDepth) {
+          //peek
+          yield [...bindings];
+          //next
+          for (; projectionDepth < depth; depth--) {
+            cursorsAtDepth[depth].forEach((c) => c.pop());
+          }
+          cursors = cursorsAtDepth[depth];
+          cursors[0].next();
+
+          continue SEARCH;
+        }
+        depth++;
+        cursors = cursorsAtDepth[depth];
+        cursors.forEach((c) => c.push(ascendingVariables[depth]));
+
+        continue SEARCH;
+      }
+      const match = cursors[i].seek(candidate);
+      if (!cursors[i].valid) {
         if (depth === 0) {
           return;
         }
         cursors.forEach((c) => c.pop());
         depth--;
-        cursors = cursors_at_depth[depth];
+        cursors = cursorsAtDepth[depth];
         cursors[0].next();
-        //Because we popped, we know that we pushed this level,
-        //therefore all cursors point to the same value.
-        //Which means we can next any of them,
-        //including 0 from which the search will continue.
 
         continue SEARCH;
       }
-      let candidate = cursors[candidate_origin].peek();
-      let i = candidate_origin;
-      while (true) {
-        i = (i + 1) % cursors.length;
-        if (i === candidate_origin) {
-          bindings[depth] = candidate;
-          if (depth === max_depth) {
-            //peek
-            yield [...bindings];
-            //next
-            for (; projection_depth < depth; depth--) {
-              cursors_at_depth[depth].forEach((c) => c.pop());
-            }
-            cursors = cursors_at_depth[depth];
-            cursors[0].next();
-
-            continue SEARCH;
-          }
-          depth++;
-          cursors = cursors_at_depth[depth];
-          cursors.forEach((c) => c.push(this.ascending_variables[depth]));
-
-          continue SEARCH;
-        }
-        const match = cursors[i].seek(candidate);
-        if (!cursors[i].valid) {
-          if (depth === 0) {
-            return;
-          }
-          cursors.forEach((c) => c.pop());
-          depth--;
-          cursors = cursors_at_depth[depth];
-          cursors[0].next();
-
-          continue SEARCH;
-        }
-        if (!match) {
-          candidate_origin = i;
-          candidate = cursors[i].peek();
-        }
+      if (!match) {
+        candidateOrigin = i;
+        candidate = cursors[i].peek();
       }
     }
   }
@@ -469,23 +454,23 @@ class TribleDB {
   constructor(
     indices = new Array(INDEX_COUNT).fill(TRIBLE_PART),
     blobs = VALUE_PART,
-    trible_count = 0,
-    blobs_count = 0,
-    blobs_size = 0,
+    tribleCount = 0,
+    blobsCount = 0,
+    blobsSize = 0,
   ) {
-    this.trible_count = trible_count;
-    this.blobs_count = blobs_count;
-    this.blobs_size = blobs_size;
+    this.tribleCount = tribleCount;
+    this.blobsCount = blobsCount;
+    this.blobsSize = blobsSize;
     this.indices = indices;
     this.blobs = blobs;
   }
 
   with(tribles, blobs) {
-    let trible_count = this.trible_count;
-    let blobs_count = this.blobs_count;
-    let blobs_size = this.blobs_size;
+    let tribleCount = this.tribleCount;
+    let blobsCount = this.blobsCount;
+    let blobsSize = this.blobsSize;
     let [index, ...rindices] = this.indices;
-    let batches = rindices.map((i) => i.batch());
+    const batches = rindices.map((i) => i.batch());
     for (let f = 0; f < tribles.length; f++) {
       const trible = tribles[f];
       const idx = index.put(trible);
@@ -494,12 +479,12 @@ class TribleDB {
       }
       index = idx;
       for (let i = 1; i < INDEX_COUNT; i++) {
-        const reordered_trible = index_order[i](trible);
-        if (reordered_trible) {
-          batches[i - 1].put(reordered_trible);
+        const reorderedTrible = index_order[i](trible);
+        if (reorderedTrible) {
+          batches[i - 1].put(reorderedTrible);
         }
       }
-      trible_count++;
+      tribleCount++;
     }
     let nblobs = this.blobs;
     if (blobs) {
@@ -507,8 +492,8 @@ class TribleDB {
         const [key, blob] = blobs[b];
         const nnblobs = nblobs.put(key, (b) => (b ? b : blob));
         if (nnblobs !== nblobs) {
-          blobs_count++;
-          blobs_size += blob.length;
+          blobsCount++;
+          blobsSize += blob.length;
           nblobs = nnblobs;
         }
       }
@@ -519,9 +504,9 @@ class TribleDB {
     return new TribleDB(
       [index, ...batches.map((b) => b.complete())],
       nblobs,
-      trible_count,
-      blobs_count,
-      blobs_size,
+      tribleCount,
+      blobsCount,
+      blobsSize,
     );
   }
 
@@ -540,5 +525,5 @@ export {
   IndexConstraint,
   TribleDB,
   TripleConstraint,
-  UnsafeQuery,
+  unsafeQuery,
 };
