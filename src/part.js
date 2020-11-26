@@ -311,13 +311,41 @@ const makePART = function (KEY_LENGTH) {
       }
     }
 
-    [Symbol.iterator]() {
+    // These are only convenience functions for js interop and no API requirement.
+    entires() {
       const cursor = this.cursor();
       if (cursor.valid) cursor.push(KEY_LENGTH);
       return {
         next() {
           if (!cursor.valid) return { done: true };
-          const value = cursor.peek();
+          const key = cursor.peek();
+          const value = cursor.value();
+          cursor.next();
+          return { value: [key, value] };
+        },
+      };
+    }
+
+    keys() {
+      const cursor = this.cursor();
+      if (cursor.valid) cursor.push(KEY_LENGTH);
+      return {
+        next() {
+          if (!cursor.valid) return { done: true };
+          const key = cursor.peek();
+          cursor.next();
+          return { value: key };
+        },
+      };
+    }
+
+    values() {
+      const cursor = this.cursor();
+      if (cursor.valid) cursor.push(KEY_LENGTH);
+      return {
+        next() {
+          if (!cursor.valid) return { done: true };
+          const value = cursor.value();
           cursor.next();
           return { value };
         },

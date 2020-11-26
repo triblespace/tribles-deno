@@ -19,7 +19,7 @@ class Variable {
     this.index = index;
     this.name = name;
     this.ascending = ascending;
-    this.walked = false;
+    this.walked = null;
   }
 
   at(index) {
@@ -50,8 +50,8 @@ class Variable {
     return this;
   }
 
-  walk() {
-    this.walked = true;
+  walk(kb) {
+    this.walked = kb;
     return this;
   }
 
@@ -66,29 +66,61 @@ class Variable {
 class VariableProvider {
   constructor() {
     this.variables = [];
-    this.variableNames = {};
-    this.namedVariables = [];
     this.unnamedVariables = [];
+    this.namedVariables = new Map();
+    this.constantVariables = VALUE_PART;
   }
 
   named() {
-    return new Proxy(this, {
-      get: function (provider, name) {
-        let v = provider.namedVariables[name];
+    const provider = this;
+    return new Proxy({}, {
+      get: function (_, name) {
+        let v = provider.namedVariables.get(name);
         if (v) {
           return v;
         }
         v = new Variable(provider, name);
-        provider.variableNames[name] = v;
-        provider.namedVariables.push(v);
+        provider.namedVariables.put(name, v);
         return v;
       },
     });
   }
 
+  unnamed() {
+    return {
+      next() {
+        const variable = new Variable(this);
+        this.unnamedVariables.push(variable);
+        return { value: variable };
+      },
+    };
+  }
+
+  constant(c) {
+    let v;
+    this.constantVariables.put(c, (old) => {
+      if (old) {
+        v = old;
+      } else {
+        v = new Variable(this);
+        v.constant = c;
+      }
+      return v;
+    });
+    return v;
+  }
+
   arrange() {
+    this.constantVariables
+      .push(VALUE_SIZE);
     let vProbe = 0;
-    for (const v of [...this.unnamedVariables, ...this.namedVariables]) {
+    for (
+      const v of [
+        ...this.this.constantVariables.values(),
+        ...this.unnamedVariables,
+        ...this.namedVariables.values(),
+      ]
+    ) {
       if (v.index === null) {
         while (this.variables[vProbe]) {
           vProbe++;
@@ -97,15 +129,6 @@ class VariableProvider {
         this.variables[vProbe] = v;
       }
     }
-  }
-
-  [Symbol.iterator]() {
-    return this;
-  }
-  next() {
-    const variable = new Variable(this);
-    this.unnamedVariables.push(variable);
-    return { value: variable };
   }
 }
 
@@ -324,7 +347,7 @@ const isPojo = (obj) => {
   return Object.getPrototypeOf(obj) === Object.prototype;
 };
 
-const entitiesToFacts = (ctx, unknowns, root, facts = []) => {
+const entitiesToTriples = (ctx, unknowns, root, triples = []) => {
   const work = [];
   const rootIsArray = root instanceof Array;
   const rootIsObject = typeof root === "object" && root !== null;
@@ -356,14 +379,14 @@ const entitiesToFacts = (ctx, unknowns, root, facts = []) => {
       const entityId = w.value[id] || unknowns.next().value;
       if (w.parent_id) {
         if (ctx[w.parent_attr].isInverseLink) {
-          facts.push({
+          triples.push({
             path: w.path,
-            fact: [entityId, w.parent_attr, w.parent_id],
+            triple: [entityId, w.parent_attr, w.parent_id],
           });
         } else {
-          facts.push({
+          triples.push({
             path: w.path,
-            fact: [w.parent_id, w.parent_attr, entityId],
+            triple: [w.parent_id, w.parent_attr, entityId],
           });
         }
       }
@@ -418,30 +441,30 @@ const entitiesToFacts = (ctx, unknowns, root, facts = []) => {
       }
     } else {
       if (ctx[w.parent_attr].isInverseLink) {
-        facts.push({
+        triples.push({
           path: w.path,
-          fact: [w.value, w.parent_attr, w.parent_id],
+          triple: [w.value, w.parent_attr, w.parent_id],
         });
       } else {
-        facts.push({
+        triples.push({
           path: w.path,
-          fact: [w.parent_id, w.parent_attr, w.value],
+          triple: [w.parent_id, w.parent_attr, w.value],
         });
       }
     }
   }
-  return facts;
+  return triples;
 };
 
-const encodeFacts = function (ctx, rawFacts, facts = [], blobs = []) {
+const triplesToTribles = function (ctx, triples, tribles = [], blobs = []) {
   for (
     const {
       path,
-      fact: [entity, attr, value],
-    } of rawFacts
+      triple: [entity, attr, value],
+    } of triples
   ) {
-    const fact = new Uint8Array(TRIBLE_SIZE);
-    const encodedValue = V(fact);
+    const triple = new Uint8Array(TRIBLE_SIZE);
+    const encodedValue = V(triple);
     let blob;
     try {
       const encoder = ctx[attr].isLink || ctx[attr].isInverseLink
@@ -460,14 +483,14 @@ const encodeFacts = function (ctx, rawFacts, facts = [], blobs = []) {
       );
     }
     try {
-      ctx[id].encoder(entity, E(fact));
+      ctx[id].encoder(entity, E(triple));
     } catch (err) {
       throw Error(
         `Error at path [${path}]:Couldn't encode '${entity}' as entity id:\n${err}`,
       );
     }
     try {
-      ctx[id].encoder(ctx[attr].id, A(fact));
+      ctx[id].encoder(ctx[attr].id, A(triple));
     } catch (err) {
       throw Error(
         `Error at path [${path}]:Couldn't encode id '${
@@ -476,54 +499,51 @@ const encodeFacts = function (ctx, rawFacts, facts = [], blobs = []) {
       );
     }
 
-    facts.push(fact);
+    tribles.push(triple);
     if (blob) {
       blobs.push([encodedValue, blob]);
     }
   }
-  return { facts, blobs };
+  return { triples: tribles, blobs };
 };
 
-const compileQuery = (ctx, raw_facts) => {
-  let constants = VALUE_PART;
+const precompileTriples = (ctx, vars, rawTriples) => {
   const variables = [];
-  const facts = [];
+  const triples = [];
   for (
     const {
       path,
-      fact: [entity, attr, value],
-    } of raw_facts
+      triple: [entity, attr, value],
+    } of rawTriples
   ) {
-    let encodedEntity;
-    const encodedAttr = new Uint8Array(VALUE_SIZE);
-    let encodedValue = new Uint8Array(VALUE_SIZE);
+    let entityVar;
+    let attrVar;
+    let valueVar;
 
     try {
       if (entity instanceof Variable) {
-        if (variables[entity.index]) {
-          if (variables[entity.index].decoder !== ctx[id].decoder) {
+        if (entity.decoder) {
+          if (entity.decoder !== ctx[id].decoder) {
             throw new Error(
-              `Error at paths [${variables[entity.index].path}] and [${
+              `Error at paths ${entity.paths} and [${
                 path.slice(
                   0,
                   -1,
                 )
-              }]:\n Variables at positions use incompatible decoders '${
-                variables[entity.index].decoder.name
-              }' and '${ctx[id].decoder.name}'.`,
+              }]:\n Variables at positions use incompatible decoders '${entity.decoder.name}' and '${
+                ctx[id].decoder.name
+              }'.`,
             );
           }
         } else {
-          variables[entity.index] = {
-            decoder: ctx[id].decoder,
-            path: path.slice(0, -1),
-          };
+          entity.decoder = ctx[id].decoder;
+          entity.paths.push(path.slice(0, -1));
         }
-        encodedEntity = entity;
+        entityVar = entity;
       } else {
-        encodedEntity = new Uint8Array(VALUE_SIZE);
-        ctx[id].encoder(entity, encodedEntity);
-        constants = constants.put(encodedEntity, () => ({}));
+        const b = new Uint8Array(VALUE_SIZE);
+        ctx[id].encoder(entity, b);
+        entityVar = vars.constant(b);
       }
     } catch (error) {
       throw Error(
@@ -531,8 +551,9 @@ const compileQuery = (ctx, raw_facts) => {
       );
     }
     try {
-      ctx[id].encoder(ctx[attr].id, encodedAttr);
-      constants = constants.put(encodedAttr, () => ({}));
+      const b = new Uint8Array(VALUE_SIZE);
+      ctx[id].encoder(ctx[attr].id, b);
+      attrVar = vars.constant(b);
     } catch (error) {
       throw Error(
         `Error encoding attribute at [${path.slice}]: ${error.message}`,
@@ -565,7 +586,7 @@ const compileQuery = (ctx, raw_facts) => {
             path,
           };
         }
-        encodedValue = value;
+        valueVar = value;
       } else {
         const encoder = ctx[attr].isLink || ctx[attr].isInverseLink
           ? ctx[id].encoder
@@ -573,37 +594,17 @@ const compileQuery = (ctx, raw_facts) => {
         if (!encoder) {
           throw Error("No encoder in context.");
         }
-        encoder(value, encodedValue);
-        constants = constants.put(encodedValue, () => ({}));
+        const b = new Uint8Array(VALUE_SIZE);
+        encoder(value, b);
+        valueVar = vars.constant(valueVar);
       }
     } catch (error) {
       throw Error(`Error encoding value at [${path}]: ${error.message}`);
     }
-    facts.push([encodedEntity, encodedAttr, encodedValue]);
-  }
-  const c = constants.cursor();
-  c.push(VALUE_SIZE);
-  const bindings = [];
-  for (; c.valid; c.next()) {
-    const v = c.value();
-    v.index = bindings.length;
-    bindings.push(c.peek());
+    triples.push([entityVar, attrVar, valueVar]);
   }
 
-  return {
-    query: facts.map((f) =>
-      f.map((x) => {
-        if (x instanceof Variable) {
-          return bindings.length + x.index;
-        } else {
-          return constants.get(x).index;
-        }
-      })
-    ),
-    bindings: bindings,
-    variableCount: bindings.length + variables.length,
-    decoders: variables.map(({ decoder }) => decoder),
-  };
+  return triples;
 };
 
 class TribleKB {
@@ -622,54 +623,68 @@ class TribleKB {
   with(ctx, cfn) {
     const ids = new IDSequence();
     const entities = cfn(ids);
-    const rawFacts = entitiesToFacts(ctx, ids, entities);
-    const { facts, blobs } = encodeFacts(ctx, rawFacts);
-    const ndb = this.db.with(facts, blobs);
+    const rawTriples = entitiesToTriples(ctx, ids, entities);
+    const { triples, blobs } = triplesToTribles(ctx, rawTriples);
+    const ndb = this.db.with(triples, blobs);
     if (ndb !== this.db) {
       return new TribleKB(ndb, this.types);
     }
     return this;
   }
-  *find(ctx, qfn) {
-    const vars = new VariableProvider();
-    const q = qfn(vars.named());
-    const facts = entitiesToFacts(ctx, vars, q);
-    vars.arrange();
 
-    const { query, bindings, variableCount, decoders } = compileQuery(
-      ctx,
-      facts,
-    );
-
-    for (
-      const r of unsafeQuery(
-        [
-          ...bindings.map(
-            (value, variable) => new ConstantConstraint(variable, value),
-          ),
-          ...query.map((triple) => new TripleConstraint(this.db, triple)),
-        ],
-        variableCount,
-        variableCount,
-        [
-          ...new Array(bindings.length).fill(true),
-          ...vars.variables.map((v) => v.ascending),
-        ],
-      )
-    ) {
-      yield Object.fromEntries(
-        Object.entries(vars.variableNames).map(([name, { index, walked }]) => {
-          const decoded = decoders[index](
-            r[bindings.length + index],
-            () => this.db.blob(r[bindings.length + index]),
-          );
-          return [name, walked ? this.walk(ctx, decoded) : decoded];
-        }),
-      );
-    }
+  where(entities) {
+    return (ctx, vars) => {
+      const triples = entitiesToTriples(ctx, vars.unnamed(), entities);
+      const triplesWithVars = precompileTriples(ctx, triples);
+      return () => [
+        ...triplesWithVars.map(([{ index: e }, { index: a }, { index: v }]) =>
+          new TripleConstraint(this.db, [e, a, v])
+        ),
+      ];
+    };
   }
-  walk(ctx, id) {
-    return entityProxy(this, ctx, id);
+
+  walk(ctx, entityId) {
+    return entityProxy(this, ctx, entityId);
+  }
+}
+
+function* find(ctx, cfn) {
+  const vars = new VariableProvider();
+  const constraintBuilderPrepares = cfn(vars.named());
+  const constraintBuilders = constraintBuilderPrepares.map((prepare) =>
+    prepare(ctx, vars)
+  );
+  vars.arrange();
+
+  const variableCount = vars.variables.length;
+  const constraints = constraintBuilders.flatMap((builder) => builder());
+  constraints.push(
+    ...[...vars.constantVariables.values()].map((v) =>
+      new ConstantConstraint(v.index, v.constant)
+    ),
+  );
+
+  for (
+    const r of unsafeQuery(
+      constraints,
+      variableCount,
+      variableCount,
+      vars.variables.map((v) => v.ascending),
+    )
+  ) {
+    yield Object.fromEntries(
+      vars.namedVariables.values().map(
+        ({ index, walked, decoder, name }) => {
+          const encoded = r[index];
+          const decoded = decoder(
+            encoded,
+            () => this.db.blob(encoded),
+          );
+          return [name, walked ? walked.walk(ctx, decoded) : decoded];
+        },
+      ),
+    );
   }
 }
 

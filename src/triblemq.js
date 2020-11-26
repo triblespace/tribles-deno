@@ -158,7 +158,8 @@ class TribleMQ {
 
   async toOutbox(outboxValue) {
     const tribles = [
-      ...this._outbox.db.indices[0].difference(outboxValue.db.indices[0]),
+      ...this._outbox.db.indices[0].difference(outboxValue.db.indices[0])
+        .keys(),
     ];
     if (0 < tribles.length) {
       await this.sendTransaction(tribles);

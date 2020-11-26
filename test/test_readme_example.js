@@ -4,7 +4,7 @@ import {
 } from "https://deno.land/std@0.78.0/testing/asserts.ts";
 import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 
-import { id, TribleKB, types } from "../mod.js";
+import { find, id, TribleKB, types } from "../mod.js";
 
 Deno.test("Integration", () => {
   const observationAttr = v4.generate();
@@ -62,15 +62,15 @@ Deno.test("Integration", () => {
   ]);
 
   // Query some data.
-  const [firstResult] = todos.find(
+  const [firstResult] = find(
     todoCtx,
-    ({ observation, stamp, task }) => [
+    ({ observation, stamp, task }) => [todos.where(
       {
         [id]: observation.walk(), //Walk will create a proxy object which allows us to navigate the graph as a JS tree.
         stamp: stamp.at(0),
         observationOf: { task, createdBy: { name: "jp" } },
       },
-    ],
+    )],
   );
 
   assertEquals(firstResult.observation.state[id], stateOpen); //Notice the walk() in action.
@@ -110,9 +110,11 @@ Deno.test("Find Ascending", () => {
 
   // Query some data.
   const results = [
-    ...knightskb.find(
+    ...find(
       knightsCtx,
-      ({ name, title }) => [{ name, titles: [title.at(0).ascend()] }],
+      (
+        { name, title },
+      ) => [knightskb.where({ name, titles: [title.at(0).ascend()] })],
     ),
   ];
   assertEquals(results, [
@@ -154,9 +156,11 @@ Deno.test("Find Descending", () => {
   );
   // Query some data.
   const results = [
-    ...knightskb.find(
+    ...find(
       knightsCtx,
-      ({ name, title }) => [{ name, titles: [title.at(0).descend()] }],
+      (
+        { name, title },
+      ) => [knightskb.where({ name, titles: [title.at(0).descend()] })],
     ),
   ];
   assertEquals(results, [
