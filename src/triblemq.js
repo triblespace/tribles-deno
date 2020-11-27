@@ -15,14 +15,15 @@ const READ_BUFFER_SIZE = 64; //TODO change in the future based on throughput/lat
 
 class TribleMQ {
   constructor(
-    queryAddr = { hostname: "localhost", port: 8816 },
-    queryableAddr = { hostname: "localhost", port: 8816 },
-    attrsOfInterest = null,
+    ctx,
+    conntectTo = [{ hostname: "localhost", port: 8816 }],
+    listenOn = { hostname: "localhost", port: 8816 },
     blobdb = defaultBlobDB,
   ) {
+    this.ctx = ctx;
     this.blobdb = blobdb;
-    this.queryableAddr = queryableAddr;
-    this.queryAddr = queryAddr;
+    this.conntectTo = conntectTo;
+    this.listenOn = listenOn;
     this.incomingQueryListener = null;
     this.incomingQueryListenerWorker = null;
     this.incomingQueryCons = new Set();
@@ -50,12 +51,12 @@ class TribleMQ {
         { ...this.queryableAddr, transport: "tcp" },
       );
       console.log("starting listener!");
-      this.incomingQueryListenerWorker = this.runQueryListener();
+      this.incomingQueryListenerWorker = this._runQueryListener();
 
       this.queryCon = await Deno.connect(
         { ...this.queryAddr, transport: "tcp" },
       );
-      this.queryWorker = this.runQuery();
+      this.queryWorker = this._runQuery();
     } catch (error) {
       this.running = false;
       throw error;
@@ -75,7 +76,7 @@ class TribleMQ {
     return this;
   }
 
-  async runQuery() {
+  async _runQuery() {
     try {
       console.log("running query!");
       const reader = new BufReader(this.queryCon, READ_BUFFER_SIZE);
@@ -115,7 +116,7 @@ class TribleMQ {
     }
   }
 
-  async runQueryListener() {
+  async _runQueryListener() {
     console.log("Listener started!");
     for await (const con of this.incomingQueryListener) {
       this.incomingQueryCons.add(con);
@@ -124,12 +125,12 @@ class TribleMQ {
         ...this._outbox.tribledb.indices[0].keys(),
       ];
       if (0 < tribles.length) {
-        this.sendTransaction(tribles, [con]);
+        this._sendTransaction(tribles, [con]);
       }
     }
   }
 
-  async sendTransaction(tribles) {
+  async _sendTransaction(tribles) {
     console.log("Sending:", tribles.length);
     const triblesByteLength = TRIBLE_SIZE * tribles.length;
     const transaction = new Uint8Array(triblesByteLength + TRIBLE_SIZE);
@@ -159,7 +160,7 @@ class TribleMQ {
     );
   }
 
-  async toOutbox(outboxValue) {
+  async emit(outboxValue) {
     const tribles = [
       ...this._outbox.tribledb.indices[0].difference(
         outboxValue.tribledb.indices[0],
@@ -167,11 +168,33 @@ class TribleMQ {
         .keys(),
     ];
     if (0 < tribles.length) {
-      await this.sendTransaction(tribles);
+      await this._sendTransaction(tribles);
     }
     this._outbox = outboxValue;
     return outboxValue;
   }
+
+  *changes() {
+    const txn = null;
+    yield { oldKB: this._inbox, txn, newKB: this._inbox.union(txn) };
+  }
+
+  on(query, callback) {
+    find(
+      knightsCtx,
+      (
+        { name, title },
+      ) => [knightskb.where({ name, titles: [title.at(0).descend()] })],
+    )
+  }
 }
+
+
+mq.on(
+  (change, v) => [
+    change.txn.where({ name: v.name, titles: [v.title.at(0).descend()] }),
+  ],
+  (change, result) => console.log(result),
+);
 
 export { TribleMQ };
