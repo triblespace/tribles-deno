@@ -452,22 +452,14 @@ function* unsafeQuery(
 class TribleDB {
   constructor(
     indices = new Array(INDEX_COUNT).fill(TRIBLE_PART),
-    blobs = VALUE_PART,
     tribleCount = 0,
-    blobsCount = 0,
-    blobsSize = 0,
   ) {
     this.tribleCount = tribleCount;
-    this.blobsCount = blobsCount;
-    this.blobsSize = blobsSize;
     this.indices = indices;
-    this.blobs = blobs;
   }
 
-  with(tribles, blobs) {
+  with(tribles) {
     let tribleCount = this.tribleCount;
-    let blobsCount = this.blobsCount;
-    let blobsSize = this.blobsSize;
     let [index, ...rindices] = this.indices;
     const batches = rindices.map((i) => i.batch());
     for (let f = 0; f < tribles.length; f++) {
@@ -485,42 +477,26 @@ class TribleDB {
       }
       tribleCount++;
     }
-    let nblobs = this.blobs;
-    if (blobs) {
-      for (let b = 0; b < blobs.length; b++) {
-        const [key, blob] = blobs[b];
-        const nnblobs = nblobs.put(key, (b) => (b ? b : blob));
-        if (nnblobs !== nblobs) {
-          blobsCount++;
-          blobsSize += blob.length;
-          nblobs = nnblobs;
-        }
-      }
-    }
-    if (this.indices[0] === index && this.blobs === nblobs) {
+    if (this.indices[0] === index) {
       return this;
     }
     return new TribleDB(
       [index, ...batches.map((b) => b.complete())],
-      nblobs,
       tribleCount,
-      blobsCount,
-      blobsSize,
     );
   }
 
   cursor(index) {
     return this.indices[index].cursor();
   }
-
-  blob(k) {
-    return this.blobs.get(k);
-  }
 }
+
+const emptydb = new TribleDB();
 
 export {
   CollectionConstraint,
   ConstantConstraint,
+  emptydb,
   IndexConstraint,
   TribleDB,
   TripleConstraint,

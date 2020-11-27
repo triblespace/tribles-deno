@@ -9,6 +9,7 @@ import {
   blake2sUpdate,
 } from "./blake2s.js";
 import { TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
+import { defaultBlobDB } from "./blobdb.js";
 
 const READ_BUFFER_SIZE = 64; //TODO change in the future based on throughput/laterncy considerations.
 
@@ -17,7 +18,9 @@ class TribleMQ {
     queryAddr = { hostname: "localhost", port: 8816 },
     queryableAddr = { hostname: "localhost", port: 8816 },
     attrsOfInterest = null,
+    blobdb = defaultBlobDB,
   ) {
+    this.blobdb = blobdb;
     this.queryableAddr = queryableAddr;
     this.queryAddr = queryAddr;
     this.incomingQueryListener = null;
@@ -118,7 +121,7 @@ class TribleMQ {
       this.incomingQueryCons.add(con);
       console.log("Incoming query!");
       const tribles = [
-        ...this._outbox.db.indices[0],
+        ...this._outbox.tribledb.indices[0].keys(),
       ];
       if (0 < tribles.length) {
         this.sendTransaction(tribles, [con]);
@@ -158,7 +161,9 @@ class TribleMQ {
 
   async toOutbox(outboxValue) {
     const tribles = [
-      ...this._outbox.db.indices[0].difference(outboxValue.db.indices[0])
+      ...this._outbox.tribledb.indices[0].difference(
+        outboxValue.tribledb.indices[0],
+      )
         .keys(),
     ];
     if (0 < tribles.length) {

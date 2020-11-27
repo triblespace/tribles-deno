@@ -36,7 +36,7 @@ Deno.test("TRIBLE_PART set difference no heritage", () => {
 
       const lp = l.reduce((part, trible) => part.put(trible), TRIBLE_PART);
       const rp = r.reduce((part, trible) => part.put(trible), TRIBLE_PART);
-      const diffp = [...lp.difference(rp)];
+      const diffp = [...lp.difference(rp).keys()];
 
       const diff = new Set(diffp.map((t) => encode(t)));
 
@@ -83,7 +83,7 @@ Deno.test("TRIBLE_PART set difference with heritage", () => {
           ).complete(),
         bp,
       );
-      const diffp = [...lp.difference(rp)];
+      const diffp = [...lp.difference(rp).keys()];
 
       const diff = new Set(diffp.map((t) => encode(t)));
 

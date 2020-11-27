@@ -312,10 +312,13 @@ const makePART = function (KEY_LENGTH) {
     }
 
     // These are only convenience functions for js interop and no API requirement.
-    entires() {
+    entries() {
       const cursor = this.cursor();
       if (cursor.valid) cursor.push(KEY_LENGTH);
       return {
+        [Symbol.iterator]() {
+          return this;
+        },
         next() {
           if (!cursor.valid) return { done: true };
           const key = cursor.peek();
@@ -330,6 +333,9 @@ const makePART = function (KEY_LENGTH) {
       const cursor = this.cursor();
       if (cursor.valid) cursor.push(KEY_LENGTH);
       return {
+        [Symbol.iterator]() {
+          return this;
+        },
         next() {
           if (!cursor.valid) return { done: true };
           const key = cursor.peek();
@@ -343,6 +349,9 @@ const makePART = function (KEY_LENGTH) {
       const cursor = this.cursor();
       if (cursor.valid) cursor.push(KEY_LENGTH);
       return {
+        [Symbol.iterator]() {
+          return this;
+        },
         next() {
           if (!cursor.valid) return { done: true };
           const value = cursor.value();

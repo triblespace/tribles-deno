@@ -66,7 +66,7 @@ Deno.test("Integration", () => {
     todoCtx,
     ({ observation, stamp, task }) => [todos.where(
       {
-        [id]: observation.walk(), //Walk will create a proxy object which allows us to navigate the graph as a JS tree.
+        [id]: observation.walk(todos), //Walk will create a proxy object which allows us to navigate the graph as a JS tree.
         stamp: stamp.at(0),
         observationOf: { task, createdBy: { name: "jp" } },
       },
