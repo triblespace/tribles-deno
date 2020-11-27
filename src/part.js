@@ -4,7 +4,24 @@ const makePART = function (KEY_LENGTH) {
   const linearNodeSize = 16;
   const indirectNodeSize = 64;
 
-  class PARTCursor {
+  // deno-lint-ignore prefer-const
+  let PARTCursor;
+  // deno-lint-ignore prefer-const
+  let PARTree;
+  // deno-lint-ignore prefer-const
+  let PARTBatch;
+  // deno-lint-ignore prefer-const
+  let PARTLeaf;
+  // deno-lint-ignore prefer-const
+  let PARTPathNode;
+  // deno-lint-ignore prefer-const
+  let PARTLinearNode;
+  // deno-lint-ignore prefer-const
+  let PARTIndirectNode;
+  // deno-lint-ignore prefer-const
+  let PARTDirectNode;
+
+  PARTCursor = class {
     constructor(part) {
       this.part = part;
       this.prefixStack = [0];
@@ -128,9 +145,9 @@ const makePART = function (KEY_LENGTH) {
       this.infixStack.pop();
       this.valid = true;
     }
-  }
+  };
 
-  class PARTBatch {
+  PARTBatch = class {
     constructor(child, owner) {
       this.owner = owner;
       this.child = child;
@@ -161,7 +178,7 @@ const makePART = function (KEY_LENGTH) {
       }
       return this;
     }
-  }
+  };
 
   function _makeNode(children, owner, depth) {
     const len = children.length;
@@ -256,7 +273,7 @@ const makePART = function (KEY_LENGTH) {
     return _makeNode(children, owner, depth);
   }
 
-  class PARTree {
+  PARTree = class {
     constructor(child = null) {
       this.child = child;
     }
@@ -360,9 +377,9 @@ const makePART = function (KEY_LENGTH) {
         },
       };
     }
-  }
+  };
 
-  class PARTLeaf {
+  PARTLeaf = class {
     constructor(value, owner) {
       this.value = value;
       this.owner = owner;
@@ -381,9 +398,9 @@ const makePART = function (KEY_LENGTH) {
     seek(depth, v, ascending) {
       throw new Error("Can't seek on PARTLeaf!");
     }
-  }
+  };
 
-  class PARTPathNode {
+  PARTPathNode = class {
     constructor(depth, path, child, owner) {
       this.depth = depth;
       this.path = path;
@@ -467,9 +484,9 @@ const makePART = function (KEY_LENGTH) {
 
       return new PARTPathNode(depth, npath, nchild, owner);
     }
-  }
+  };
 
-  class PARTLinearNode {
+  PARTLinearNode = class {
     constructor(index, children, owner) {
       this.index = index;
       this.children = children;
@@ -549,9 +566,9 @@ const makePART = function (KEY_LENGTH) {
       nindex[key[depth]] = nchildren.length;
       return new PARTIndirectNode(nindex, nchildren, owner);
     }
-  }
+  };
 
-  class PARTIndirectNode {
+  PARTIndirectNode = class {
     constructor(index, children, owner) {
       this.index = index;
       this.children = children;
@@ -620,9 +637,9 @@ const makePART = function (KEY_LENGTH) {
       nchildren[key[depth]] = nchild;
       return new PARTDirectNode(nchildren, owner);
     }
-  }
+  };
 
-  class PARTDirectNode {
+  PARTDirectNode = class {
     constructor(children, owner) {
       this.children = children;
       this.owner = owner;
@@ -671,7 +688,7 @@ const makePART = function (KEY_LENGTH) {
       nchildren[pos] = nchild;
       return new PARTDirectNode(nchildren, owner);
     }
-  }
+  };
 
   return new PARTree();
 };

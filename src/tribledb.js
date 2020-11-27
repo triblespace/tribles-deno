@@ -460,6 +460,7 @@ class TribleDB {
 
   with(tribles) {
     let tribleCount = this.tribleCount;
+    // deno-lint-ignore prefer-const
     let [index, ...rindices] = this.indices;
     const batches = rindices.map((i) => i.batch());
     for (let f = 0; f < tribles.length; f++) {

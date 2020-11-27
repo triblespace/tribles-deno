@@ -76,15 +76,14 @@ class VariableProvider {
   }
 
   named() {
-    const provider = this;
     return new Proxy({}, {
-      get: function (_, name) {
-        let v = provider.namedVariables.get(name);
+      get: (_, name) => {
+        let v = this.namedVariables.get(name);
         if (v) {
           return v;
         }
-        v = new Variable(provider, name);
-        provider.namedVariables.set(name, v);
+        v = new Variable(this, name);
+        this.namedVariables.set(name, v);
         return v;
       },
     });
