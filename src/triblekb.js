@@ -176,7 +176,7 @@ const entityProxy = function entityProxy(kb, blobdb, ctx, entityId) {
       );
       const decoder = ctx[id].decoder;
       const result = [...res].map(([_e, _a, v]) =>
-        entityProxy(kb, ctx, decoder(v.slice(0), () => blobdb.get(v)))
+        entityProxy(kb, blobdb, ctx, decoder(v.slice(0), () => blobdb.get(v)))
       );
 
       return { found: true, result };
@@ -192,7 +192,7 @@ const entityProxy = function entityProxy(kb, blobdb, ctx, entityId) {
       let result;
       let decoder;
       if (ctx[attr].isLink) {
-        decoder = (v, b) => entityProxy(kb, ctx, ctx[id].decoder(v, b));
+        decoder = (v, b) => entityProxy(kb, blobdb, ctx, ctx[id].decoder(v, b));
       } else {
         decoder = ctx[attr].decoder;
       }
@@ -685,4 +685,6 @@ function* find(ctx, cfn, blobdb = defaultBlobDB) {
   }
 }
 
-export { find, id, TribleKB };
+const emptykb = new TribleKB();
+
+export { emptykb, find, id, TribleKB };

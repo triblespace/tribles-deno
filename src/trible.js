@@ -45,9 +45,29 @@ const equal = (tribleA, tribleB) => {
   return true;
 };
 
+const contiguousTribles = (tribles) => ({
+  tribles,
+  tribleCount: (tribles / TRIBLE_SIZE) - 1,
+  t: 0,
+  next() {
+    if (this.t < this.tribleCount) {
+      return {
+        value: this.tribles.subarray(
+          this.t++ * TRIBLE_SIZE,
+          this.t * TRIBLE_SIZE,
+        ),
+      };
+    }
+    return { done: true };
+  },
+  [Symbol.iterator]() {
+    return this;
+  },
+});
+
 const isTransactionMarker = (trible) => {
-  const view = new Uint32Array(trible.buffer, trible.byteOffset, 8);
-  for (let i = 0; i < 8; i++) {
+  const view = new Uint32Array(trible.buffer, trible.byteOffset, 4);
+  for (let i = 0; i < 4; i++) {
     if (view[i] !== 0) return false;
   }
   return true;
@@ -64,9 +84,10 @@ const isValidTransaction = (trible, hash) => {
 
 export {
   A,
+  contiguousTribles,
   E,
   equal,
-  equalId as equal_id,
+  equalId,
   isTransactionMarker,
   isValidTransaction,
   TRIBLE_SIZE,

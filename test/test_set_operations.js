@@ -17,9 +17,9 @@ fc.configureGlobal(
 );
 
 import { equal } from "../src/trible.js";
-import { TRIBLE_PART, VALUE_PART } from "../src/part.js";
+import { emptyTriblePART, emptyValuePART } from "../src/part.js";
 
-Deno.test("TRIBLE_PART set difference no heritage", () => {
+Deno.test("TRIBLE_PART set subtract no heritage", () => {
   const trible = fc.array(fc.nat(255), { minLength: 64, maxLength: 64 }).map(
     (a) => new Uint8Array(a),
   );
@@ -34,9 +34,9 @@ Deno.test("TRIBLE_PART set difference no heritage", () => {
       const rs = new Set(r.map((t) => encode(t)));
       const diffs = new Set([...ls].filter((x) => !rs.has(x)));
 
-      const lp = l.reduce((part, trible) => part.put(trible), TRIBLE_PART);
-      const rp = r.reduce((part, trible) => part.put(trible), TRIBLE_PART);
-      const diffp = [...lp.difference(rp).keys()];
+      const lp = l.reduce((part, trible) => part.put(trible), emptyTriblePART);
+      const rp = r.reduce((part, trible) => part.put(trible), emptyTriblePART);
+      const diffp = [...lp.subtract(rp).keys()];
 
       const diff = new Set(diffp.map((t) => encode(t)));
 
@@ -46,7 +46,7 @@ Deno.test("TRIBLE_PART set difference no heritage", () => {
   );
 });
 
-Deno.test("TRIBLE_PART set difference with heritage", () => {
+Deno.test("TRIBLE_PART set subtract with heritage", () => {
   const trible = fc.array(fc.nat(255), { minLength: 64, maxLength: 64 }).map(
     (a) => new Uint8Array(a),
   );
@@ -65,7 +65,7 @@ Deno.test("TRIBLE_PART set difference with heritage", () => {
             (bpart, trible) => bpart.put(trible),
             part.batch(),
           ).complete(),
-        TRIBLE_PART,
+        emptyTriblePART,
       );
       const lp = l.reduce(
         (part, trible_batch) =>
@@ -83,7 +83,7 @@ Deno.test("TRIBLE_PART set difference with heritage", () => {
           ).complete(),
         bp,
       );
-      const diffp = [...lp.difference(rp).keys()];
+      const diffp = [...lp.subtract(rp).keys()];
 
       const diff = new Set(diffp.map((t) => encode(t)));
 

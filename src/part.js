@@ -226,7 +226,7 @@ const makePART = function (KEY_LENGTH) {
     return new PARTDirectNode(nchildren, owner);
   }
 
-  function _difference(
+  function _subtract(
     leftNode,
     rightNode,
     owner,
@@ -262,7 +262,7 @@ const makePART = function (KEY_LENGTH) {
         if (
           (depth < (KEY_LENGTH - 1)) && (leftChild.owner !== rightChild.owner)
         ) {
-          const diff = _difference(leftChild, rightChild, owner, depth + 1);
+          const diff = _subtract(leftChild, rightChild, owner, depth + 1);
           if (diff) {
             children.push([leftIndex, diff]);
           }
@@ -314,7 +314,11 @@ const makePART = function (KEY_LENGTH) {
       return new PARTCursor(this);
     }
 
-    difference(other) {
+    isEmpty() {
+      return this.child === null;
+    }
+
+    subtract(other) {
       const thisNode = this.child;
       const otherNode = other.child;
       if (other.child === null) {
@@ -324,7 +328,7 @@ const makePART = function (KEY_LENGTH) {
         return new PARTree();
       } else {
         const owner = {};
-        return new PARTree(_difference(thisNode, otherNode, owner));
+        return new PARTree(_subtract(thisNode, otherNode, owner));
       }
     }
 
@@ -693,7 +697,7 @@ const makePART = function (KEY_LENGTH) {
   return new PARTree();
 };
 
-const TRIBLE_PART = makePART(TRIBLE_SIZE);
-const VALUE_PART = makePART(VALUE_SIZE);
+const emptyTriblePART = makePART(TRIBLE_SIZE);
+const emptyValuePART = makePART(VALUE_SIZE);
 
-export { makePART, TRIBLE_PART, VALUE_PART };
+export { emptyTriblePART, emptyValuePART, makePART };

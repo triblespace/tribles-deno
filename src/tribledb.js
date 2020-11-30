@@ -1,7 +1,7 @@
 import {
   A,
   E,
-  equal_id as equalId,
+  equalId,
   TRIBLE_SIZE,
   V,
   v1zero,
@@ -452,24 +452,24 @@ function* unsafeQuery(
 
 class TribleDB {
   constructor(
-    indices = new Array(INDEX_COUNT).fill(TRIBLE_PART),
+    index = new Array(INDEX_COUNT).fill(TRIBLE_PART),
     tribleCount = 0,
   ) {
     this.tribleCount = tribleCount;
-    this.indices = indices;
+    this.index = index;
   }
 
   with(tribles) {
     let totalTribleCount = this.tribleCount;
     // deno-lint-ignore prefer-const
-    let [index, ...rindices] = this.indices;
-    const batches = rindices.map((i) => i.batch());
+    let [eavIndex, ...restIndex] = this.index;
+    const batches = restIndex.map((i) => i.batch());
     for (const trible of tribles) {
-      const idx = index.put(trible);
-      if (idx === index) {
+      const idx = eavIndex.put(trible);
+      if (idx === eavIndex) {
         continue;
       }
-      index = idx;
+      eavIndex = idx;
       for (let i = 1; i < INDEX_COUNT; i++) {
         const reorderedTrible = indexOrder[i](trible);
         if (reorderedTrible) {
@@ -478,17 +478,17 @@ class TribleDB {
       }
       totalTribleCount++;
     }
-    if (this.indices[0] === index) {
+    if (this.index[0] === eavIndex) {
       return this;
     }
     return new TribleDB(
-      [index, ...batches.map((b) => b.complete())],
+      [eavIndex, ...batches.map((b) => b.complete())],
       totalTribleCount,
     );
   }
 
   cursor(index) {
-    return this.indices[index].cursor();
+    return this.index[index].cursor();
   }
 }
 
@@ -497,6 +497,7 @@ const emptydb = new TribleDB();
 export {
   CollectionConstraint,
   ConstantConstraint,
+  EAV,
   emptydb,
   IndexConstraint,
   TribleDB,
