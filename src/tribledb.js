@@ -2,6 +2,7 @@ import {
   A,
   E,
   equal_id as equalId,
+  TRIBLE_SIZE,
   V,
   v1zero,
   V2,
@@ -41,107 +42,107 @@ INDEX_INFIX[XXV] = [0, 16, 32];
 INDEX_INFIX[XXX] = [0, 16];
 
 const indexOrder = new Array(INDEX_COUNT);
-indexOrder[EAV] = (triple) => triple;
-indexOrder[EVA] = (triple) => {
+indexOrder[EAV] = (trible) => trible;
+indexOrder[EVA] = (trible) => {
   const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(E(triple), 0);
-  indexOrderedKey.set(V(triple), 16);
-  indexOrderedKey.set(A(triple), 48);
+  indexOrderedKey.set(E(trible), 0);
+  indexOrderedKey.set(V(trible), 16);
+  indexOrderedKey.set(A(trible), 48);
   return indexOrderedKey;
 };
-indexOrder[AEV] = (triple) => {
+indexOrder[AEV] = (trible) => {
   const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(A(triple), 0);
-  indexOrderedKey.set(E(triple), 16);
-  indexOrderedKey.set(V(triple), 32);
+  indexOrderedKey.set(A(trible), 0);
+  indexOrderedKey.set(E(trible), 16);
+  indexOrderedKey.set(V(trible), 32);
   return indexOrderedKey;
 };
-indexOrder[AVE] = (triple) => {
+indexOrder[AVE] = (trible) => {
   const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(A(triple), 0);
-  indexOrderedKey.set(V(triple), 16);
-  indexOrderedKey.set(E(triple), 48);
+  indexOrderedKey.set(A(trible), 0);
+  indexOrderedKey.set(V(trible), 16);
+  indexOrderedKey.set(E(trible), 48);
   return indexOrderedKey;
 };
-indexOrder[VEA] = (triple) => {
+indexOrder[VEA] = (trible) => {
   const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(V(triple), 0);
-  indexOrderedKey.set(E(triple), 32);
-  indexOrderedKey.set(A(triple), 48);
+  indexOrderedKey.set(V(trible), 0);
+  indexOrderedKey.set(E(trible), 32);
+  indexOrderedKey.set(A(trible), 48);
   return indexOrderedKey;
 };
-indexOrder[VAE] = (triple) => {
+indexOrder[VAE] = (trible) => {
   const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(V(triple), 0);
-  indexOrderedKey.set(A(triple), 32);
-  indexOrderedKey.set(E(triple), 48);
+  indexOrderedKey.set(V(trible), 0);
+  indexOrderedKey.set(A(trible), 32);
+  indexOrderedKey.set(E(trible), 48);
   return indexOrderedKey;
 };
-indexOrder[EXX] = (triple) => {
-  const e = E(triple);
-  const a = A(triple);
-  const v2 = V2(triple);
-  if (!(v1zero(triple) && equalId(a, v2))) return null;
+indexOrder[EXX] = (trible) => {
+  const e = E(trible);
+  const a = A(trible);
+  const v2 = V2(trible);
+  if (!(v1zero(trible) && equalId(a, v2))) return null;
   const indexOrderedKey = new Uint8Array(32);
   indexOrderedKey.set(e, 0);
   indexOrderedKey.set(a, 16);
   return indexOrderedKey;
 };
-indexOrder[XXE] = (triple) => {
-  const e = E(triple);
-  const a = A(triple);
-  const v2 = V2(triple);
-  if (!(v1zero(triple) && equalId(a, v2))) return null;
+indexOrder[XXE] = (trible) => {
+  const e = E(trible);
+  const a = A(trible);
+  const v2 = V2(trible);
+  if (!(v1zero(trible) && equalId(a, v2))) return null;
   const indexOrderedKey = new Uint8Array(32);
   indexOrderedKey.set(a, 0);
   indexOrderedKey.set(e, 16);
   return indexOrderedKey;
 };
-indexOrder[AXX] = (triple) => {
-  const e = E(triple);
-  const a = A(triple);
-  const v2 = V2(triple);
-  if (!(v1zero(triple) && equalId(e, v2))) return null;
+indexOrder[AXX] = (trible) => {
+  const e = E(trible);
+  const a = A(trible);
+  const v2 = V2(trible);
+  if (!(v1zero(trible) && equalId(e, v2))) return null;
   const indexOrderedKey = new Uint8Array(32);
   indexOrderedKey.set(a, 0);
   indexOrderedKey.set(e, 16);
   return indexOrderedKey;
 };
-indexOrder[XXA] = (triple) => {
-  const e = E(triple);
-  const a = A(triple);
-  const v2 = V2(triple);
-  if (!(v1zero(triple) && equalId(e, v2))) return null;
+indexOrder[XXA] = (trible) => {
+  const e = E(trible);
+  const a = A(trible);
+  const v2 = V2(trible);
+  if (!(v1zero(trible) && equalId(e, v2))) return null;
   const indexOrderedKey = new Uint8Array(32);
   indexOrderedKey.set(e, 0);
   indexOrderedKey.set(a, 16);
   return indexOrderedKey;
 };
-indexOrder[VXX] = (triple) => {
-  const e = E(triple);
-  const a = A(triple);
-  const v = V(triple);
+indexOrder[VXX] = (trible) => {
+  const e = E(trible);
+  const a = A(trible);
+  const v = V(trible);
   if (equalId(e, a)) return null;
   const indexOrderedKey = new Uint8Array(48);
   indexOrderedKey.set(v, 0);
   indexOrderedKey.set(e, 32);
   return indexOrderedKey;
 };
-indexOrder[XXV] = (triple) => {
-  const e = E(triple);
-  const a = A(triple);
-  const v = V(triple);
+indexOrder[XXV] = (trible) => {
+  const e = E(trible);
+  const a = A(trible);
+  const v = V(trible);
   if (equalId(e, a)) return null;
   const indexOrderedKey = new Uint8Array(48);
   indexOrderedKey.set(e, 0);
   indexOrderedKey.set(v, 16);
   return indexOrderedKey;
 };
-indexOrder[XXX] = (triple) => {
-  const e = E(triple);
-  const a = A(triple);
-  const v2 = V2(triple);
-  if (!(v1zero(triple) && equalId(e, a) && equalId(e, v2))) return null;
+indexOrder[XXX] = (trible) => {
+  const e = E(trible);
+  const a = A(trible);
+  const v2 = V2(trible);
+  if (!(v1zero(trible) && equalId(e, a) && equalId(e, v2))) return null;
   const indexOrderedKey = new Uint8Array(32);
   indexOrderedKey.set(e, 0);
   return indexOrderedKey;
@@ -459,12 +460,11 @@ class TribleDB {
   }
 
   with(tribles) {
-    let tribleCount = this.tribleCount;
+    let totalTribleCount = this.tribleCount;
     // deno-lint-ignore prefer-const
     let [index, ...rindices] = this.indices;
     const batches = rindices.map((i) => i.batch());
-    for (let f = 0; f < tribles.length; f++) {
-      const trible = tribles[f];
+    for (const trible of tribles) {
       const idx = index.put(trible);
       if (idx === index) {
         continue;
@@ -476,14 +476,14 @@ class TribleDB {
           batches[i - 1].put(reorderedTrible);
         }
       }
-      tribleCount++;
+      totalTribleCount++;
     }
     if (this.indices[0] === index) {
       return this;
     }
     return new TribleDB(
       [index, ...batches.map((b) => b.complete())],
-      tribleCount,
+      totalTribleCount,
     );
   }
 

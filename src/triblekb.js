@@ -144,7 +144,7 @@ class IDSequence {
   }
 }
 
-const entityProxy = function entityProxy(kb, ctx, entityId) {
+const entityProxy = function entityProxy(kb, blobdb, ctx, entityId) {
   const attrsBatch = VALUE_PART.batch();
   const inverseAttrsBatch = VALUE_PART.batch();
   for (const [attr, { id: attrId, isInverseLink }] of Object.entries(ctx)) {
@@ -176,7 +176,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
       );
       const decoder = ctx[id].decoder;
       const result = [...res].map(([_e, _a, v]) =>
-        entityProxy(kb, ctx, decoder(v.slice(0), () => kb.blobdb.get(v)))
+        entityProxy(kb, ctx, decoder(v.slice(0), () => blobdb.get(v)))
       );
 
       return { found: true, result };
@@ -199,13 +199,13 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
 
       if (ctx[attr].isMany) {
         result = [...res].map(([, , v]) =>
-          decoder(v.slice(0), () => kb.blobdb.get(v))
+          decoder(v.slice(0), () => blobdb.get(v))
         );
       } else {
         const { done, value } = res.next();
         if (done) return { found: false };
         const [, , v] = value;
-        result = decoder(v.slice(0), () => kb.blobdb.get(v));
+        result = decoder(v.slice(0), () => blobdb.get(v));
       }
 
       return { found: true, result };
@@ -602,29 +602,27 @@ const precompileTriples = (ctx, vars, triples) => {
 };
 
 class TribleKB {
-  constructor(tribledb = emptydb, blobdb = defaultBlobDB) {
+  constructor(tribledb = emptydb) {
     this.tribledb = tribledb;
-    this.blobdb = blobdb;
   }
 
-  withRaw(tribles, blobs) {
+  withTribles(tribles) {
     const tribledb = this.tribledb.with(tribles);
-    this.blobdb.put(blobs);
     if (tribledb === this.tribledb) {
       return this;
     }
     return new TribleKB(tribledb);
   }
 
-  with(ctx, cfn) {
+  with(ctx, cfn, blobdb = defaultBlobDB) {
     const ids = new IDSequence();
     const entities = cfn(ids);
     const rawTriples = entitiesToTriples(ctx, ids, entities);
     const { triples, blobs } = triplesToTribles(ctx, rawTriples);
     const ndb = this.tribledb.with(triples);
-    this.blobdb.put(blobs);
+    blobdb.put(blobs);
     if (ndb !== this.tribledb) {
-      return new TribleKB(ndb, this.blobdb);
+      return new TribleKB(ndb);
     }
     return this;
   }
@@ -641,8 +639,8 @@ class TribleKB {
     };
   }
 
-  walk(ctx, entityId) {
-    return entityProxy(this, ctx, entityId);
+  walk(ctx, entityId, blobdb = defaultBlobDB) {
+    return entityProxy(this, blobdb, ctx, entityId);
   }
 }
 
