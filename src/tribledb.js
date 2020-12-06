@@ -8,7 +8,7 @@ import {
   V2,
   VALUE_SIZE,
 } from "./trible.js";
-import { TRIBLE_PART, VALUE_PART } from "./part.js";
+import { emptyTriblePART, emptyValuePART } from "./part.js";
 
 const EAV = 0;
 const EVA = 1;
@@ -251,7 +251,7 @@ class IndexConstraint {
 
 class CollectionConstraint {
   constructor(variable, collection) {
-    const indexBatch = VALUE_PART.batch();
+    const indexBatch = emptyValuePART.batch();
     for (const c of collection) {
       indexBatch.put(c);
     }
@@ -452,7 +452,7 @@ function* unsafeQuery(
 
 class TribleDB {
   constructor(
-    index = new Array(INDEX_COUNT).fill(TRIBLE_PART),
+    index = new Array(INDEX_COUNT).fill(emptyTriblePART),
     tribleCount = 0,
   ) {
     this.tribleCount = tribleCount;
@@ -497,10 +497,10 @@ const emptydb = new TribleDB();
 export {
   CollectionConstraint,
   ConstantConstraint,
-  EAV,
   emptydb,
   IndexConstraint,
   TribleDB,
   TripleConstraint,
   unsafeQuery,
+  EAV,
 };

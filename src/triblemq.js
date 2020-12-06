@@ -17,7 +17,7 @@ const TRIBLES_PROTOCOL = "tribles";
 // TODO add attribute based filtering.
 class TribleMQ {
   constructor(
-    conntectTo = [],
+    conntectTo = "127.0.0.1:8816",
   ) {
     this.conntectTo = conntectTo;
     // TODO This should probably be multiple in the future,

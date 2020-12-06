@@ -1,6 +1,6 @@
 import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 
-import { VALUE_PART } from "./part.js";
+import { emptyValuePART } from "./part.js";
 import {
   CollectionConstraint,
   ConstantConstraint,
@@ -72,7 +72,7 @@ class VariableProvider {
     this.variables = [];
     this.unnamedVariables = [];
     this.namedVariables = new Map();
-    this.constantVariables = VALUE_PART;
+    this.constantVariables = emptyValuePART;
   }
 
   named() {
@@ -145,8 +145,8 @@ class IDSequence {
 }
 
 const entityProxy = function entityProxy(kb, blobdb, ctx, entityId) {
-  const attrsBatch = VALUE_PART.batch();
-  const inverseAttrsBatch = VALUE_PART.batch();
+  const attrsBatch = emptyValuePART.batch();
+  const inverseAttrsBatch = emptyValuePART.batch();
   for (const [attr, { id: attrId, isInverseLink }] of Object.entries(ctx)) {
     const aId = new Uint8Array(VALUE_SIZE);
     ctx[id].encoder(attrId, aId);

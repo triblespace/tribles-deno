@@ -44,7 +44,7 @@ Deno.test("Check loopback.", async () => {
   await mq.run();
   await mq.toOutbox(knightskb);
   await sleep(100);
-  await mq.stop();
+  mq.stop();
 
   //assertEquals(mq.inbox(), mq.outbox());
 });

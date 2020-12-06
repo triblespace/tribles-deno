@@ -1,8 +1,8 @@
-import { VALUE_PART } from "./part.js";
+import { emptyValuePART } from "./part.js";
 
 class BlobBD {
   constructor(
-    blobs = VALUE_PART,
+    blobs = emptyValuePART,
     blobsCount = 0,
     blobsSize = 0,
   ) {
