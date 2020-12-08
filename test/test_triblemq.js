@@ -40,9 +40,9 @@ Deno.test("Check loopback.", async () => {
     ],
   );
 
-  const mq = new TribleMQ();
+  const mq = new TribleMQ("ws://127.0.0.1:8816");
   await mq.run();
-  await mq.toOutbox(knightskb);
+  await mq.send(knightskb);
   await sleep(100);
   mq.stop();
 

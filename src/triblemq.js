@@ -17,7 +17,7 @@ const TRIBLES_PROTOCOL = "tribles";
 // TODO add attribute based filtering.
 class TribleMQ {
   constructor(
-    conntectTo = "127.0.0.1:8816",
+    conntectTo
   ) {
     this.conntectTo = conntectTo;
     // TODO This should probably be multiple in the future,
@@ -33,6 +33,7 @@ class TribleMQ {
   async run() {
     this.websocket = new AsyncWebSocket(this.conntectTo, TRIBLES_PROTOCOL);
     for await (const msg of this.websocket) {
+      console.log(msg);
       switch (msg.type) {
         case "message": {
           if (msg.data.length <= 64) {
@@ -45,24 +46,15 @@ class TribleMQ {
             );
             break;
           }
-          const tribleCount = (msg.data.length / TRIBLE_SIZE) - 1;
-          const txnTrible = new Uint8Array(
-            msg.data,
-            tribleCount * TRIBLE_SIZE,
-            TRIBLE_SIZE,
-          );
+          const txnTrible = msg.data.subarray(0, TRIBLE_SIZE);
           if (!isTransactionMarker(txnTrible)) {
             console.warn(
-              `Bad transaction, no valid transaction marker at end.`,
+              `Bad transaction, doesn't begin with transaction marker.`,
             );
             break;
           }
 
-          const tribles = new Uint8Array(
-            msg.data,
-            0,
-            tribleCount * TRIBLE_SIZE,
-          );
+          const tribles = msg.data.subarray(TRIBLE_SIZE);
           const txnHash = blake2s32(tribles, new Uint8Array(32));
           if (!isValidTransaction(txnTrible, txnHash)) {
             console.warn("Bad transaction, hash does not match.");
@@ -112,22 +104,22 @@ class TribleMQ {
   }
 
   send(nowOutbox) {
+    //TODO add size to PART, so this can be done lazily.
     const novelTribles = nowOutbox.tribledb.index[EAV].subtract(
       this._outbox.tribledb.index[EAV],
     );
     if (!novelTribles.isEmpty()) {
-      const triblesByteLength = TRIBLE_SIZE * novelTribles.length;
-      const transaction = new Uint8Array(triblesByteLength + TRIBLE_SIZE);
-      novelTribles.keys().forEach((t, i) =>
-        transaction.set(t, TRIBLE_SIZE * i)
-      );
-
+      const novelTriblesEager = [...novelTribles.keys()]
+      const triblesByteLength = TRIBLE_SIZE * novelTriblesEager.length;
+      const transaction = new Uint8Array(TRIBLE_SIZE + triblesByteLength);
+      
+      let i = 1;
+      for(const trible of novelTriblesEager) {
+        transaction.set(trible, TRIBLE_SIZE * i++)
+      }
       blake2s32(
-        transaction.subarray(0, triblesByteLength),
-        transaction.subarray(
-          triblesByteLength + (TRIBLE_SIZE - VALUE_SIZE),
-          triblesByteLength + TRIBLE_SIZE,
-        ),
+        transaction.subarray(TRIBLE_SIZE),
+        transaction.subarray(0, (TRIBLE_SIZE - VALUE_SIZE))
       );
 
       this.websocket.send(transaction);
