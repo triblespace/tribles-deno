@@ -497,10 +497,10 @@ const emptydb = new TribleDB();
 export {
   CollectionConstraint,
   ConstantConstraint,
+  EAV,
   emptydb,
   IndexConstraint,
   TribleDB,
   TripleConstraint,
   unsafeQuery,
-  EAV,
 };
