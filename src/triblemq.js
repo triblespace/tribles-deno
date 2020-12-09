@@ -13,6 +13,21 @@ import { defaultBlobDB } from "./blobdb.js";
 
 const TRIBLES_PROTOCOL = "tribles";
 
+function buildTransaction(triblesPart) {
+  const novelTriblesEager = [...triblesPart.keys()];
+  const transaction = new Uint8Array(TRIBLE_SIZE * (novelTriblesEager.length+1));
+  console.log(transaction.length)
+  let i = 1;
+  for (const trible of novelTriblesEager) {
+    transaction.set(trible, TRIBLE_SIZE * i++);
+  }
+  blake2s32(
+    transaction.subarray(TRIBLE_SIZE),
+    transaction.subarray((TRIBLE_SIZE - VALUE_SIZE), TRIBLE_SIZE),
+  );
+  return transaction;
+}
+
 // TODO add attribute based filtering.
 class TribleMQ {
   constructor(
@@ -28,6 +43,7 @@ class TribleMQ {
   }
 
   _onInTxn(txn) {
+    console.log(`RECEIVED: ${txn}`)
     if (txn.length <= 64) {
       console.warn(`Bad transaction, too short.`);
       return;
@@ -85,7 +101,6 @@ class TribleMQ {
   }
 
   _onOutTxn(txn) {
-    this._txnCache = txn;
     for (const [addr, conn] of this._connections) {
       if (conn.readyState === WebSocket.OPEN) {
         conn.send(txn);
@@ -96,55 +111,54 @@ class TribleMQ {
   async connect(addr) {
     const websocket = new WebSocket(addr, TRIBLES_PROTOCOL);
     websocket.binaryType = "arraybuffer";
-    const openPromise = new Promise((resolve, reject) => {
-      websocket.addEventListener("open", (e) => {
-        console.info(`Connected to ${addr}.`);
-        const novelTriblesEager = [...this._outbox.tribledb.index[EAV].keys()];
-        const triblesByteLength = TRIBLE_SIZE * novelTriblesEager.length;
-        const transaction = new Uint8Array(TRIBLE_SIZE + triblesByteLength);
-  
-        let i = 1;
-        for (const trible of novelTriblesEager) {
-          transaction.set(trible, TRIBLE_SIZE * i++);
-        }
-        blake2s32(
-          transaction.subarray(TRIBLE_SIZE),
-          transaction.subarray(0, (TRIBLE_SIZE - VALUE_SIZE)),
-        );
-  
-        websocket.send(transaction)
-        this._connections.set(addr, websocket);
-        resolve();
-      });
-      websocket.addEventListener("message", (e) => {
-        self._onInTxn(e.data);
-      });
-      websocket.addEventListener("close", async (e) => {
-        console.info(`Disconnected from ${addr}.`);
-        this._connections.delete(addr, websocket);
-        resolve();
-      });
-      websocket.addEventListener("error", (e) => {
-        console.info(`Error on connection to ${addr}: ${e.message}`);
-        reject();
-      });
+    websocket.addEventListener("open", (e) => {
+      console.info(`Connected to ${addr}.`);
+
+      const novelTribles = this._outbox.tribledb.index[EAV];
+      if (!novelTribles.isEmpty()) {
+        const transaction = buildTransaction(novelTribles);
+        websocket.send(transaction);
+      }
     });
+    websocket.addEventListener("message", (e) => {
+      this._onInTxn(new Uint8Array(e.data));
+    });
+    websocket.addEventListener("close", (e) => {
+      console.info(`Disconnected from ${addr}.`);
+      this._connections.delete(addr, websocket);
+    });
+    websocket.addEventListener("error", (e) => {
+      console.error(`Error on connection to ${addr}: ${e.message}`);
+    });
+    const openPromise = new Promise((resolve, reject) => {
+      websocket.addEventListener("open", resolve);
+      websocket.addEventListener("close", reject);
+    });
+    const closePromise = new Promise((resolve, reject) => {
+      websocket.addEventListener("close", resolve);
+    });
+    websocket.openPromise = openPromise;
+    websocket.closePromise = closePromise;
+    this._connections.set(addr, websocket);
 
     await openPromise;
-    return this;
+    return addr;
   }
 
-  disconnect(addr) {
-    this._connections.get(addr).close();
-
-    return this;
+  async disconnect(addr) {
+    const ws = this._connections.get(addr);
+    ws.close();
+    await ws.closePromise;
+    return addr;
   }
 
-  disconnectAll() {
-    for (const [addr, conn] of this._connections) {
+  async disconnectAll() {
+    const addrs = [...this._connections.values()];
+    await Promise.all([...this._connections.values()].map((conn) => {
       conn.close();
-    }
-    return this;
+      return conn.closePromise;
+    }));
+    return addrs;
   }
 
   send(nowOutbox) {
@@ -154,19 +168,8 @@ class TribleMQ {
       this._outbox.tribledb.index[EAV],
     );
     if (!novelTribles.isEmpty()) {
-      const novelTriblesEager = [...novelTribles.keys()];
-      const triblesByteLength = TRIBLE_SIZE * novelTriblesEager.length;
-      const transaction = new Uint8Array(TRIBLE_SIZE + triblesByteLength);
-
-      let i = 1;
-      for (const trible of novelTriblesEager) {
-        transaction.set(trible, TRIBLE_SIZE * i++);
-      }
-      blake2s32(
-        transaction.subarray(TRIBLE_SIZE),
-        transaction.subarray(0, (TRIBLE_SIZE - VALUE_SIZE)),
-      );
-
+      const transaction = buildTransaction(novelTribles);
+      console.log(transaction);
       this._onOutTxn(transaction);
 
       const novel = emptykb.withTribles(novelTribles.keys());
