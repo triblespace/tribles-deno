@@ -15,8 +15,10 @@ const TRIBLES_PROTOCOL = "tribles";
 
 function buildTransaction(triblesPart) {
   const novelTriblesEager = [...triblesPart.keys()];
-  const transaction = new Uint8Array(TRIBLE_SIZE * (novelTriblesEager.length+1));
-  console.log(transaction.length)
+  const transaction = new Uint8Array(
+    TRIBLE_SIZE * (novelTriblesEager.length + 1),
+  );
+  console.log(transaction.length);
   let i = 1;
   for (const trible of novelTriblesEager) {
     transaction.set(trible, TRIBLE_SIZE * i++);
@@ -43,7 +45,7 @@ class TribleMQ {
   }
 
   _onInTxn(txn) {
-    console.log(`RECEIVED: ${txn}`)
+    console.log(`RECEIVED: ${txn}`);
     if (txn.length <= 64) {
       console.warn(`Bad transaction, too short.`);
       return;
@@ -88,13 +90,13 @@ class TribleMQ {
       this._changeWriter.write({
         inbox: {
           old: oldInbox,
-          novel,
-          now: nowInbox,
+          new: novel,
+          all: nowInbox,
         },
         outbox: {
           old: this._outbox,
-          novel: emptykb,
-          now: this._outbox,
+          new: emptykb,
+          all: this._outbox,
         },
       });
     }
@@ -180,13 +182,13 @@ class TribleMQ {
       this._changeWriter.write({
         inbox: {
           old: this._inbox,
-          novel: emptykb,
-          now: this._inbox,
+          new: emptykb,
+          all: this._inbox,
         },
         outbox: {
           old: oldOutbox,
-          novel,
-          now: nowOutbox,
+          new: novel,
+          all: nowOutbox,
         },
       });
     }
@@ -224,7 +226,7 @@ class TribleMQ {
 /*
 mq.listen(
   (change, v) => [
-    change.inbox.novel.where({ name: v.name, titles: [v.title.at(0).descend()] }),
+    change.inbox.new.where({ name: v.name, titles: [v.title.at(0).descend()] }),
   ]
 );
 */

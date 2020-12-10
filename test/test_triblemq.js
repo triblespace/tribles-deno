@@ -30,7 +30,7 @@ Deno.test({
         {
           [id]: romeo,
           name: "Romeo",
-          titles: ["idiot", "prince"],
+          titles: ["fool", "prince"],
           loves: juliet,
         },
         {
@@ -41,11 +41,26 @@ Deno.test({
         },
       ],
     );
+    const knightskb2 = knightskb.with(
+      knightsCtx,
+      (
+        [william],
+      ) => [
+        {
+          [id]: william,
+          name: "William",
+          titles: ["author"],
+        },
+      ],
+    );
 
     const mq = new TribleMQ();
     await mq.connect("ws://127.0.0.1:8816");
+    await sleep(3000);
     mq.send(knightskb);
-    await sleep(10000);
+    await sleep(3000);
+    mq.send(knightskb2);
+    await sleep(3000);
     await mq.disconnectAll();
     //assertEquals(mq.inbox(), mq.outbox());
   },
