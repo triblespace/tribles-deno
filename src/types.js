@@ -11,7 +11,7 @@ const types = {
   longstring,
   spacetimestamp,
   biguint256,
-  float64,
+  //float64, //TODO Fix to use lexicographical sorting.
 };
 
 export { types };

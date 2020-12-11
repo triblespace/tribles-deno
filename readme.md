@@ -42,7 +42,9 @@ what we need is "Semantic Web, the good parts".
 What we need is the linked list of knowledge representation. [1]
 
 
-## Example: Todo List
+## Examples:
+
+### TribleKB - Todo List
 ```javascript
 import {
   assertArrayIncludes,
@@ -108,21 +110,56 @@ Deno.test("Integration", () => {
   ]);
 
   // Query some data.
-  const [first_result] = todos.find(
-    todo_ctx,
-    ({ observation, stamp, task }) => [
+  const [firstResult] = find(
+    todoCtx,
+    ({ observation, stamp, task }) => [todos.where(
       {
-        [id]: observation.walk(), //Walk will create a proxy object which allows us to navigate the graph as a JS tree.
+        [id]: observation.walk(todos), //Walk will create a proxy object which allows us to navigate the graph as a JS tree.
         stamp: stamp.at(0),
         observationOf: { task, createdBy: { name: "jp" } },
       },
-    ],
+    )],
   );
 
-  assertEquals(first_result.observation.state[id], state_open); //Notice the walk() in action.
-  assertEquals(first_result.task, "Get almondmilk!");
-  assertEquals(first_result.stamp, { t: 0n, x: 0n, y: 0n, z: 0n });
+  assertEquals(firstResult.observation.state[id], stateOpen); //Notice the walk() in action.
+  assertEquals(firstResult.task, "Get almondmilk!");
+  assertEquals(firstResult.stamp, { t: 0n, x: 0n, y: 0n, z: 0n });
 });
+```
+
+### TribleMQ - Todo List
+```javascript
+let { v4 } = await import("https://deno.land/std@0.78.0/uuid/mod.ts");
+let { id, TribleKB, TribleMQ, types } = await import("./mod.js");
+let knightsCtx = {
+      [id]: { ...types.uuid },
+      name: { id: v4.generate(), ...types.longstring },
+      loves: { id: v4.generate(), isLink: true },
+      titles: { id: v4.generate(), ...types.shortstring, isMany: true },
+    };
+let knightskb = new TribleKB().with(knightsCtx,
+  ([romeo, juliet],) => [
+        {
+          [id]: romeo,
+          name: "Romeo",
+          titles: ["fool", "prince"],
+          loves: juliet,
+        },
+        {
+          [id]: juliet,
+          name: "Juliet",
+          titles: ["the lady", "princess"],
+          loves: romeo,
+        },
+      ],
+    );
+
+await mq.connect("ws://127.0.0.1:8816");
+setTimeout(() => mq.send(knightskb), 500);
+for await (let r of mq.listen(knightsCtx,
+      (change, v) => [change.newInbox.where({ name: v.name, titles: [v.title.at(0).descend()] })])) {
+  console.log("subscribe result: ", r)}
+}
 ```
 
 # Background and Fundamentals

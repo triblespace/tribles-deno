@@ -47,7 +47,7 @@ const equal = (tribleA, tribleB) => {
 
 const contiguousTribles = (tribles) => ({
   tribles,
-  tribleCount: (tribles / TRIBLE_SIZE) - 1,
+  tribleCount: (tribles.length / TRIBLE_SIZE),
   t: 0,
   next() {
     if (this.t < this.tribleCount) {

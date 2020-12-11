@@ -18,7 +18,6 @@ function buildTransaction(triblesPart) {
   const transaction = new Uint8Array(
     TRIBLE_SIZE * (novelTriblesEager.length + 1),
   );
-  console.log(transaction.length);
   let i = 1;
   for (const trible of novelTriblesEager) {
     transaction.set(trible, TRIBLE_SIZE * i++);
@@ -28,6 +27,37 @@ function buildTransaction(triblesPart) {
     transaction.subarray((TRIBLE_SIZE - VALUE_SIZE), TRIBLE_SIZE),
   );
   return transaction;
+}
+
+class QueryTransformer {
+  constructor(mq, blobdb, ctx, query) {
+    this.mq = mq;
+    this.blobdb = blobdb;
+    this.ctx = ctx;
+    this.query = query;
+  }
+  start(controller) {
+    const initChanges = {
+      oldInbox: emptykb,
+      difInbox: this.mq._inbox,
+      newInbox: this.mq._inbox,
+      oldOutbox: emptykb,
+      difOutbox: this.mq._outbox,
+      newOutbox: this.mq._outbox,
+    };
+    for (
+      const result of find(this.ctx, (vars) => this.query(initChanges, vars), this.blobdb)
+    ) {
+      controller.enqueue(result);
+    }
+  }
+  transform(changes, controller) {
+    for (
+      const result of find(this.ctx, (vars) => this.query(changes, vars), this.blobdb)
+    ) {
+      controller.enqueue(result);
+    }
+  }
 }
 
 // TODO add attribute based filtering.
@@ -45,7 +75,6 @@ class TribleMQ {
   }
 
   _onInTxn(txn) {
-    console.log(`RECEIVED: ${txn}`);
     if (txn.length <= 64) {
       console.warn(`Bad transaction, too short.`);
       return;
@@ -64,15 +93,15 @@ class TribleMQ {
       return;
     }
 
-    const tribles = txn.subarray(TRIBLE_SIZE);
-    const txnHash = blake2s32(tribles, new Uint8Array(32));
+    const txnTriblePayload = txn.subarray(TRIBLE_SIZE);
+    const txnHash = blake2s32(txnTriblePayload, new Uint8Array(32));
     if (!isValidTransaction(txnTrible, txnHash)) {
       console.warn("Bad transaction, hash does not match.");
       return;
     }
 
     const receivedTriblesBatch = emptyTriblePART.batch();
-    for (const trible of contiguousTribles(tribles)) {
+    for (const trible of contiguousTribles(txnTriblePayload)) {
       receivedTriblesBatch.put(trible);
     }
     const receivedTribles = receivedTriblesBatch.complete();
@@ -81,23 +110,19 @@ class TribleMQ {
     );
 
     if (!novelTribles.isEmpty()) {
-      const novel = emptykb.with(novelTribles.keys());
+      const difInbox = emptykb.withTribles(novelTribles.keys());
 
       const oldInbox = this._inbox;
-      const nowInbox = this._inbox.withTribles(novelTribles.keys()); //TODO this could be a .union(change)
+      const newInbox = this._inbox.withTribles(novelTribles.keys()); //TODO this could be a .union(change)
 
-      this._inbox = nowInbox;
+      this._inbox = newInbox;
       this._changeWriter.write({
-        inbox: {
-          old: oldInbox,
-          new: novel,
-          all: nowInbox,
-        },
-        outbox: {
-          old: this._outbox,
-          new: emptykb,
-          all: this._outbox,
-        },
+        oldInbox,
+        difInbox,
+        newInbox,
+        oldOutbox: this._outbox,
+        difOutbox: emptykb,
+        newOutbox: this._outbox,
       });
     }
   }
@@ -163,37 +188,33 @@ class TribleMQ {
     return addrs;
   }
 
-  send(nowOutbox) {
+  send(newOutbox) {
     //TODO add size to PART, so this can be done lazily.
-    console.log("Writing kb to outbox.");
-    const novelTribles = nowOutbox.tribledb.index[EAV].subtract(
+    const novelTribles = newOutbox.tribledb.index[EAV].subtract(
       this._outbox.tribledb.index[EAV],
     );
     if (!novelTribles.isEmpty()) {
       const transaction = buildTransaction(novelTribles);
-      console.log(transaction);
       this._onOutTxn(transaction);
 
-      const novel = emptykb.withTribles(novelTribles.keys());
+      const difOutbox = emptykb.withTribles(novelTribles.keys());
 
       const oldOutbox = this._outbox;
-      this._outbox = nowOutbox;
+      this._outbox = newOutbox;
 
-      this._changeWriter.write({
-        inbox: {
-          old: this._inbox,
-          new: emptykb,
-          all: this._inbox,
+      this._changeWriter.write(
+        {
+          oldInbox: this._inbox,
+          difInbox: emptykb,
+          newInbox: this._inbox,
+          oldOutbox,
+          difOutbox,
+          newOutbox,
         },
-        outbox: {
-          old: oldOutbox,
-          new: novel,
-          all: nowOutbox,
-        },
-      });
+      );
     }
 
-    return nowOutbox;
+    return newOutbox;
   }
 
   async *changes() {
@@ -203,32 +224,14 @@ class TribleMQ {
   }
 
   async *listen(ctx, query, blobdb = defaultBlobDB) {
-    const transformer = {
-      start(controller) {
-        controller.enqueue(emptykb);
-      },
-      transform(changes, controller) {
-        for (
-          const result of find(ctx, (vars) => query(changes, vars), blobdb)
-        ) {
-          controller.enqueue(result);
-        }
-      },
-    };
     let readable;
     [this._changeReadable, readable] = this._changeReadable.tee();
 
+    const transformer = new QueryTransformer(this, blobdb, ctx, query)
     const resultStream = new TransformStream(transformer);
     yield* readable.pipeThrough(resultStream).getIterator();
   }
 }
 
-/*
-mq.listen(
-  (change, v) => [
-    change.inbox.new.where({ name: v.name, titles: [v.title.at(0).descend()] }),
-  ]
-);
-*/
 
 export { TribleMQ };

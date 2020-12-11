@@ -63,6 +63,14 @@ Deno.test({
     await sleep(3000);
     await mq.disconnectAll();
     //assertEquals(mq.inbox(), mq.outbox());
+
+    /*
+mq.listen(
+  (change, v) => [
+    change.inbox.new.where({ name: v.name, titles: [v.title.at(0).descend()] }),
+  ]
+);
+    */
   },
   sanitizeOps: false,
   // TODO disable this workaround with the resolution of:
