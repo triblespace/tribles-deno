@@ -1,6 +1,6 @@
 import { emptyTriblePART } from "./part.js";
 import { isTransactionMarker, isValidTransaction } from "./trible.js";
-import { EAV } from "./tribledb.js";
+import { EAV } from "./memtribledb.js";
 import { emptykb, find, TribleKB } from "./triblekb.js";
 import {
   blake2s32,

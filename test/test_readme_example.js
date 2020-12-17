@@ -4,7 +4,7 @@ import {
 } from "https://deno.land/std@0.78.0/testing/asserts.ts";
 import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 
-import { find, id, TribleKB, types } from "../mod.js";
+import { find, id, MemBlobBD, TribleKB, types } from "../mod.js";
 
 Deno.test("Integration", () => {
   const observationAttr = v4.generate();
@@ -43,7 +43,7 @@ Deno.test("Integration", () => {
       id: v4.generate(),
     },
   };
-  const kb = new TribleKB();
+  const kb = new TribleKB(new MemBlobBD());
 
   // Add some data.
   const observationId = v4.generate();

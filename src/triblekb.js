@@ -4,12 +4,10 @@ import { emptyValuePART } from "./part.js";
 import {
   CollectionConstraint,
   ConstantConstraint,
-  emptydb,
   IndexConstraint,
-  TribleDB,
   TripleConstraint,
   unsafeQuery,
-} from "./tribledb.js";
+} from "./query.js";
 import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
 
 const id = Symbol("id");
@@ -605,9 +603,9 @@ const precompileTriples = (ctx, vars, triples) => {
 };
 
 class TribleKB {
-  constructor(blobdb, tribledb = emptydb) {
-    this.blobdb = blobdb;
+  constructor(tribledb, blobdb) {
     this.tribledb = tribledb;
+    this.blobdb = blobdb;
   }
 
   withTribles(tribles) {
@@ -615,7 +613,7 @@ class TribleKB {
     if (tribledb === this.tribledb) {
       return this;
     }
-    return new TribleKB(this.blobdb, tribledb);
+    return new TribleKB(tribledb, this.blobdb);
   }
 
   with(ctx, cfn) {
@@ -626,7 +624,7 @@ class TribleKB {
     const newTribleDB = this.tribledb.with(triples);
     if (newTribleDB !== this.tribledb) {
       const newBlobDB = this.blobdb.put(blobs);
-      return new TribleKB(newBlobDB, newTribleDB);
+      return new TribleKB(newTribleDB, newBlobDB);
     }
     return this;
   }
