@@ -1,6 +1,6 @@
 import { emptyValuePART } from "./part.js";
 
-class BlobBD {
+class MemBlobBD {
   constructor(
     blobs = emptyValuePART,
     blobsCount = 0,
@@ -28,15 +28,17 @@ class BlobBD {
       });
     }
 
-    this.blobs = nblobs.complete();
-    return this;
+    return new MemBlobBD(nblobs.complete(), blobsCount, blobsSize);
   }
 
   get(k) {
     return this.blobs.get(k);
   }
+
+  async flush() {
+    console.warn(`Can't flush MemBlobDB, because it's strictly ephemeral.
+    This is probably done mistakenly. For usage with TribleMQ use S3BlobDB for example.`);
+  }
 }
 
-const defaultBlobDB = new BlobBD();
-
-export { BlobBD, defaultBlobDB };
+export { MemBlobBD };

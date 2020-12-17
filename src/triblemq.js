@@ -9,7 +9,6 @@ import {
   blake2sUpdate,
 } from "./blake2s.js";
 import { contiguousTribles, TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
-import { defaultBlobDB } from "./blobdb.js";
 
 const TRIBLES_PROTOCOL = "tribles";
 
@@ -30,9 +29,8 @@ function buildTransaction(triblesPart) {
 }
 
 class QueryTransformer {
-  constructor(mq, blobdb, ctx, query) {
+  constructor(mq, ctx, query) {
     this.mq = mq;
-    this.blobdb = blobdb;
     this.ctx = ctx;
     this.query = query;
   }
@@ -46,14 +44,22 @@ class QueryTransformer {
       newOutbox: this.mq._outbox,
     };
     for (
-      const result of find(this.ctx, (vars) => this.query(initChanges, vars), this.blobdb)
+      const result of find(
+        this.ctx,
+        (vars) => this.query(initChanges, vars),
+        this.mq.blobdb,
+      )
     ) {
       controller.enqueue(result);
     }
   }
   transform(changes, controller) {
     for (
-      const result of find(this.ctx, (vars) => this.query(changes, vars), this.blobdb)
+      const result of find(
+        this.ctx,
+        (vars) => this.query(changes, vars),
+        this.mq.blobdb,
+      )
     ) {
       controller.enqueue(result);
     }
@@ -63,8 +69,9 @@ class QueryTransformer {
 // TODO add attribute based filtering.
 class TribleMQ {
   constructor(
-    inbox = emptykb,
-    outbox = emptykb,
+    blobdb,
+    inbox = new TribleKB(blobdb),
+    outbox = new TribleKB(blobdb),
   ) {
     this._connections = new Map();
     this._inbox = inbox;
@@ -223,15 +230,14 @@ class TribleMQ {
     yield* readable.getIterator();
   }
 
-  async *listen(ctx, query, blobdb = defaultBlobDB) {
+  async *listen(ctx, query) {
     let readable;
     [this._changeReadable, readable] = this._changeReadable.tee();
 
-    const transformer = new QueryTransformer(this, blobdb, ctx, query)
+    const transformer = new QueryTransformer(this, ctx, query);
     const resultStream = new TransformStream(transformer);
     yield* readable.pipeThrough(resultStream).getIterator();
   }
 }
-
 
 export { TribleMQ };

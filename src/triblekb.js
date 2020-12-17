@@ -11,7 +11,6 @@ import {
   unsafeQuery,
 } from "./tribledb.js";
 import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
-import { defaultBlobDB } from "./blobdb.js";
 
 const id = Symbol("id");
 
@@ -144,7 +143,7 @@ class IDSequence {
   }
 }
 
-const entityProxy = function entityProxy(kb, blobdb, ctx, entityId) {
+const entityProxy = function entityProxy(kb, ctx, entityId) {
   const attrsBatch = emptyValuePART.batch();
   const inverseAttrsBatch = emptyValuePART.batch();
   for (const [attr, { id: attrId, isInverseLink }] of Object.entries(ctx)) {
@@ -176,7 +175,11 @@ const entityProxy = function entityProxy(kb, blobdb, ctx, entityId) {
       );
       const decoder = ctx[id].decoder;
       const result = [...res].map(([_e, _a, v]) =>
-        entityProxy(kb, blobdb, ctx, decoder(v.slice(0), () => blobdb.get(v)))
+        entityProxy(
+          kb,
+          ctx,
+          decoder(v.slice(0), async () => await kb.blobdb.get(v)),
+        )
       );
 
       return { found: true, result };
@@ -192,20 +195,20 @@ const entityProxy = function entityProxy(kb, blobdb, ctx, entityId) {
       let result;
       let decoder;
       if (ctx[attr].isLink) {
-        decoder = (v, b) => entityProxy(kb, blobdb, ctx, ctx[id].decoder(v, b));
+        decoder = (v, b) => entityProxy(kb, ctx, ctx[id].decoder(v, b));
       } else {
         decoder = ctx[attr].decoder;
       }
 
       if (ctx[attr].isMany) {
         result = [...res].map(([, , v]) =>
-          decoder(v.slice(0), () => blobdb.get(v))
+          decoder(v.slice(0), async () => await kb.blobdb.get(v))
         );
       } else {
         const { done, value } = res.next();
         if (done) return { found: false };
         const [, , v] = value;
-        result = decoder(v.slice(0), () => blobdb.get(v));
+        result = decoder(v.slice(0), async () => await kb.blobdb.get(v));
       }
 
       return { found: true, result };
@@ -602,7 +605,8 @@ const precompileTriples = (ctx, vars, triples) => {
 };
 
 class TribleKB {
-  constructor(tribledb = emptydb) {
+  constructor(blobdb, tribledb = emptydb) {
+    this.blobdb = blobdb;
     this.tribledb = tribledb;
   }
 
@@ -611,18 +615,18 @@ class TribleKB {
     if (tribledb === this.tribledb) {
       return this;
     }
-    return new TribleKB(tribledb);
+    return new TribleKB(this.blobdb, tribledb);
   }
 
-  with(ctx, cfn, blobdb = defaultBlobDB) {
+  with(ctx, cfn) {
     const ids = new IDSequence();
     const entities = cfn(ids);
     const rawTriples = entitiesToTriples(ctx, ids, entities);
     const { triples, blobs } = triplesToTribles(ctx, rawTriples);
-    const ndb = this.tribledb.with(triples);
-    blobdb.put(blobs);
-    if (ndb !== this.tribledb) {
-      return new TribleKB(ndb);
+    const newTribleDB = this.tribledb.with(triples);
+    if (newTribleDB !== this.tribledb) {
+      const newBlobDB = this.blobdb.put(blobs);
+      return new TribleKB(newBlobDB, newTribleDB);
     }
     return this;
   }
@@ -639,12 +643,12 @@ class TribleKB {
     };
   }
 
-  walk(ctx, entityId, blobdb = defaultBlobDB) {
-    return entityProxy(this, blobdb, ctx, entityId);
+  walk(ctx, entityId) {
+    return entityProxy(this, this.blobdb, ctx, entityId);
   }
 }
 
-function* find(ctx, cfn, blobdb = defaultBlobDB) {
+function* find(ctx, cfn, blobdb) {
   const vars = new VariableProvider();
   const constraintBuilderPrepares = cfn(vars.named());
   const constraintBuilders = constraintBuilderPrepares.map((prepare) =>
@@ -676,7 +680,7 @@ function* find(ctx, cfn, blobdb = defaultBlobDB) {
           const encoded = r[index];
           const decoded = decoder(
             encoded.slice(0),
-            () => blobdb.get(encoded),
+            async () => await blobdb.get(encoded),
           );
           return [name, walked ? walked.walk(ctx, decoded) : decoded];
         },
@@ -684,7 +688,5 @@ function* find(ctx, cfn, blobdb = defaultBlobDB) {
     );
   }
 }
-
-const emptykb = new TribleKB();
 
 export { emptykb, find, id, TribleKB };

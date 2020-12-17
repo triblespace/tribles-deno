@@ -6,8 +6,8 @@ function longstringEncoder(v, b) {
   return d;
 }
 
-function longstringDecoder(b, blob) {
-  return new TextDecoder("utf-8").decode(blob());
+async function longstringDecoder(b, blob) {
+  return new TextDecoder("utf-8").decode(await blob());
 }
 
 const longstring = ({
