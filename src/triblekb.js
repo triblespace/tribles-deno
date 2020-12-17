@@ -616,9 +616,9 @@ class TribleKB {
     return new TribleKB(tribledb, this.blobdb);
   }
 
-  with(ctx, cfn) {
+  with(ctx, efn) {
     const ids = new IDSequence();
-    const entities = cfn(ids);
+    const entities = efn(ids);
     const rawTriples = entitiesToTriples(ctx, ids, entities);
     const { triples, blobs } = triplesToTribles(ctx, rawTriples);
     const newTribleDB = this.tribledb.with(triples);
@@ -627,6 +627,10 @@ class TribleKB {
       return new TribleKB(newTribleDB, newBlobDB);
     }
     return this;
+  }
+
+  find(ctx, efn) {
+    return find(ctx, (vars) => [this.where(efn(vars))], this.blobdb);
   }
 
   where(entities) {
