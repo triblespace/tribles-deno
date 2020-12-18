@@ -451,10 +451,24 @@ function* unsafeQuery(
 }
 
 export {
+  AEV,
+  AVE,
+  AXX,
   CollectionConstraint,
   ConstantConstraint,
   EAV,
+  EVA,
+  EXX,
+  INDEX_COUNT,
   IndexConstraint,
+  indexOrder,
   TripleConstraint,
   unsafeQuery,
+  VAE,
+  VEA,
+  VXX,
+  XXA,
+  XXE,
+  XXV,
+  XXX,
 };

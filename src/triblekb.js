@@ -646,7 +646,7 @@ class TribleKB {
   }
 
   walk(ctx, entityId) {
-    return entityProxy(this, this.blobdb, ctx, entityId);
+    return entityProxy(this, ctx, entityId);
   }
 }
 
@@ -691,4 +691,4 @@ function* find(ctx, cfn, blobdb) {
   }
 }
 
-export { emptykb, find, id, TribleKB };
+export { find, id, TribleKB };

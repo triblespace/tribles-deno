@@ -1,4 +1,4 @@
-import s3 from "https://deno.land/x/s3@0.3.0/mod.ts";
+import { S3Bucket } from "https://deno.land/x/s3@0.3.0/mod.ts";
 
 import { emptyValuePART } from "./part.js";
 
@@ -12,7 +12,7 @@ import { emptyValuePART } from "./part.js";
 class S3BlobDB {
   constructor(
     config,
-    bucket = new s3.S3Bucket(config),
+    bucket = new S3Bucket(config),
     pendingWrites = [],
     localBlobs = emptyValuePART,
     blobsCount = 0,
@@ -83,4 +83,4 @@ class S3BlobDB {
   }
 }
 
-export { S3BlobBD };
+export { S3BlobDB };

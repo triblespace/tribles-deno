@@ -1,6 +1,6 @@
 import { emptyValuePART } from "./part.js";
 
-class MemBlobBD {
+class MemBlobDB {
   constructor(
     blobs = emptyValuePART,
     blobsCount = 0,
@@ -28,7 +28,7 @@ class MemBlobBD {
       });
     }
 
-    return new MemBlobBD(nblobs.complete(), blobsCount, blobsSize);
+    return new MemBlobDB(nblobs.complete(), blobsCount, blobsSize);
   }
 
   get(k) {
@@ -41,4 +41,4 @@ class MemBlobBD {
   }
 }
 
-export { MemBlobBD };
+export { MemBlobDB };

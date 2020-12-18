@@ -1,7 +1,8 @@
 import { emptyTriblePART } from "./part.js";
 import { isTransactionMarker, isValidTransaction } from "./trible.js";
-import { EAV } from "./memtribledb.js";
-import { emptykb, find, TribleKB } from "./triblekb.js";
+import { EAV } from "./query.js";
+import { MemTribleDB } from "./memtribledb.js";
+import { find, TribleKB } from "./triblekb.js";
 import {
   blake2s32,
   blake2sFinal,
@@ -70,8 +71,8 @@ class QueryTransformer {
 class TribleMQ {
   constructor(
     blobdb,
-    inbox = new TribleKB(blobdb),
-    outbox = new TribleKB(blobdb),
+    inbox = new TribleKB(new MemTribleDB(), blobdb),
+    outbox = new TribleKB(new MemTribleDB(), blobdb),
   ) {
     this._connections = new Map();
     this._inbox = inbox;

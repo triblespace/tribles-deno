@@ -2,8 +2,8 @@ import { TribleMQ } from "./src/triblemq.js";
 import { find, id, TribleKB } from "./src/triblekb.js";
 import { types } from "./src/types.js";
 import { MemTribleDB } from "./src/memtribledb.js";
-import { S3BlobBD } from "./src/s3blobdb.js";
-import { MemBlobBD } from "./src/memblobdb.js";
+import { S3BlobDB } from "./src/s3blobdb.js";
+import { MemBlobDB } from "./src/memblobdb.js";
 import { emptyTriblePART, emptyValuePART, makePART } from "./src/part.js";
 
 export {
@@ -12,9 +12,9 @@ export {
   find,
   id,
   makePART,
-  MemBlobBD,
+  MemBlobDB,
   MemTribleDB,
-  S3BlobBD,
+  S3BlobDB,
   TribleKB,
   TribleMQ,
   types,
