@@ -2,26 +2,19 @@ import { S3Bucket } from "https://deno.land/x/s3@0.3.0/mod.ts";
 
 import { emptyValuePART } from "./part.js";
 
-/*
-{region: "local",
-  accessKeyID: "jeanluc",
-  secretKey: "teaearlgreyhot",
-  endpointURL: "http://127.0.0.1:9000"}
-*/
-
 class S3BlobDB {
   constructor(
     config,
     bucket = new S3Bucket(config),
     pendingWrites = [],
-    localBlobs = emptyValuePART,
+    localBlobCache = new Map(),
     blobsCount = 0,
     blobsSize = 0,
   ) {
     this.config = config;
     this.bucket = bucket;
     this.pendingWrites = pendingWrites;
-    this.localBlobs = localBlobs;
+    this.localBlobCache = localBlobCache;
     this.blobsCount = blobsCount;
     this.blobsSize = blobsSize;
   }
@@ -51,6 +44,9 @@ class S3BlobDB {
             blobName,
             blob,
           )).then(() => pendingWrite.resolved = true);
+          if (!this.localBlobCache.get(blobName)?.deref()) {
+            this.localBlobCache.put(blobName, new WeakRef(blob));
+          }
           return blob;
         }
       });
@@ -66,8 +62,17 @@ class S3BlobDB {
     );
   }
 
-  get(k) {
-    return this.localBlobs.get(k);
+  async get(k) {
+    const blobName = [...new Uint8Array(k)]
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    const cachedValue = this.localBlobCache.get(blobName)?.deref();
+    if (cachedValue) {
+      return cachedValue;
+    }
+    const pulledValue = (await this.bucket.getObject(blobName)).body;
+    this.localBlobCache.put(blobName, new WeakRef(pulledValue));
+    return pulledValue;
   }
 
   async flush() {
@@ -80,6 +85,10 @@ class S3BlobDB {
       e.reasons = reasons;
       throw e;
     }
+  }
+
+  empty() {
+    return this;
   }
 }
 

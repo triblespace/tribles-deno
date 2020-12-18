@@ -31,13 +31,17 @@ class MemBlobDB {
     return new MemBlobDB(nblobs.complete(), blobsCount, blobsSize);
   }
 
-  get(k) {
+  async get(k) {
     return this.blobs.get(k);
   }
 
   async flush() {
     console.warn(`Can't flush MemBlobDB, because it's strictly ephemeral.
     This is probably done mistakenly. For usage with TribleMQ use S3BlobDB for example.`);
+  }
+  
+  empty() {
+    return new MemBlobDB();
   }
 }
 

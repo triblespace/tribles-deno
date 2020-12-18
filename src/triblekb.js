@@ -602,6 +602,47 @@ const precompileTriples = (ctx, vars, triples) => {
   return precompiledTriples;
 };
 
+function* find(ctx, cfn, blobdb) {
+  const vars = new VariableProvider();
+  const constraintBuilderPrepares = cfn(vars.named());
+  const constraintBuilders = constraintBuilderPrepares.map((prepare) =>
+    prepare(ctx, vars)
+  );
+  vars.arrange();
+
+  const variableCount = vars.variables.length;
+  const namedVariables = [...vars.namedVariables.values()];
+
+  const constraints = constraintBuilders.flatMap((builder) => builder());
+  constraints.push(
+    ...[...vars.constantVariables.values()].map((v) =>
+      new ConstantConstraint(v.index, v.constant)
+    ),
+  );
+
+  for (
+    const r of unsafeQuery(
+      constraints,
+      variableCount,
+      variableCount,
+      vars.variables.map((v) => v.ascending),
+    )
+  ) {
+    yield Object.fromEntries(
+      namedVariables.map(
+        ({ index, walked, decoder, name }) => {
+          const encoded = r[index];
+          const decoded = decoder(
+            encoded.slice(0),
+            async () => await blobdb.get(encoded),
+          );
+          return [name, walked ? walked.walk(ctx, decoded) : decoded];
+        },
+      ),
+    );
+  }
+}
+
 class TribleKB {
   constructor(tribledb, blobdb) {
     this.tribledb = tribledb;
@@ -648,46 +689,9 @@ class TribleKB {
   walk(ctx, entityId) {
     return entityProxy(this, ctx, entityId);
   }
-}
 
-function* find(ctx, cfn, blobdb) {
-  const vars = new VariableProvider();
-  const constraintBuilderPrepares = cfn(vars.named());
-  const constraintBuilders = constraintBuilderPrepares.map((prepare) =>
-    prepare(ctx, vars)
-  );
-  vars.arrange();
-
-  const variableCount = vars.variables.length;
-  const namedVariables = [...vars.namedVariables.values()];
-
-  const constraints = constraintBuilders.flatMap((builder) => builder());
-  constraints.push(
-    ...[...vars.constantVariables.values()].map((v) =>
-      new ConstantConstraint(v.index, v.constant)
-    ),
-  );
-
-  for (
-    const r of unsafeQuery(
-      constraints,
-      variableCount,
-      variableCount,
-      vars.variables.map((v) => v.ascending),
-    )
-  ) {
-    yield Object.fromEntries(
-      namedVariables.map(
-        ({ index, walked, decoder, name }) => {
-          const encoded = r[index];
-          const decoded = decoder(
-            encoded.slice(0),
-            async () => await blobdb.get(encoded),
-          );
-          return [name, walked ? walked.walk(ctx, decoded) : decoded];
-        },
-      ),
-    );
+  empty() {
+    new TribleKB(this.tribledb.empty(), this.blobdb.empty());
   }
 }
 

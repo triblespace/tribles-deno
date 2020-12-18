@@ -37,10 +37,10 @@ class QueryTransformer {
   }
   start(controller) {
     const initChanges = {
-      oldInbox: emptykb,
+      oldInbox: this._inbox.empty(),
       difInbox: this.mq._inbox,
       newInbox: this.mq._inbox,
-      oldOutbox: emptykb,
+      oldOutbox: this._outbox.empty(),
       difOutbox: this.mq._outbox,
       newOutbox: this.mq._outbox,
     };
@@ -196,16 +196,19 @@ class TribleMQ {
     return addrs;
   }
 
-  send(newOutbox) {
+  async send(newOutbox) {
     //TODO add size to PART, so this can be done lazily.
     const novelTribles = newOutbox.tribledb.index[EAV].subtract(
       this._outbox.tribledb.index[EAV],
     );
     if (!novelTribles.isEmpty()) {
       const transaction = buildTransaction(novelTribles);
+      
+      await newOutbox.blobdb.flush();
       this._onOutTxn(transaction);
 
-      const difOutbox = emptykb.withTribles(novelTribles.keys());
+      const difOutbox = new TribleKB(this._outbox.tribledb.empty(), this.blobdb).withTribles(novelTribles.keys());
+      // ^ We should also fill in the blobs for the memblobstore case.
 
       const oldOutbox = this._outbox;
       this._outbox = newOutbox;
@@ -213,7 +216,7 @@ class TribleMQ {
       this._changeWriter.write(
         {
           oldInbox: this._inbox,
-          difInbox: emptykb,
+          difInbox: this._inbox.empty,
           newInbox: this._inbox,
           oldOutbox,
           difOutbox,

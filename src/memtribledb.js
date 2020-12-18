@@ -41,6 +41,10 @@ class MemTribleDB {
   cursor(index) {
     return this.index[index].cursor();
   }
+
+  empty() {
+    return new MemTribleDB();
+  }
 }
 
 export { MemTribleDB };
