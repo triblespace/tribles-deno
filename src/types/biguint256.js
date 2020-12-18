@@ -13,7 +13,7 @@ function biguint256Encoder(v, b) {
   return null;
 }
 
-async function biguint256Decoder(b, blob) {
+function biguint256Decoder(b, blob) {
   return bytesToBigInt(b, 0, 32);
 }
 

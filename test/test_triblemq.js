@@ -4,7 +4,7 @@ import {
 } from "https://deno.land/std@0.78.0/testing/asserts.ts";
 import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 
-import { id, TribleKB, TribleMQ, types } from "../mod.js";
+import { id, S3BlobDB, TribleMQ, types } from "../mod.js";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -22,7 +22,20 @@ Deno.test({
     };
     knightsCtx["lovedBy"] = { id: knightsCtx.loves.id, isInverseLink: true };
     // Add some data.
-    const knightskb = new TribleKB().with(
+
+    const mq = new TribleMQ(
+      new S3BlobDB(
+        {
+          region: "local",
+          accessKeyID: "jeanluc",
+          secretKey: "teaearlgreyhot",
+          endpointURL: "http://127.0.0.1:9000",
+          bucket: "denotest",
+        },
+      ),
+    );
+
+    const knightskb = mq.outbox.with(
       knightsCtx,
       (
         [romeo, juliet],
@@ -54,13 +67,12 @@ Deno.test({
       ],
     );
 
-    const mq = new TribleMQ();
     await mq.connect("ws://127.0.0.1:8816");
-    await sleep(3000);
+    await sleep(1000);
     mq.send(knightskb);
-    await sleep(3000);
+    await sleep(1000);
     mq.send(knightskb2);
-    await sleep(3000);
+    await sleep(1000);
     await mq.disconnectAll();
     //assertEquals(mq.inbox(), mq.outbox());
 

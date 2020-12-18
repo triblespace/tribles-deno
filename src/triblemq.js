@@ -37,12 +37,12 @@ class QueryTransformer {
   }
   start(controller) {
     const initChanges = {
-      oldInbox: this._inbox.empty(),
-      difInbox: this.mq._inbox,
-      newInbox: this.mq._inbox,
-      oldOutbox: this._outbox.empty(),
-      difOutbox: this.mq._outbox,
-      newOutbox: this.mq._outbox,
+      oldInbox: this.mq.inbox.empty(),
+      difInbox: this.mq.inbox,
+      newInbox: this.mq.inbox,
+      oldOutbox: this.mq.outbox.empty(),
+      difOutbox: this.mq.outbox,
+      newOutbox: this.mq.outbox,
     };
     for (
       const result of find(
@@ -75,8 +75,8 @@ class TribleMQ {
     outbox = new TribleKB(new MemTribleDB(), blobdb),
   ) {
     this._connections = new Map();
-    this._inbox = inbox;
-    this._outbox = outbox;
+    this.inbox = inbox;
+    this.outbox = outbox;
     this._changeStream = new TransformStream();
     this._changeWriter = this._changeStream.writable.getWriter();
     this._changeReadable = this._changeStream.readable;
@@ -114,23 +114,23 @@ class TribleMQ {
     }
     const receivedTribles = receivedTriblesBatch.complete();
     const novelTribles = receivedTribles.subtract(
-      this._inbox.tribledb.index[EAV],
+      this.inbox.tribledb.index[EAV],
     );
 
     if (!novelTribles.isEmpty()) {
-      const difInbox = emptykb.withTribles(novelTribles.keys());
+      const difInbox = this.inbox.empty().withTribles(novelTribles.keys());
 
-      const oldInbox = this._inbox;
-      const newInbox = this._inbox.withTribles(novelTribles.keys()); //TODO this could be a .union(change)
+      const oldInbox = this.inbox;
+      const newInbox = this.inbox.withTribles(novelTribles.keys()); //TODO this could be a .union(change)
 
-      this._inbox = newInbox;
+      this.inbox = newInbox;
       this._changeWriter.write({
         oldInbox,
         difInbox,
         newInbox,
-        oldOutbox: this._outbox,
-        difOutbox: emptykb,
-        newOutbox: this._outbox,
+        oldOutbox: this.outbox,
+        difOutbox: this.outbox.empty(),
+        newOutbox: this.outbox,
       });
     }
   }
@@ -149,7 +149,7 @@ class TribleMQ {
     websocket.addEventListener("open", (e) => {
       console.info(`Connected to ${addr}.`);
 
-      const novelTribles = this._outbox.tribledb.index[EAV];
+      const novelTribles = this.outbox.tribledb.index[EAV];
       if (!novelTribles.isEmpty()) {
         const transaction = buildTransaction(novelTribles);
         websocket.send(transaction);
@@ -199,25 +199,26 @@ class TribleMQ {
   async send(newOutbox) {
     //TODO add size to PART, so this can be done lazily.
     const novelTribles = newOutbox.tribledb.index[EAV].subtract(
-      this._outbox.tribledb.index[EAV],
+      this.outbox.tribledb.index[EAV],
     );
     if (!novelTribles.isEmpty()) {
       const transaction = buildTransaction(novelTribles);
-      
+
       await newOutbox.blobdb.flush();
       this._onOutTxn(transaction);
 
-      const difOutbox = new TribleKB(this._outbox.tribledb.empty(), this.blobdb).withTribles(novelTribles.keys());
+      const difOutbox = new TribleKB(this.outbox.tribledb.empty(), this.blobdb)
+        .withTribles(novelTribles.keys());
       // ^ We should also fill in the blobs for the memblobstore case.
 
-      const oldOutbox = this._outbox;
-      this._outbox = newOutbox;
+      const oldOutbox = this.outbox;
+      this.outbox = newOutbox;
 
       this._changeWriter.write(
         {
-          oldInbox: this._inbox,
-          difInbox: this._inbox.empty,
-          newInbox: this._inbox,
+          oldInbox: this.inbox,
+          difInbox: this.inbox.empty(),
+          newInbox: this.inbox,
           oldOutbox,
           difOutbox,
           newOutbox,

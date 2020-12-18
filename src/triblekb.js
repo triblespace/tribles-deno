@@ -691,7 +691,7 @@ class TribleKB {
   }
 
   empty() {
-    new TribleKB(this.tribledb.empty(), this.blobdb.empty());
+    return new TribleKB(this.tribledb.empty(), this.blobdb.empty());
   }
 }
 

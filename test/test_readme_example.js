@@ -118,10 +118,10 @@ Deno.test("KB Find", () => {
     ) => [{ name, titles: [title] }]),
   ];
   assertEquals(results, [
-    { name: "Romeo", title: "fool" },
-    { name: "Romeo", title: "prince" },
     { name: "Juliet", title: "princess" },
     { name: "Juliet", title: "the lady" },
+    { name: "Romeo", title: "fool" },
+    { name: "Romeo", title: "prince" },
   ]);
 });
 

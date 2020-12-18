@@ -8,57 +8,40 @@ class S3BlobDB {
     bucket = new S3Bucket(config),
     pendingWrites = [],
     localBlobCache = new Map(),
-    blobsCount = 0,
-    blobsSize = 0,
   ) {
     this.config = config;
     this.bucket = bucket;
     this.pendingWrites = pendingWrites;
     this.localBlobCache = localBlobCache;
-    this.blobsCount = blobsCount;
-    this.blobsSize = blobsSize;
   }
 
   put(blobs) {
-    let blobsCount = this.blobsCount;
-    let blobsSize = this.blobsSize;
-    let nblobs = this.blobs.batch();
-    const pendingWrites = pendingWrites.filter((pw) => !pw.resolved);
+    const pendingWrites = this.pendingWrites.filter((pw) => !pw.resolved);
     for (let b = 0; b < blobs.length; b++) {
       const [key, blob] = blobs[b];
-      nblobs = nblobs.put(key, (old) => {
-        if (old) {
-          return old;
-        } else {
-          blobsCount++;
-          blobsSize += blob.length;
-          const blobName = [...new Uint8Array(key)]
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("");
+      const blobName = [...new Uint8Array(key)]
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
 
-          const pendingWrite = {
-            promise: null,
-            resolved: false,
-          };
-          this.pendingWrites.push(b.putObject(
-            blobName,
-            blob,
-          )).then(() => pendingWrite.resolved = true);
-          if (!this.localBlobCache.get(blobName)?.deref()) {
-            this.localBlobCache.put(blobName, new WeakRef(blob));
-          }
-          return blob;
-        }
-      });
+      const pendingWrite = {
+        promise: null,
+        resolved: false,
+      };
+      this.pendingWrites.push(pendingWrite);
+      this.bucket.putObject(
+        blobName,
+        blob,
+      ).then(() => pendingWrite.resolved = true);
+      if (!this.localBlobCache.get(blobName)?.deref()) {
+        this.localBlobCache.set(blobName, new WeakRef(blob));
+      }
     }
 
     return new S3BlobDB(
       this.config,
       this.bucket,
       pendingWrites,
-      nblobs.complete(),
-      blobsCount,
-      blobsSize,
+      this.localBlobCache,
     );
   }
 
@@ -71,7 +54,7 @@ class S3BlobDB {
       return cachedValue;
     }
     const pulledValue = (await this.bucket.getObject(blobName)).body;
-    this.localBlobCache.put(blobName, new WeakRef(pulledValue));
+    this.localBlobCache.set(blobName, new WeakRef(pulledValue));
     return pulledValue;
   }
 
