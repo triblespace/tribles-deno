@@ -29,60 +29,59 @@ function buildTransaction(triblesPart) {
   return transaction;
 }
 
-class QueryTransformer {
-  constructor(mq, ctx, query) {
-    this.mq = mq;
-    this.ctx = ctx;
-    this.query = query;
-  }
-  start(controller) {
-    const initChanges = {
-      oldInbox: this.mq.inbox.empty(),
-      difInbox: this.mq.inbox,
-      newInbox: this.mq.inbox,
-      oldOutbox: this.mq.outbox.empty(),
-      difOutbox: this.mq.outbox,
-      newOutbox: this.mq.outbox,
-    };
-    for (
-      const result of find(
-        this.ctx,
-        (vars) => this.query(initChanges, vars),
-        this.mq.blobdb,
-      )
-    ) {
-      controller.enqueue(result);
-    }
-  }
-  transform(changes, controller) {
-    for (
-      const result of find(
-        this.ctx,
-        (vars) => this.query(changes, vars),
-        this.mq.blobdb,
-      )
-    ) {
-      controller.enqueue(result);
-    }
-  }
-}
-
-// TODO add attribute based filtering.
-class TribleMQ {
-  constructor(
-    blobdb,
-    inbox = new TribleKB(new MemTribleDB(), blobdb),
-    outbox = new TribleKB(new MemTribleDB(), blobdb),
-  ) {
-    this._connections = new Map();
+class WSConnector {
+  constructor(addr, inbox, outbox) {
+    this.addr = addr;
+    this.ws = null;
     this.inbox = inbox;
     this.outbox = outbox;
-    this._changeStream = new TransformStream();
-    this._changeWriter = this._changeStream.writable.getWriter();
-    this._changeReadable = this._changeStream.readable;
+    this._worker = null;
+  }
+  async connect() {
+    this.ws = new WebSocket(this.addr, TRIBLES_PROTOCOL);
+    this.ws.binaryType = "arraybuffer";
+    this.ws.addEventListener("open", (e) => {
+      console.info(`Connected to ${this.addr}.`);
+    });
+    this.ws.addEventListener("message", (e) => {
+      this._onMessage(e);
+    });
+    this.ws.addEventListener("close", (e) => {
+      console.info(`Disconnected from ${this.addr}.`);
+    });
+    this.ws.addEventListener("error", (e) => {
+      console.error(`Error on connection to ${this.addr}: ${e.message}`);
+    });
+    const openPromise = new Promise((resolve, reject) => {
+      this.ws.addEventListener("open", resolve);
+      this.ws.addEventListener("close", reject);
+    });
+    const closePromise = new Promise((resolve, reject) => {
+      this.ws.addEventListener("close", resolve);
+    });
+    this.ws.openPromise = openPromise;
+    this.ws.closePromise = closePromise;
+
+    await openPromise;
+
+    this._worker = this._work();
+
+    return this;
   }
 
-  _onInTxn(txn) {
+  async _work() {
+    for await (const change of this.inbox.changes()) {
+      const novelTribles = kb.tribledb.index[EAV];
+      if (!novelTribles.isEmpty()) {
+        const transaction = buildTransaction(novelTribles);
+        await difKB.blobdb.flush();
+        this.ws.send(transaction);
+      }
+    }
+  }
+
+  _onMessage(e) {
+    const txn = new Uint8Array(e.data)
     if (txn.length <= 64) {
       console.warn(`Bad transaction, too short.`);
       return;
@@ -109,124 +108,95 @@ class TribleMQ {
     }
 
     const receivedTriblesBatch = emptyTriblePART.batch();
-    for (const trible of contiguousTribles(txnTriblePayload)) {
+    for (const trible of) {
       receivedTriblesBatch.put(trible);
     }
     const receivedTribles = receivedTriblesBatch.complete();
-    const novelTribles = receivedTribles.subtract(
-      this.inbox.tribledb.index[EAV],
-    );
 
-    if (!novelTribles.isEmpty()) {
-      const difInbox = this.inbox.empty().withTribles(novelTribles.keys());
+    this.inbox.kb = this.inbox.kb.withTribles(contiguousTribles(txnTriblePayload))
+  }
 
-      const oldInbox = this.inbox;
-      const newInbox = this.inbox.withTribles(novelTribles.keys()); //TODO this could be a .union(change)
+  async disconnect() {
+    this.ws.close();
+    await this.ws.closePromise;
+    return this;
+  }
+}
 
-      this.inbox = newInbox;
-      this._changeWriter.write({
-        oldInbox,
-        difInbox,
-        newInbox,
-        oldOutbox: this.outbox,
-        difOutbox: this.outbox.empty(),
-        newOutbox: this.outbox,
-      });
+class QueryTransformer {
+  constructor(initKB, ctx, query) {
+    this.initKB = initKB;
+    this.ctx = ctx;
+    this.query = query;
+  }
+
+  start(controller) {
+    const initChanges = {
+      oldKB: this.initKB.empty(),
+      difKB: this.initKB,
+      newKB: this.initKB,
+    };
+    for (
+      const result of find(
+        this.ctx,
+        (vars) => this.query(initChanges, vars),
+        this.initKB.blobdb,
+      )
+    ) {
+      controller.enqueue(result);
+    }
+    this.initKB = null; // Free for GC.
+  }
+
+  transform(changes, controller) {
+    for (
+      const result of find(
+        this.ctx,
+        (vars) => this.query(changes, vars),
+        changes.newKB.blobdb,
+      )
+    ) {
+      controller.enqueue(result);
     }
   }
+}
 
-  _onOutTxn(txn) {
-    for (const [addr, conn] of this._connections) {
-      if (conn.readyState === WebSocket.OPEN) {
-        conn.send(txn);
-      }
-    }
+class TribleBox {
+  constructor(
+    kb,
+  ) {
+    this._kb = kb;
+    this._changeStream = new TransformStream();
+    this._changeWriter = this._changeStream.writable.getWriter();
+    this._changeReadable = this._changeStream.readable;
   }
 
-  async connect(addr) {
-    const websocket = new WebSocket(addr, TRIBLES_PROTOCOL);
-    websocket.binaryType = "arraybuffer";
-    websocket.addEventListener("open", (e) => {
-      console.info(`Connected to ${addr}.`);
-
-      const novelTribles = this.outbox.tribledb.index[EAV];
-      if (!novelTribles.isEmpty()) {
-        const transaction = buildTransaction(novelTribles);
-        websocket.send(transaction);
-      }
-    });
-    websocket.addEventListener("message", (e) => {
-      this._onInTxn(new Uint8Array(e.data));
-    });
-    websocket.addEventListener("close", (e) => {
-      console.info(`Disconnected from ${addr}.`);
-      this._connections.delete(addr, websocket);
-    });
-    websocket.addEventListener("error", (e) => {
-      console.error(`Error on connection to ${addr}: ${e.message}`);
-    });
-    const openPromise = new Promise((resolve, reject) => {
-      websocket.addEventListener("open", resolve);
-      websocket.addEventListener("close", reject);
-    });
-    const closePromise = new Promise((resolve, reject) => {
-      websocket.addEventListener("close", resolve);
-    });
-    websocket.openPromise = openPromise;
-    websocket.closePromise = closePromise;
-    this._connections.set(addr, websocket);
-
-    await openPromise;
-    return addr;
+  get kb() {
+    return this._kb;
   }
 
-  async disconnect(addr) {
-    const ws = this._connections.get(addr);
-    ws.close();
-    await ws.closePromise;
-    return addr;
-  }
-
-  async disconnectAll() {
-    const addrs = [...this._connections.values()];
-    await Promise.all([...this._connections.values()].map((conn) => {
-      conn.close();
-      return conn.closePromise;
-    }));
-    return addrs;
-  }
-
-  async send(newOutbox) {
+  set kb(newKB) {
     //TODO add size to PART, so this can be done lazily.
-    const novelTribles = newOutbox.tribledb.index[EAV].subtract(
-      this.outbox.tribledb.index[EAV],
+    //TODO move this to set operations on tribledb
+    const novelTribles = newKB.tribledb.index[EAV].subtract(
+      this._kb.tribledb.index[EAV],
     );
     if (!novelTribles.isEmpty()) {
-      const transaction = buildTransaction(novelTribles);
 
-      await newOutbox.blobdb.flush();
-      this._onOutTxn(transaction);
-
-      const difOutbox = new TribleKB(this.outbox.tribledb.empty(), this.blobdb)
+      const difKB = new TribleKB(this._kb.tribledb.empty(), newKB.blobdb)
         .withTribles(novelTribles.keys());
-      // ^ We should also fill in the blobs for the memblobstore case.
 
-      const oldOutbox = this.outbox;
-      this.outbox = newOutbox;
+      const oldKB = this._kb;
+      this._kb = newKB;
 
       this._changeWriter.write(
         {
-          oldInbox: this.inbox,
-          difInbox: this.inbox.empty(),
-          newInbox: this.inbox,
-          oldOutbox,
-          difOutbox,
-          newOutbox,
+          oldKB,
+          difKB,
+          newKB,
         },
       );
     }
-
-    return newOutbox;
   }
 
   async *changes() {
@@ -239,10 +209,10 @@ class TribleMQ {
     let readable;
     [this._changeReadable, readable] = this._changeReadable.tee();
 
-    const transformer = new QueryTransformer(this, ctx, query);
+    const transformer = new QueryTransformer(this._kb, ctx, query);
     const resultStream = new TransformStream(transformer);
     yield* readable.pipeThrough(resultStream).getIterator();
   }
 }
 
-export { TribleMQ };
+export { TribleBox, WSConnector };
