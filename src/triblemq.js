@@ -1,7 +1,6 @@
 import { emptyTriblePART } from "./part.js";
 import { isTransactionMarker, isValidTransaction } from "./trible.js";
 import { EAV } from "./query.js";
-import { MemTribleDB } from "./memtribledb.js";
 import { find, TribleKB } from "./triblekb.js";
 import {
   blake2s32,
@@ -70,8 +69,8 @@ class WSConnector {
   }
 
   async _work() {
-    for await (const change of this.inbox.changes()) {
-      const novelTribles = kb.tribledb.index[EAV];
+    for await (const { difKB } of this.inbox.changes()) {
+      const novelTribles = difKB.tribledb.index[EAV];
       if (!novelTribles.isEmpty()) {
         const transaction = buildTransaction(novelTribles);
         await difKB.blobdb.flush();
@@ -81,7 +80,7 @@ class WSConnector {
   }
 
   _onMessage(e) {
-    const txn = new Uint8Array(e.data)
+    const txn = new Uint8Array(e.data);
     if (txn.length <= 64) {
       console.warn(`Bad transaction, too short.`);
       return;
@@ -107,13 +106,9 @@ class WSConnector {
       return;
     }
 
-    const receivedTriblesBatch = emptyTriblePART.batch();
-    for (const trible of) {
-      receivedTriblesBatch.put(trible);
-    }
-    const receivedTribles = receivedTriblesBatch.complete();
-
-    this.inbox.kb = this.inbox.kb.withTribles(contiguousTribles(txnTriblePayload))
+    this.inbox.kb = this.inbox.kb.withTribles(
+      contiguousTribles(txnTriblePayload),
+    );
   }
 
   async disconnect() {
@@ -182,7 +177,6 @@ class TribleBox {
       this._kb.tribledb.index[EAV],
     );
     if (!novelTribles.isEmpty()) {
-
       const difKB = new TribleKB(this._kb.tribledb.empty(), newKB.blobdb)
         .withTribles(novelTribles.keys());
 

@@ -45,6 +45,15 @@ const equal = (tribleA, tribleB) => {
   return true;
 };
 
+const equalValue = (valueA, valueB) => {
+  const viewA = new Uint32Array(valueA.buffer, valueA.byteOffset, 8);
+  const viewB = new Uint32Array(valueB.buffer, valueB.byteOffset, 8);
+  for (let i = 0; i < 8; i++) {
+    if (viewA[i] !== viewB[i]) return false;
+  }
+  return true;
+};
+
 const contiguousTribles = (tribles) => ({
   tribles,
   tribleCount: (tribles.length / TRIBLE_SIZE),
@@ -88,6 +97,7 @@ export {
   E,
   equal,
   equalId,
+  equalValue,
   isTransactionMarker,
   isValidTransaction,
   TRIBLE_SIZE,

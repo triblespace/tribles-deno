@@ -4,7 +4,15 @@ import {
 } from "https://deno.land/std@0.78.0/testing/asserts.ts";
 import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 
-import { id, S3BlobDB, TribleMQ, types } from "../mod.js";
+import {
+  id,
+  MemTribleDB,
+  S3BlobDB,
+  TribleBox,
+  TribleKB,
+  types,
+  WSConnector,
+} from "../mod.js";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -23,7 +31,8 @@ Deno.test({
     knightsCtx["lovedBy"] = { id: knightsCtx.loves.id, isInverseLink: true };
     // Add some data.
 
-    const mq = new TribleMQ(
+    const kb = new TribleKB(
+      new MemTribleDB(),
       new S3BlobDB(
         {
           region: "local",
@@ -35,7 +44,7 @@ Deno.test({
       ),
     );
 
-    const knightskb = mq.outbox.with(
+    const knightskb = kb.with(
       knightsCtx,
       (
         [romeo, juliet],
@@ -67,13 +76,14 @@ Deno.test({
       ],
     );
 
-    await mq.connect("ws://127.0.0.1:8816");
+    const inbox = new TribleBox(kb);
+    const outbox = new TribleBox(kb);
+    const wsCon = new WSConnector("ws://127.0.0.1:8816", inbox, outbox);
+    await wsCon.connect();
+    inbox.kb = knightskb;
+    inbox.kb = knightskb2;
     await sleep(1000);
-    mq.send(knightskb);
-    await sleep(1000);
-    mq.send(knightskb2);
-    await sleep(1000);
-    await mq.disconnectAll();
+    await wsCon.disconnect();
     //assertEquals(mq.inbox(), mq.outbox());
 
     /*

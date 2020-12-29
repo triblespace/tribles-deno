@@ -1,4 +1,4 @@
-import { TribleMQ } from "./src/triblemq.js";
+import { TribleBox, WSConnector } from "./src/triblemq.js";
 import { find, id, TribleKB } from "./src/triblekb.js";
 import { types } from "./src/types.js";
 import { MemTribleDB } from "./src/memtribledb.js";
@@ -15,7 +15,8 @@ export {
   MemBlobDB,
   MemTribleDB,
   S3BlobDB,
+  TribleBox,
   TribleKB,
-  TribleMQ,
   types,
+  WSConnector,
 };
