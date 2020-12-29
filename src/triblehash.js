@@ -27,7 +27,7 @@ function tribleHashUpdate(ctx, trible) {
         ctx.level[j] = blake2sInit(32, null);
       }
     }
-    blake2sUpdate(ctx.level[j], hash);
+    blake2sUpdate(ctx.level[i], hash);
   }
   ctx.prev = trible;
 }
@@ -41,7 +41,7 @@ function tribleHashFinal(ctx, output) {
       blake2sUpdate(ctx.level[j], hash);
       blake2sFinal(ctx, hash);
     }
-    blake2sUpdate(ctx.level[j], hash);
+    blake2sUpdate(ctx.level[0], hash);
   }
   return blake2sFinal(ctx, output);
 }
