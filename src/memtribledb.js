@@ -1,17 +1,14 @@
-import { INDEX_COUNT, indexOrder } from "./query.js";
+import { EAV, INDEX_COUNT, indexOrder } from "./query.js";
 import { emptyTriblePART, emptyValuePART } from "./part.js";
 
 class MemTribleDB {
   constructor(
     index = new Array(INDEX_COUNT).fill(emptyTriblePART),
-    tribleCount = 0,
   ) {
-    this.tribleCount = tribleCount;
     this.index = index;
   }
 
   with(tribles) {
-    let totalTribleCount = this.tribleCount;
     // deno-lint-ignore prefer-const
     let [eavIndex, ...restIndex] = this.index;
     const batches = restIndex.map((i) => i.batch());
@@ -27,14 +24,12 @@ class MemTribleDB {
           batches[i - 1].put(reorderedTrible);
         }
       }
-      totalTribleCount++;
     }
     if (this.index[0] === eavIndex) {
       return this;
     }
     return new MemTribleDB(
       [eavIndex, ...batches.map((b) => b.complete())],
-      totalTribleCount,
     );
   }
 
@@ -44,6 +39,46 @@ class MemTribleDB {
 
   empty() {
     return new MemTribleDB();
+  }
+
+  isEmpty() {
+    return this.index[EAV].isEmpty();
+  }
+
+  equals(other) {
+    return this.index[EAV].equals(other.index[EAV]);
+  }
+
+  union(other) {
+    const index = new Array(INDEX_COUNT);
+    for (let i = 0; i < INDEX_COUNT; i++) {
+      index[i] = this.index[i].union(other.index[i]);
+    }
+    return new MemTribleDB(index);
+  }
+
+  subtract(other) {
+    const index = new Array(INDEX_COUNT);
+    for (let i = 0; i < INDEX_COUNT; i++) {
+      index[i] = this.index[i].subtract(other.index[i]);
+    }
+    return new MemTribleDB(index);
+  }
+
+  difference(other) {
+    const index = new Array(INDEX_COUNT);
+    for (let i = 0; i < INDEX_COUNT; i++) {
+      index[i] = this.index[i].difference(other.index[i]);
+    }
+    return new MemTribleDB(index);
+  }
+
+  intersect(other) {
+    const index = new Array(INDEX_COUNT);
+    for (let i = 0; i < INDEX_COUNT; i++) {
+      index[i] = this.index[i].intersect(other.index[i]);
+    }
+    return new MemTribleDB(index);
   }
 }
 

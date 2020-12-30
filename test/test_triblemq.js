@@ -1,8 +1,11 @@
 import {
+  assert,
   assertArrayIncludes,
   assertEquals,
 } from "https://deno.land/std@0.78.0/testing/asserts.ts";
 import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
+
+import { encode } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
 import {
   id,
@@ -80,21 +83,21 @@ Deno.test({
     const outbox = new TribleBox(kb);
     const wsCon = new WSConnector("ws://127.0.0.1:8816", inbox, outbox);
     await wsCon.connect();
-    inbox.kb = knightskb;
-    inbox.kb = knightskb2;
-    await sleep(1000);
-    await wsCon.disconnect();
-    //assertEquals(mq.inbox(), mq.outbox());
+    outbox.kb = knightskb;
+    outbox.kb = knightskb2;
 
-    /*
-mq.listen(
-  (change, v) => [
-    change.inbox.new.where({ name: v.name, titles: [v.title.at(0).descend()] }),
-  ]
-);
-    */
+    let slept = 0;
+    while (!inbox.kb.equals(outbox.kb) && slept < 1000) {
+      await sleep(10);
+      slept += 10;
+    }
+    await wsCon.disconnect();
+
+    assertEquals(
+      [...inbox.kb.tribledb.index[0].keys()].map((t) => encode(t)),
+      [...outbox.kb.tribledb.index[0].keys()].map((t) => encode(t)),
+    );
+    assert(inbox.kb.equals(outbox.kb));
   },
-  sanitizeOps: false,
-  // TODO disable this workaround with the resolution of:
   // https://github.com/denoland/deno/issues/7457
 });

@@ -432,6 +432,7 @@ const makePART = function (KEY_LENGTH) {
 
   PARTree = class {
     constructor(child = null) {
+      this.keyLength = KEY_LENGTH;
       this.child = child;
     }
     batch() {
@@ -440,7 +441,7 @@ const makePART = function (KEY_LENGTH) {
 
     put(key, upsert = null) {
       if (this.child) {
-        const nchild = this.child.put(0, key, upsert);
+        const nchild = this.child.put(0, key, upsert, null);
         if (this.child === nchild) return this;
         return new PARTree(nchild);
       }
@@ -474,9 +475,9 @@ const makePART = function (KEY_LENGTH) {
     }
 
     equals(other) {
-      return !!(this.child === other.child ||
-        (this.child && other.child &&
-          equalHash(this.child.hash, other.child.hash)));
+      return this.child === other.child ||
+        (this.keyLength === other.keyLength && !!this.child && !!other.child &&
+          equalHash(this.child.hash, other.child.hash));
     }
 
     union(other) {
@@ -777,7 +778,7 @@ const makePART = function (KEY_LENGTH) {
       const child = this.children[pos];
       if (child) {
         //We need to update the child where this key would belong.
-        const nchild = this.children[pos].put(depth + 1, key, upsert);
+        const nchild = this.children[pos].put(depth + 1, key, upsert, batch);
         if (!this.hash) {
           this.children[pos] = nchild;
           return this;
@@ -880,7 +881,7 @@ const makePART = function (KEY_LENGTH) {
       const child = this.children[pos];
       if (child) {
         //We need to update the child where this key would belong.
-        const nchild = child.put(depth + 1, key, upsert);
+        const nchild = child.put(depth + 1, key, upsert, batch);
         if (!this.hash) {
           this.children[pos] = nchild;
           return this;
@@ -985,7 +986,7 @@ const makePART = function (KEY_LENGTH) {
       let nchild;
       if (child) {
         //We need to update the child where this key would belong.
-        nchild = child.put(depth + 1, key, upsert);
+        nchild = child.put(depth + 1, key, upsert, batch);
       } else {
         nchild = new PARTLeaf(
           partHashLeaf(key),

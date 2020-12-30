@@ -12,8 +12,10 @@ import { contiguousTribles, TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
 
 const TRIBLES_PROTOCOL = "tribles";
 
-function buildTransaction(triblesPart) {
-  const novelTriblesEager = [...triblesPart.keys()];
+function buildTransaction(kb) {
+  // TODO This could be done lazily, with either a growable buffer
+  // or by adding a size to parts.
+  const novelTriblesEager = [...kb.tribledb.index[EAV].keys()];
   const transaction = new Uint8Array(
     TRIBLE_SIZE * (novelTriblesEager.length + 1),
   );
@@ -21,6 +23,7 @@ function buildTransaction(triblesPart) {
   for (const trible of novelTriblesEager) {
     transaction.set(trible, TRIBLE_SIZE * i++);
   }
+  //TODO make hash configurable and use transaction trible attr for type
   blake2s32(
     transaction.subarray(TRIBLE_SIZE),
     transaction.subarray((TRIBLE_SIZE - VALUE_SIZE), TRIBLE_SIZE),
@@ -69,10 +72,9 @@ class WSConnector {
   }
 
   async _work() {
-    for await (const { difKB } of this.inbox.changes()) {
-      const novelTribles = difKB.tribledb.index[EAV];
-      if (!novelTribles.isEmpty()) {
-        const transaction = buildTransaction(novelTribles);
+    for await (const { difKB } of this.outbox.changes()) {
+      if (!difKB.isEmpty()) {
+        const transaction = buildTransaction(difKB);
         await difKB.blobdb.flush();
         this.ws.send(transaction);
       }
@@ -118,52 +120,26 @@ class WSConnector {
   }
 }
 
-class QueryTransformer {
-  constructor(initKB, ctx, query) {
-    this.initKB = initKB;
-    this.ctx = ctx;
-    this.query = query;
-  }
-
-  start(controller) {
-    const initChanges = {
-      oldKB: this.initKB.empty(),
-      difKB: this.initKB,
-      newKB: this.initKB,
-    };
-    for (
-      const result of find(
-        this.ctx,
-        (vars) => this.query(initChanges, vars),
-        this.initKB.blobdb,
-      )
-    ) {
-      controller.enqueue(result);
-    }
-    this.initKB = null; // Free for GC.
-  }
-
-  transform(changes, controller) {
-    for (
-      const result of find(
-        this.ctx,
-        (vars) => this.query(changes, vars),
-        changes.newKB.blobdb,
-      )
-    ) {
-      controller.enqueue(result);
-    }
-  }
-}
-
 class TribleBox {
   constructor(
     kb,
   ) {
     this._kb = kb;
-    this._changeStream = new TransformStream();
-    this._changeWriter = this._changeStream.writable.getWriter();
-    this._changeReadable = this._changeStream.readable;
+
+    const initChanges = {
+      oldKB: kb.empty(),
+      difKB: kb,
+      newKB: kb,
+    };
+
+    let resolveNext;
+    const nextPromise = new Promise((resolve) => resolveNext = resolve);
+    this._resolveNext = resolveNext;
+    this._changeNext = nextPromise;
+    this._changeHead = Promise.resolve({
+      next: nextPromise,
+      value: initChanges,
+    });
   }
 
   get kb() {
@@ -173,39 +149,58 @@ class TribleBox {
   set kb(newKB) {
     //TODO add size to PART, so this can be done lazily.
     //TODO move this to set operations on tribledb
-    const novelTribles = newKB.tribledb.index[EAV].subtract(
-      this._kb.tribledb.index[EAV],
-    );
-    if (!novelTribles.isEmpty()) {
-      const difKB = new TribleKB(this._kb.tribledb.empty(), newKB.blobdb)
-        .withTribles(novelTribles.keys());
-
+    const difKB = newKB.subtract(this._kb);
+    if (!difKB.isEmpty()) {
       const oldKB = this._kb;
       this._kb = newKB;
 
-      this._changeWriter.write(
-        {
-          oldKB,
-          difKB,
-          newKB,
-        },
-      );
+      const changes = {
+        oldKB,
+        difKB,
+        newKB,
+      };
+
+      this._changeHead = this._changeNext;
+
+      let resolveNext;
+      const nextPromise = new Promise((resolve) => resolveNext = resolve);
+
+      this._resolveNext({
+        next: nextPromise,
+        value: changes,
+      });
+
+      this._resolveNext = resolveNext;
+      this._changeNext = nextPromise;
     }
   }
 
-  async *changes() {
-    let readable;
-    [this._changeReadable, readable] = this._changeReadable.tee();
-    yield* readable.getIterator();
+  changes() {
+    return {
+      changeHead: this._changeHead,
+
+      async next() {
+        const { value, next } = await this.changeHead;
+        this.changeHead = next;
+        return Promise.resolve({ value });
+      },
+
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+    };
   }
 
-  async *listen(ctx, query) {
-    let readable;
-    [this._changeReadable, readable] = this._changeReadable.tee();
-
-    const transformer = new QueryTransformer(this._kb, ctx, query);
-    const resultStream = new TransformStream(transformer);
-    yield* readable.pipeThrough(resultStream).getIterator();
+  async *subscribe(query) {
+    for await (
+      const change of this.changes()
+    ) {
+      yield* find(
+        this.ctx,
+        (vars) => this.query(change, vars),
+        change.newKB.blobdb,
+      );
+    }
   }
 }
 

@@ -73,6 +73,23 @@ class S3BlobDB {
   empty() {
     return this;
   }
+
+  equals(other) {
+    return (other instanceof S3BlobDB) && (this.bucket === other.bucket);
+  }
+
+  merge(other) {
+    if (this.bucket !== other.bucket) {
+      throw Error(
+        "Can't merge S3BlobDBs with different buckets through this client, use the 'trible' cmd-line tool instead.",
+      );
+    }
+    return this;
+  }
+
+  shrink(tribledb) {
+    return this;
+  }
 }
 
 export { S3BlobDB };

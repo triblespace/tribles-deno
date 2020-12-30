@@ -693,6 +693,39 @@ class TribleKB {
   empty() {
     return new TribleKB(this.tribledb.empty(), this.blobdb.empty());
   }
+
+  equals(other) {
+    return this.tribledb.equals(other.tribledb) &&
+      this.blobdb.equals(other.blobdb);
+  }
+
+  isEmpty() {
+    return this.tribledb.isEmpty();
+  }
+
+  union(other) {
+    const tribledb = this.tribledb.union(other.tribledb);
+    const blobdb = this.blobdb.merge(other.blobdb);
+    return new TribleKB(tribledb, blobdb);
+  }
+
+  subtract(other) {
+    const tribledb = this.tribledb.subtract(other.tribledb);
+    const blobdb = this.blobdb.merge(other.blobdb).shrink(tribledb);
+    return new TribleKB(tribledb, blobdb);
+  }
+
+  difference(other) {
+    const tribledb = this.tribledb.difference(other.tribledb);
+    const blobdb = this.blobdb.merge(other.blobdb).shrink(tribledb);
+    return new TribleKB(tribledb, blobdb);
+  }
+
+  intersect(other) {
+    const tribledb = this.tribledb.difference(other.tribledb);
+    const blobdb = this.blobdb.merge(other.blobdb).shrink(tribledb);
+    return new TribleKB(tribledb, blobdb);
+  }
 }
 
 export { find, id, TribleKB };
