@@ -1,4 +1,4 @@
-const { S3 } = import("aws-sdk");
+const { S3 } = require("aws-sdk");
 
 const { emptyValuePART } = require("./part.js");
 

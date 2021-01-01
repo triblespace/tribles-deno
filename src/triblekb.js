@@ -1,4 +1,4 @@
-const uuid = import("uuid");
+const uuid = require("uuid");
 
 import { emptyValuePART } from "./part.js";
 import {

@@ -1,4 +1,4 @@
-const uuid = import('uuid');
+const uuid = require('uuid');
 
 function uuidEncoder(v, b) {
   if (!uuid.validate(v)) {
