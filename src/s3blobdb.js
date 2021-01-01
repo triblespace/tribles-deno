@@ -41,8 +41,8 @@ class S3BlobDB {
         Key: blobName,
         Body: blob
       }).promise().then(() => pendingWrite.resolved = true);
-      if (!this.localBlobCache.get(blobName)?.deref()) {
-        this.localBlobCache.set(blobName, new WeakRef(blob));
+      if (!this.localBlobCache.get(blobName)) {
+        this.localBlobCache.set(blobName, blob);
       }
     }
 
@@ -58,12 +58,12 @@ class S3BlobDB {
     const blobName = [...new Uint8Array(k)]
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
-    const cachedValue = this.localBlobCache.get(blobName)?.deref();
+    const cachedValue = this.localBlobCache.get(blobName);
     if (cachedValue) {
       return cachedValue;
     }
     const pulledValue = (await this.bucket.getObject({ key: blobName }).promise()).Body;
-    this.localBlobCache.set(blobName, new WeakRef(pulledValue));
+    this.localBlobCache.set(blobName, pulledValue);
     return pulledValue;
   }
 

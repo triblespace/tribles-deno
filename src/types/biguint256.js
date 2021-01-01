@@ -2,8 +2,8 @@ import { bigIntToBytes, bytesToBigInt } from "./util.js";
 
 function biguint256Encoder(v, b) {
   if (
-    v > 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn ||
-    v < 0n
+    v > BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") ||
+    v < BigInt("0")
   ) {
     throw Error(
       "Error BigInt not in valid range: 0 <= v <= 2^256-1.",
