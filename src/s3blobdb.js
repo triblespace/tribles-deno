@@ -1,11 +1,11 @@
-const AWS = require("aws-sdk");
+const { S3 } = import("aws-sdk");
 
 const { emptyValuePART } = require("./part.js");
 
 class S3BlobDB {
   constructor(
     config,
-    bucket = new AWS.S3({
+    bucket = new S3({
       apiVersion: '2006-03-01',
       region: config.region,
       params: { Bucket: config.bucket },
