@@ -39,13 +39,14 @@ class MemBlobDB {
   }
 
   merge(other) {
-    new MemBlobDB(this.blobs.union(other.blobs));
+    return new MemBlobDB(this.blobs.union(other.blobs));
   }
 
   shrink(tribledb) {
     console.warn(
       "MemBlobDB does not implement shrinking yet, so performing non-monotonic KB set operations will potentially leak memory.",
     );
+    return this;
   }
 }
 
