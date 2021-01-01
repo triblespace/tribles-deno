@@ -1,6 +1,6 @@
-import AWS from "aws-sdk";
+const AWS = require("aws-sdk");
 
-import { emptyValuePART } from "./part.js";
+const { emptyValuePART } = require("./part.js");
 
 class S3BlobDB {
   constructor(
@@ -101,4 +101,4 @@ class S3BlobDB {
   }
 }
 
-export { S3BlobDB };
+module.exports = { S3BlobDB };

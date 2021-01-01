@@ -1,5 +1,5 @@
-import { EAV, INDEX_COUNT, indexOrder } from "./query.js";
-import { emptyTriblePART, emptyValuePART } from "./part.js";
+const { EAV, INDEX_COUNT, indexOrder } = require("./query.js");
+const { emptyTriblePART, emptyValuePART } = require("./part.js");
 
 class MemTribleDB {
   constructor(
@@ -82,4 +82,4 @@ class MemTribleDB {
   }
 }
 
-export { MemTribleDB };
+module.exports = { MemTribleDB };

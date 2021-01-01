@@ -1,4 +1,4 @@
-import * as uuid from "uuid";
+const uuid = require("uuid");
 
 import { emptyValuePART } from "./part.js";
 import {
@@ -724,4 +724,4 @@ class TribleKB {
   }
 }
 
-export { find, id, TribleKB };
+module.exports = { find, id, TribleKB };

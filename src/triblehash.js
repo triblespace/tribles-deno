@@ -1,10 +1,10 @@
-import {
+const {
   blake2s32,
   blake2sFinal,
   blake2sInit,
   blake2sUpdate,
-} from "./blake2s.js";
-import { TRIBLE_SIZE } from "./trible.js";
+} = require("./blake2s.js");
+const { TRIBLE_SIZE } = require("./trible.js");
 
 function tribleHashInit(trible) {
   const levels = [...new Array(TRIBLE_SIZE)].map((x) => blake2sInit(32, null));
@@ -72,7 +72,7 @@ const equalHash = (hashA, hashB) => {
   return true;
 };
 
-export {
+module.exports = {
   equalHash,
   partHashChildren,
   partHashLeaf,

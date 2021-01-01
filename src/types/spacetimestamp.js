@@ -1,4 +1,4 @@
-import { bigIntToBytes, bytesToBigInt } from "./util.js";
+const { bigIntToBytes, bytesToBigInt } = require("./util.js");
 
 const spread = (x) => {
   let X = BigInt(x);
@@ -90,4 +90,4 @@ const spacetimestampType = {
   decoder: spacetimestampDecoder,
 };
 
-export { spacetimestampType };
+module.exports = { spacetimestampType };

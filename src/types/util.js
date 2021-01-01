@@ -17,4 +17,4 @@ const bytesToBigInt = (b, offset, length) => {
   return n;
 };
 
-export { bigIntToBytes, bytesToBigInt };
+module.exports = { bigIntToBytes, bytesToBigInt };

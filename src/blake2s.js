@@ -323,4 +323,4 @@ function blake2s32(input, output) {
   return blake2sFinal(ctx, output);
 }
 
-export { blake2s32, blake2sFinal, blake2sInit, blake2sUpdate };
+module.exports = { blake2s32, blake2sFinal, blake2sInit, blake2sUpdate };

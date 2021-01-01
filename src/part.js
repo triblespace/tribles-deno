@@ -1,5 +1,5 @@
-import { TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
-import { equalHash, partHashChildren, partHashLeaf } from "./triblehash.js";
+const { TRIBLE_SIZE, VALUE_SIZE } = require("./trible.js");
+const { equalHash, partHashChildren, partHashLeaf } = require("./triblehash.js");
 
 const makePART = function (KEY_LENGTH) {
   const linearNodeSize = 16;
@@ -1036,4 +1036,4 @@ const makePART = function (KEY_LENGTH) {
 const emptyTriblePART = makePART(TRIBLE_SIZE);
 const emptyValuePART = makePART(VALUE_SIZE);
 
-export { emptyTriblePART, emptyValuePART, makePART };
+module.exports = { emptyTriblePART, emptyValuePART, makePART };

@@ -91,7 +91,7 @@ const isValidTransaction = (trible, hash) => {
   return true;
 };
 
-export {
+module.exports = {
   A,
   contiguousTribles,
   E,

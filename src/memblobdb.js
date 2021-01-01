@@ -1,4 +1,4 @@
-import { emptyValuePART } from "./part.js";
+const { emptyValuePART } = require("./part.js");
 
 class MemBlobDB {
   constructor(
@@ -49,4 +49,4 @@ class MemBlobDB {
   }
 }
 
-export { MemBlobDB };
+module.exports = { MemBlobDB };

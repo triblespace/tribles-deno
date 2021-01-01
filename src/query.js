@@ -1,4 +1,4 @@
-import {
+const {
   A,
   E,
   equalId,
@@ -7,8 +7,8 @@ import {
   v1zero,
   V2,
   VALUE_SIZE,
-} from "./trible.js";
-import { emptyTriblePART, emptyValuePART } from "./part.js";
+} = require("./trible.js");
+const { emptyTriblePART, emptyValuePART } = require("./part.js");
 
 const EAV = 0;
 const EVA = 1;
@@ -179,7 +179,7 @@ class ConstantCursor {
     return true;
   }
 
-  push(ascending = true) {}
+  push(ascending = true) { }
 
   pop() {
     this.valid = true;
@@ -450,7 +450,7 @@ function* unsafeQuery(
   }
 }
 
-export {
+module.exports = {
   AEV,
   AVE,
   AXX,

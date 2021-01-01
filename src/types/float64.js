@@ -18,4 +18,4 @@ const float64Type = {
   decoder: float64Decoder,
 };
 
-export { float64Type };
+module.exports = { float64Type };

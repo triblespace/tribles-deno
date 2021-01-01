@@ -1,14 +1,14 @@
-import { emptyTriblePART } from "./part.js";
-import { isTransactionMarker, isValidTransaction } from "./trible.js";
-import { EAV } from "./query.js";
-import { find, TribleKB } from "./triblekb.js";
-import {
+const { emptyTriblePART } = require("./part.js");
+const { isTransactionMarker, isValidTransaction } = require("./trible.js");
+const { EAV } = require("./query.js");
+const { find, TribleKB } = require("./triblekb.js");
+const {
   blake2s32,
   blake2sFinal,
   blake2sInit,
   blake2sUpdate,
-} from "./blake2s.js";
-import { contiguousTribles, TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
+} = require("./blake2s.js");
+const { contiguousTribles, TRIBLE_SIZE, VALUE_SIZE } = require("./trible.js");
 
 const TRIBLES_PROTOCOL = "tribles";
 
@@ -204,4 +204,4 @@ class TribleBox {
   }
 }
 
-export { TribleBox, WSConnector };
+module.exports = { TribleBox, WSConnector };

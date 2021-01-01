@@ -1,4 +1,4 @@
-import { bigIntToBytes, bytesToBigInt } from "./util.js";
+const { bigIntToBytes, bytesToBigInt } = require("./util.js");
 
 function biguint256Encoder(v, b) {
   if (
@@ -22,4 +22,4 @@ const biguint256Type = ({
   decoder: biguint256Decoder,
 });
 
-export { biguint256Type };
+module.exports = { biguint256Type };

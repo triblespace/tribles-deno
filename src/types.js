@@ -1,9 +1,9 @@
-import { uuidType } from "./types/uuid.js";
-import { shortstringType } from "./types/shortstring.js";
-import { longstringType } from "./types/longstring.js";
-import { spacetimestampType } from "./types/spacetimestamp.js";
-import { biguint256Type } from "./types/biguint256.js";
-import { float64Type } from "./types/float64.js";
+const { uuidType } = require("./types/uuid.js");
+const { shortstringType } = require("./types/shortstring.js");
+const { longstringType } = require("./types/longstring.js");
+const { spacetimestampType } = require("./types/spacetimestamp.js");
+const { biguint256Type } = require("./types/biguint256.js");
+const { float64Type } = require("./types/float64.js");
 
 const types = {
   uuid: uuidType,
@@ -14,4 +14,4 @@ const types = {
   //float64: float64Type, //TODO Fix to use lexicographical sorting.
 };
 
-export { types };
+module.exports = { types }

@@ -1,4 +1,4 @@
-import { blake2s32 } from "../blake2s.js";
+const { blake2s32 } = require("../blake2s.js");
 
 function longstringEncoder(v, b) {
   const d = new TextEncoder("utf-8").encode(v);
@@ -15,4 +15,4 @@ const longstringType = ({
   decoder: longstringDecoder,
 });
 
-export { longstringType };
+module.exports = { longstringType };

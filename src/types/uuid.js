@@ -1,4 +1,4 @@
-import * as uuid from 'uuid';
+const uuid = require('uuid');
 
 function uuidEncoder(v, b) {
   if (!uuid.validate(v)) {
@@ -21,4 +21,4 @@ const uuidType = ({
   decoder: uuidDecoder,
 });
 
-export { uuidType };
+module.exports = { uuidType };

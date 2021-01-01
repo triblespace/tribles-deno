@@ -26,4 +26,4 @@ const shortstringType = ({
   decoder: shortstringDecoder,
 });
 
-export { shortstringType };
+module.exports = { shortstringType };
