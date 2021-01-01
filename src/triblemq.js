@@ -191,12 +191,12 @@ class TribleBox {
     };
   }
 
-  async *subscribe(query) {
+  async *subscribe(ctx, query) {
     for await (
       const change of this.changes()
     ) {
       yield* find(
-        this.ctx,
+        ctx,
         (vars) => query(change, vars),
         change.newKB.blobdb,
       );
