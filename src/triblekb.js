@@ -1,14 +1,14 @@
 const uuid = require("uuid");
 
-import { emptyValuePART } from "./part.js";
-import {
+const { emptyValuePART } = require("./part.js");
+const {
   CollectionConstraint,
   ConstantConstraint,
   IndexConstraint,
   TripleConstraint,
   unsafeQuery,
-} from "./query.js";
-import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
+} = require("./query.js");
+const { A, E, TRIBLE_SIZE, V, VALUE_SIZE } = require("./trible.js");
 
 const id = Symbol("id");
 
