@@ -197,7 +197,7 @@ class TribleBox {
     ) {
       yield* find(
         this.ctx,
-        (vars) => this.query(change, vars),
+        (vars) => query(change, vars),
         change.newKB.blobdb,
       );
     }
