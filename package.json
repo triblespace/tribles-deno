@@ -1,6 +1,6 @@
 {
   "name": "tribles",
-  "version": "0.1.2",
+  "version": "0.1.5",
   "description": "This is the javascript/browser implementation of the _tribles_ ecosystem.",
   "main": "./mod.js",
   "module": "./mod.js",
