@@ -13,9 +13,9 @@ function float64Decoder(b, blob) {
   );
 }
 
-const float64 = {
+const float64Type = {
   encoder: float64Encoder,
   decoder: float64Decoder,
 };
 
-export { float64 };
+export { float64Type };

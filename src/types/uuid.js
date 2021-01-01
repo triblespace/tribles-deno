@@ -16,9 +16,9 @@ function uuidDecoder(b, blob) {
   return uuid.stringify(b.subarray(b.length - 16));
 }
 
-const uuid = ({
+const uuidType = ({
   encoder: uuidEncoder,
   decoder: uuidDecoder,
 });
 
-export { uuid };
+export { uuidType };

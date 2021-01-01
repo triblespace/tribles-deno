@@ -85,9 +85,9 @@ function spacetimestampDecoder(b, blob) {
   return { t, x, y, z };
 }
 
-const spacetimestamp = {
+const spacetimestampType = {
   encoder: spacetimestampEncoder,
   decoder: spacetimestampDecoder,
 };
 
-export { spacetimestamp };
+export { spacetimestampType };
