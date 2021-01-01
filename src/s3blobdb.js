@@ -1,11 +1,20 @@
-import { S3Bucket } from "https://deno.land/x/s3@0.3.0/mod.ts";
+import AWS from "aws-sdk";
 
 import { emptyValuePART } from "./part.js";
 
 class S3BlobDB {
   constructor(
     config,
-    bucket = new S3Bucket(config),
+    bucket = new AWS.S3({
+      apiVersion: '2006-03-01',
+      region: config.region,
+      params: { Bucket: config.bucket },
+      credentials:
+      {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretKey
+      }
+    }),
     pendingWrites = [],
     localBlobCache = new Map(),
   ) {
@@ -28,10 +37,10 @@ class S3BlobDB {
         resolved: false,
       };
       this.pendingWrites.push(pendingWrite);
-      this.bucket.putObject(
-        blobName,
-        blob,
-      ).then(() => pendingWrite.resolved = true);
+      this.bucket.putObject({
+        Key: blobName,
+        Body: blob
+      }).promise().then(() => pendingWrite.resolved = true);
       if (!this.localBlobCache.get(blobName)?.deref()) {
         this.localBlobCache.set(blobName, new WeakRef(blob));
       }
@@ -53,7 +62,7 @@ class S3BlobDB {
     if (cachedValue) {
       return cachedValue;
     }
-    const pulledValue = (await this.bucket.getObject(blobName)).body;
+    const pulledValue = (await this.bucket.getObject({ key: blobName }).promise()).Body;
     this.localBlobCache.set(blobName, new WeakRef(pulledValue));
     return pulledValue;
   }

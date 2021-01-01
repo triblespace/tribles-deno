@@ -1,7 +1,7 @@
-# tribles-deno
+# tribles.js
 ![A three eyed trible in front of a round background showing space and the stars.](./trible.svg)
 
-This is the deno implementation of the _tribles_ ecosystem.
+This is the javascript/browser implementation of the _tribles_ ecosystem.
 
 It is still in early development.
 
@@ -17,7 +17,6 @@ So far the following components have been implemented.
   - Longstring
   - Spacetimestamp
   - bigint256
-  - float64
 
 Currently to be done and missing is:
 

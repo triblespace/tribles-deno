@@ -1,4 +1,4 @@
-import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
+import * as uuid from "uuid";
 
 import { emptyValuePART } from "./part.js";
 import {
@@ -30,8 +30,7 @@ class Variable {
       this.provider.variables[index] !== this
     ) {
       throw Error(
-        `Same variable position occupied by ${this} and ${
-          this.provider.variables[index]
+        `Same variable position occupied by ${this} and ${this.provider.variables[index]
         }`,
       );
     }
@@ -131,13 +130,13 @@ class VariableProvider {
 }
 
 class IDSequence {
-  constructor() {}
+  constructor() { }
 
   [Symbol.iterator]() {
     return this;
   }
   next() {
-    return { value: v4.generate() };
+    return { value: uuid.v4() };
   }
 }
 
@@ -498,8 +497,7 @@ const triplesToTribles = function (ctx, triples, tribles = [], blobs = []) {
       ctx[id].encoder(ctx[attr].id, A(triple));
     } catch (err) {
       throw Error(
-        `Error at path [${path}]:Couldn't encode id '${
-          ctx[attr].id
+        `Error at path [${path}]:Couldn't encode id '${ctx[attr].id
         }' of attr '${attr}' in ctx:\n${err}`,
       );
     }
@@ -529,13 +527,11 @@ const precompileTriples = (ctx, vars, triples) => {
         if (entity.decoder) {
           if (entity.decoder !== ctx[id].decoder) {
             throw new Error(
-              `Error at paths ${entity.paths} and [${
-                path.slice(
-                  0,
-                  -1,
-                )
-              }]:\n Variables at positions use incompatible decoders '${entity.decoder.name}' and '${
-                ctx[id].decoder.name
+              `Error at paths ${entity.paths} and [${path.slice(
+                0,
+                -1,
+              )
+              }]:\n Variables at positions use incompatible decoders '${entity.decoder.name}' and '${ctx[id].decoder.name
               }'.`,
             );
           }
