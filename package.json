@@ -1,6 +1,6 @@
 {
   "name": "tribles",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "This is the javascript/browser implementation of the _tribles_ ecosystem.",
   "main": "./src/index.js",
   "repository": "git@github.com:triblesspace/tribles.js.git",
