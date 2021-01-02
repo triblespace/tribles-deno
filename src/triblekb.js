@@ -718,7 +718,7 @@ class TribleKB {
   }
 
   intersect(other) {
-    const tribledb = this.tribledb.difference(other.tribledb);
+    const tribledb = this.tribledb.intersect(other.tribledb);
     const blobdb = this.blobdb.merge(other.blobdb).shrink(tribledb);
     return new TribleKB(tribledb, blobdb);
   }
