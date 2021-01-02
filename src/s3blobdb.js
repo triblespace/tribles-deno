@@ -7,6 +7,8 @@ class S3BlobDB {
     config,
     bucket = new S3({
       apiVersion: '2006-03-01',
+      s3ForcePathStyle: true, // needed with minio
+      signatureVersion: 'v4',
       endpoint: config.endpointURL,
       region: config.region,
       params: { Bucket: config.bucket },
