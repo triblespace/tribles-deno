@@ -16,9 +16,12 @@ class S3BlobDB {
   }
 
   put(blobs) {
+    // Each put returns a new BlobDB instance, sharing the parent's blob cache
+    // but tracking only still pending and new writes.
+    // This way older KBs can only wait on their blobs,
+    // and resolved write promises can be GCed.
     const pendingWrites = this.pendingWrites.filter((pw) => !pw.resolved);
-    for (let b = 0; b < blobs.length; b++) {
-      const [key, blob] = blobs[b];
+    for (const [key, blob] of blobs) {
       const blobName = [...new Uint8Array(key)]
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
@@ -27,11 +30,11 @@ class S3BlobDB {
         promise: null,
         resolved: false,
       };
-      this.pendingWrites.push(pendingWrite);
-      this.bucket.putObject(
+      pendingWrite.promise = this.bucket.putObject(
         blobName,
         blob,
       ).then(() => pendingWrite.resolved = true);
+      pendingWrites.push(pendingWrite);
       if (!this.localBlobCache.get(blobName)?.deref()) {
         this.localBlobCache.set(blobName, new WeakRef(blob));
       }
@@ -64,7 +67,7 @@ class S3BlobDB {
         .filter((r) => r.status === "rejected")
         .map((r) => r.reason);
     if (reasons.length !== 0) {
-      const e = Error("Couldn't flush S3BlobDB, some puts returned errors.");
+      const e = Error("Couldn't flush S3BlobDB, some puts returned errors. See error.reasons for more info.");
       e.reasons = reasons;
       throw e;
     }
