@@ -14,4 +14,4 @@ const types = {
   //float64: float64Type, //TODO Fix to use lexicographical sorting.
 };
 
-module.exports = { types }
+module.exports = { types };

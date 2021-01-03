@@ -179,7 +179,7 @@ class ConstantCursor {
     return true;
   }
 
-  push(ascending = true) { }
+  push(ascending = true) {}
 
   pop() {
     this.valid = true;

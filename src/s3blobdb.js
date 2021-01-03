@@ -6,17 +6,16 @@ class S3BlobDB {
   constructor(
     config,
     bucket = new S3({
-      apiVersion: '2006-03-01',
+      apiVersion: "2006-03-01",
       s3ForcePathStyle: true, // needed with minio
-      signatureVersion: 'v4',
+      signatureVersion: "v4",
       endpoint: config.endpointURL,
       region: config.region,
       params: { Bucket: config.bucket },
-      credentials:
-      {
+      credentials: {
         accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretKey
-      }
+        secretAccessKey: config.secretKey,
+      },
     }),
     pendingWrites = [],
     localBlobCache = new Map(),
@@ -44,7 +43,7 @@ class S3BlobDB {
       };
       pendingWrite.promise = this.bucket.putObject({
         Key: blobName,
-        Body: blob
+        Body: blob,
       }).promise().then(() => pendingWrite.resolved = true);
       pendingWrites.push(pendingWrite);
       if (!this.localBlobCache.get(blobName)) {
@@ -68,7 +67,8 @@ class S3BlobDB {
     if (cachedValue) {
       return cachedValue;
     }
-    const pulledValue = (await this.bucket.getObject({ key: blobName }).promise()).Body;
+    const pulledValue =
+      (await this.bucket.getObject({ key: blobName }).promise()).Body;
     this.localBlobCache.set(blobName, pulledValue);
     return pulledValue;
   }

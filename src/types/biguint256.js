@@ -2,7 +2,10 @@ const { bigIntToBytes, bytesToBigInt } = require("./util.js");
 
 function biguint256Encoder(v, b) {
   if (
-    v > BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") ||
+    v >
+      BigInt(
+        "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      ) ||
     v < BigInt("0")
   ) {
     throw Error(

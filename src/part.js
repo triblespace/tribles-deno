@@ -1,5 +1,7 @@
 const { TRIBLE_SIZE, VALUE_SIZE } = require("./trible.js");
-const { equalHash, partHashChildren, partHashLeaf } = require("./triblehash.js");
+const { equalHash, partHashChildren, partHashLeaf } = require(
+  "./triblehash.js",
+);
 
 const makePART = function (KEY_LENGTH) {
   const linearNodeSize = 16;
