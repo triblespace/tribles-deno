@@ -185,7 +185,7 @@ class TribleBox {
       async next() {
         const { value, next } = await this.changeHead;
         this.changeHead = next;
-        return Promise.resolve({ value });
+        return { value };
       },
 
       [Symbol.asyncIterator]() {
