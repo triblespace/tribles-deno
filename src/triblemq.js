@@ -37,7 +37,6 @@ class WSConnector {
     this.ws = null;
     this.inbox = inbox;
     this.outbox = outbox;
-    this._worker = null;
   }
   async connect() {
     this.ws = new WebSocket(this.addr, TRIBLES_PROTOCOL);
@@ -190,6 +189,10 @@ class TribleBox {
       },
 
       [Symbol.asyncIterator]() {
+        return this;
+      },
+
+      [Symbol.iterator]() {
         return this;
       },
     };
