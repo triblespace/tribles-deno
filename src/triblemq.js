@@ -37,7 +37,6 @@ class WSConnector {
     this.ws = null;
     this.inbox = inbox;
     this.outbox = outbox;
-    this._worker = null;
   }
   async connect() {
     this.ws = new WebSocket(this.addr, TRIBLES_PROTOCOL);
@@ -66,16 +65,20 @@ class WSConnector {
 
     await openPromise;
 
-    this._worker = this._work();
-
     return this;
   }
 
-  async _work() {
-    for await (const { difKB } of this.outbox.changes()) {
-      if (!difKB.isEmpty()) {
-        const transaction = buildTransaction(difKB);
-        await difKB.blobdb.flush();
+  async transfer() {
+    for (const changePromise of this.outbox.changes()) {
+      const { change, close } = await Promise.race([
+        changePromise.then(change => { change }),
+        this.ws.closePromise.then(() => ({ close: true }))]);
+      if(close) {
+        return
+      }
+      if (!change.difKB.isEmpty()) {
+        const transaction = buildTransaction(change.difKB);
+        await change.difKB.blobdb.flush();
         this.ws.send(transaction);
       }
     }
@@ -186,6 +189,10 @@ class TribleBox {
       },
 
       [Symbol.asyncIterator]() {
+        return this;
+      },
+      
+      [Symbol.iterator]() {
         return this;
       },
     };
