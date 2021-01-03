@@ -54,11 +54,12 @@ class WSConnector {
       console.error(`Error on connection to ${this.addr}: ${e.message}`);
     });
     const openPromise = new Promise((resolve, reject) => {
-      this.ws.addEventListener("open", resolve);
-      this.ws.addEventListener("close", reject);
+      this.ws.addEventListener("open", resolve, { once: true });
+      this.ws.addEventListener("close", reject, { once: true });
     });
     const closePromise = new Promise((resolve, reject) => {
-      this.ws.addEventListener("close", resolve);
+      this.ws.addEventListener("close", resolve, { once: true });
+      this.ws.addEventListener("close", reject, { once: true });
     });
     this.ws.openPromise = openPromise;
     this.ws.closePromise = closePromise;
@@ -69,12 +70,15 @@ class WSConnector {
   }
 
   async transfer() {
-    for (const changePromise of this.outbox.changes()) {
+    const changeIterator = this.outbox.changes();
+    const closePromise = this.ws.closePromise.then(() => ({ close: true }));
+    while (true) {
       const { change, close } = await Promise.race([
-        changePromise.then(change => { change }),
-        this.ws.closePromise.then(() => ({ close: true }))]);
+        changeIterator.next().then(({ value }) => ({ change: value })),
+        closePromise,
+      ]);
       if (close) {
-        return
+        return;
       }
       if (!change.difKB.isEmpty()) {
         const transaction = buildTransaction(change.difKB);
@@ -189,10 +193,6 @@ class TribleBox {
       },
 
       [Symbol.asyncIterator]() {
-        return this;
-      },
-
-      [Symbol.iterator]() {
         return this;
       },
     };
