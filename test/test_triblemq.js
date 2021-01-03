@@ -9,6 +9,7 @@ import { encode } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
 import {
   id,
+  MemBlobDB,
   MemTribleDB,
   S3BlobDB,
   TribleBox,
@@ -41,7 +42,7 @@ Deno.test({
           region: "local",
           accessKeyID: "jeanluc",
           secretKey: "teaearlgreyhot",
-          endpointURL: "http://127.0.0.1:9000",
+          endpointURL: "https://localhost:9000",
           bucket: "denotest",
         },
       ),
@@ -83,11 +84,12 @@ Deno.test({
     const outbox = new TribleBox(kb);
     const wsCon = new WSConnector("ws://127.0.0.1:8816", inbox, outbox);
     await wsCon.connect();
+    wsCon.transfer().catch(e => console.error(e.reasons));
     outbox.kb = knightskb;
     outbox.kb = knightskb2;
 
     let slept = 0;
-    while (!inbox.kb.equals(outbox.kb) && slept < 1000) {
+    while (!inbox.kb.tribledb.equals(outbox.kb.tribledb) && slept < 1000) {
       await sleep(10);
       slept += 10;
     }
@@ -97,7 +99,7 @@ Deno.test({
       [...inbox.kb.tribledb.index[0].keys()].map((t) => encode(t)),
       [...outbox.kb.tribledb.index[0].keys()].map((t) => encode(t)),
     );
-    assert(inbox.kb.equals(outbox.kb));
+    assert(inbox.kb.tribledb.equals(outbox.kb.tribledb));
   },
   // https://github.com/denoland/deno/issues/7457
 });
