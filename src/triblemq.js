@@ -70,14 +70,16 @@ class WSConnector {
   }
 
   async transfer() {
-
     for (const changePromise of this.outbox.changes()) {
-      const { change, close } = Promise.race([
+      const { change, close } = await Promise.race([
         changePromise.then(change => { change }),
         this.ws.closePromise.then(() => ({ close: true }))]);
-      if (!difKB.isEmpty()) {
-        const transaction = buildTransaction(difKB);
-        await difKB.blobdb.flush();
+      if (close) {
+        return
+      }
+      if (!change.difKB.isEmpty()) {
+        const transaction = buildTransaction(change.difKB);
+        await change.difKB.blobdb.flush();
         this.ws.send(transaction);
       }
     }
