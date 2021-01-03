@@ -69,9 +69,10 @@ class WSConnector {
   }
 
   async transfer() {
-    for (const changePromise of this.outbox.changes()) {
+    const changeIterator = this.outbox.changes()
+    while(true) {
       const { change, close } = await Promise.race([
-        changePromise.then(change => { change }),
+        changeIterator.next().then(({value}) => ({ change: value })),
         this.ws.closePromise.then(() => ({ close: true }))]);
       if(close) {
         return
@@ -189,10 +190,6 @@ class TribleBox {
       },
 
       [Symbol.asyncIterator]() {
-        return this;
-      },
-
-      [Symbol.iterator]() {
         return this;
       },
     };
