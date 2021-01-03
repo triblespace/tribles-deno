@@ -46,7 +46,7 @@ class S3BlobDB {
         Key: blobName,
         Body: blob
       }).promise().then(() => pendingWrite.resolved = true);
-      this.pendingWrites.push(pendingWrite);
+      pendingWrites.push(pendingWrite);
       if (!this.localBlobCache.get(blobName)) {
         this.localBlobCache.set(blobName, blob);
       }
