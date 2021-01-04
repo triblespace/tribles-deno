@@ -1,6 +1,6 @@
 {
   "name": "tribles",
-  "version": "0.2.17",
+  "version": "0.2.19",
   "description": "This is the javascript/browser implementation of the _tribles_ ecosystem.",
   "repository": "git@github.com:triblesspace/tribles.js.git",
   "author": "⚫ <jp@bultmann.eu>",
@@ -15,5 +15,8 @@
     "aws-sdk": "^2.820.0",
     "util": "^0.12.3",
     "uuid": "^8.3.2"
+  },
+  "scripts": {
+    "prepack": "webpack"
   }
 }

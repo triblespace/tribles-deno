@@ -89,7 +89,7 @@ class S3BlobDB {
     return this;
   }
 
-  equals(other) {
+  isEqual(other) {
     return (other instanceof S3BlobDB) && (this.bucket === other.bucket);
   }
 
