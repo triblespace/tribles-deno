@@ -4,6 +4,9 @@ const {
   blake2sInit,
   blake2sUpdate,
 } = require("./blake2s.js");
+
+const XXH = require("xxhashjs");
+
 const { TRIBLE_SIZE } = require("./trible.js");
 
 function tribleHashInit(trible) {
@@ -47,29 +50,24 @@ function tribleHashFinal(ctx, output) {
 }
 
 function partHashLeaf(key, output = new Uint8Array(32)) {
-  var ctx = blake2sInit(32, null);
-  blake2sUpdate(ctx, key);
-  return blake2sFinal(ctx, output);
+  var ctx = XXH.h64().init(0); //TODO use seed.
+  ctx.update(key);
+  return ctx.digest().toString();
 }
 
 function partHashChildren(children, output = new Uint8Array(32)) {
   if (children.length === 1) {
     return children[0];
   }
-  var ctx = blake2sInit(32, null);
+  var ctx = XXH.h64().init(0); //TODO use seed.
   for (const h of children) {
-    blake2sUpdate(ctx, h);
+    ctx.update(h);
   }
-  return blake2sFinal(ctx, output);
+  return ctx.digest().toString();
 }
 
 const equalHash = (hashA, hashB) => {
-  const viewA = new Uint32Array(hashA.buffer, hashA.byteOffset, 8);
-  const viewB = new Uint32Array(hashB.buffer, hashB.byteOffset, 8);
-  for (let i = 0; i < 8; i++) {
-    if (viewA[i] !== viewB[i]) return false;
-  }
-  return true;
+  return hashA === hashB;
 };
 
 module.exports = {
