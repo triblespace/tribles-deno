@@ -694,13 +694,21 @@ class TribleKB {
     return new TribleKB(this.tribledb.empty(), this.blobdb.empty());
   }
 
-  equals(other) {
-    return this.tribledb.equals(other.tribledb) &&
-      this.blobdb.equals(other.blobdb);
-  }
-
   isEmpty() {
     return this.tribledb.isEmpty();
+  }
+
+  isEqual(other) {
+    return this.tribledb.isEqual(other.tribledb) &&
+      this.blobdb.isEqual(other.blobdb);
+  }
+
+  isSubsetOf(other) {
+    return this.tribledb.isSubsetOf(other.tribledb);
+  }
+
+  isIntersecting(other) {
+    return this.tribledb.isIntersecting(other.tribledb);
   }
 
   union(other) {

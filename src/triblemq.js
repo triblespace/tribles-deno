@@ -69,13 +69,14 @@ class WSConnector {
   }
 
   async transfer() {
-    const changeIterator = this.outbox.changes()
-    while(true) {
+    const changeIterator = this.outbox.changes();
+    while (true) {
       const { change, close } = await Promise.race([
-        changeIterator.next().then(({value}) => ({ change: value })),
-        this.ws.closePromise.then(() => ({ close: true }))]);
-      if(close) {
-        return
+        changeIterator.next().then(({ value }) => ({ change: value })),
+        this.ws.closePromise.then(() => ({ close: true })),
+      ]);
+      if (close) {
+        return;
       }
       if (!change.difKB.isEmpty()) {
         const transaction = buildTransaction(change.difKB);

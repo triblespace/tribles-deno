@@ -84,7 +84,7 @@ Deno.test({
     const outbox = new TribleBox(kb);
     const wsCon = new WSConnector("ws://127.0.0.1:8816", inbox, outbox);
     await wsCon.connect();
-    wsCon.transfer().catch(e => console.error(e.reasons));
+    wsCon.transfer().catch((e) => console.error(e.reasons));
     outbox.kb = knightskb;
     outbox.kb = knightskb2;
 

@@ -74,7 +74,7 @@ Deno.test("equality check", () => {
       const partB = vsB.reduce((part, v) => part.put(v), emptyValuePART);
 
       assertEquals(
-        partA.equals(partB),
+        partA.isEqual(partB),
         isSetsEqual(new Set(vsA), new Set(vsB)),
       );
     }),
@@ -98,7 +98,7 @@ Deno.test("equality check batched", () => {
         .complete();
 
       assertEquals(
-        partA.equals(partB),
+        partA.isEqual(partB),
         isSetsEqual(new Set(vsA), new Set(vsB)),
       );
     }),
@@ -224,6 +224,56 @@ Deno.test("set symmetric difference", () => {
 
       assertEquals(rawPartDifference.length, jsDifference.size);
       assertEquals(partDifference, jsDifference);
+    }),
+  );
+});
+
+Deno.test("set isSubsetOf", () => {
+  const value = fc.array(fc.nat(255), { minLength: 32, maxLength: 32 }).map(
+    (a) => new Uint8Array(a),
+  );
+  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+  const valueSets = values.chain((vs) =>
+    fc.tuple(fc.subarray(vs), fc.subarray(vs))
+  );
+
+  fc.assert(
+    fc.property(valueSets, ([vsA, vsB]) => {
+      const jsSetA = new Set(vsA.map((t) => encode(t)));
+      const jsSetB = new Set(vsB.map((t) => encode(t)));
+      const jsIsSubsetOf = [...jsSetA].every((v) => jsSetB.has(v));
+
+      const partA = vsA.reduce((part, v) => part.put(v), emptyValuePART);
+      const partB = vsB.reduce((part, v) => part.put(v), emptyValuePART);
+
+      const partIsSubsetOf = partA.isSubsetOf(partB);
+
+      assertEquals(partIsSubsetOf, jsIsSubsetOf);
+    }),
+  );
+});
+
+Deno.test("set isIntersecting", () => {
+  const value = fc.array(fc.nat(255), { minLength: 32, maxLength: 32 }).map(
+    (a) => new Uint8Array(a),
+  );
+  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+  const valueSets = values.chain((vs) =>
+    fc.tuple(fc.subarray(vs), fc.subarray(vs))
+  );
+
+  fc.assert(
+    fc.property(valueSets, ([vsA, vsB]) => {
+      const jsSetA = new Set(vsA.map((t) => encode(t)));
+      const jsSetB = new Set(vsB.map((t) => encode(t)));
+      const jsIsIntersecting = [...jsSetA].some((v) => jsSetB.has(v));
+
+      const partA = vsA.reduce((part, v) => part.put(v), emptyValuePART);
+      const partB = vsB.reduce((part, v) => part.put(v), emptyValuePART);
+
+      const partIsIntersecting = partA.isIntersecting(partB);
+
+      assertEquals(partIsIntersecting, jsIsIntersecting);
     }),
   );
 });

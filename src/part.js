@@ -292,41 +292,42 @@ const makePART = function (KEY_LENGTH) {
     const children = [];
 
     let [leftIndex, leftChild] = leftNode.seek(depth, 0, true);
+    let [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
     search:
-    while (leftChild) {
-      const [rightIndex, rightChild] = rightNode.seek(
-        depth,
-        leftIndex,
-        true,
-      );
-      if (!rightChild) {
-        while (leftChild) {
-          children.push([leftIndex, leftChild]);
-          [leftIndex, leftChild] = leftNode.seek(
-            depth,
-            leftIndex + 1,
-            true,
-          );
-        }
-        break search;
-      }
-      while (leftIndex < rightIndex) {
+    while (true) {
+      if (!leftChild) break search;
+
+      if (!rightChild || (leftIndex < rightIndex)) {
         children.push([leftIndex, leftChild]);
-        [leftIndex, leftChild] = leftNode.seek(depth, leftIndex + 1, true);
-        if (!leftChild) break search;
+        [leftIndex, leftChild] = leftNode.seek(
+          depth,
+          leftIndex + 1,
+          true,
+        );
+        continue search;
       }
-      if ((leftIndex === rightIndex)) {
-        if (
-          (depth < (KEY_LENGTH - 1)) &&
-          !equalHash(leftChild.hash, rightChild.hash)
-        ) {
-          const diff = _subtract(leftChild, rightChild, depth + 1);
-          if (diff) {
-            children.push([leftIndex, diff]);
-          }
+
+      if (rightIndex < leftIndex) {
+        [rightIndex, rightChild] = rightNode.seek(
+          depth,
+          leftIndex,
+          true,
+        );
+        continue search;
+      }
+
+      //implicit leftIndex === rightIndex
+      if (
+        !(depth === (KEY_LENGTH - 1)) &&
+        !equalHash(leftChild.hash, rightChild.hash)
+      ) {
+        const diff = _subtract(leftChild, rightChild, depth + 1);
+        if (diff) {
+          children.push([leftIndex, diff]);
         }
-        [leftIndex, leftChild] = leftNode.seek(depth, leftIndex + 1, true);
       }
+      [leftIndex, leftChild] = leftNode.seek(depth, leftIndex + 1, true);
+      [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
     }
     return _makeNode(children, depth);
   }
@@ -344,7 +345,7 @@ const makePART = function (KEY_LENGTH) {
     while (true) {
       if (!leftChild || !rightChild) break search;
 
-      if (leftChild && (!rightChild || leftIndex < rightIndex)) {
+      if (leftIndex < rightIndex) {
         [leftIndex, leftChild] = leftNode.seek(
           depth,
           rightIndex,
@@ -430,6 +431,79 @@ const makePART = function (KEY_LENGTH) {
     return _makeNode(children, depth);
   }
 
+  function _isSubsetOf(
+    leftNode,
+    rightNode,
+    depth = 0,
+  ) {
+    let [leftIndex, leftChild] = leftNode.seek(depth, 0, true);
+    let [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
+    while (true) {
+      if (!leftChild) return true;
+
+      if (leftChild && (!rightChild || leftIndex < rightIndex)) {
+        return false;
+      }
+
+      // implicit leftIndex === rightIndex
+      // as right always seeks after left, we can never have rightIndex < leftIndex
+      if (
+        !(depth === (KEY_LENGTH - 1)) &&
+        !equalHash(leftChild.hash, rightChild.hash) &&
+        !_isSubsetOf(leftChild, rightChild, depth + 1)
+      ) {
+        return false;
+      }
+      [leftIndex, leftChild] = leftNode.seek(depth, leftIndex + 1, true);
+      [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
+    }
+  }
+
+  function _isIntersecting(
+    leftNode,
+    rightNode,
+    depth = 0,
+  ) {
+    let [leftIndex, leftChild] = leftNode.seek(depth, 0, true);
+    let [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
+    search:
+    while (true) {
+      if (!leftChild || !rightChild) return false;
+
+      if (leftIndex < rightIndex) {
+        [leftIndex, leftChild] = leftNode.seek(
+          depth,
+          rightIndex,
+          true,
+        );
+        continue search;
+      }
+
+      if (rightIndex < leftIndex) {
+        [rightIndex, rightChild] = rightNode.seek(
+          depth,
+          leftIndex,
+          true,
+        );
+        continue search;
+      }
+
+      //implicit leftIndex === rightIndex
+      if (
+        (depth === (KEY_LENGTH - 1)) ||
+        equalHash(leftChild.hash, rightChild.hash)
+      ) {
+        return true;
+      } else {
+        if (_isIntersecting(leftChild, rightChild, depth + 1)) {
+          return true;
+        }
+      }
+      [leftIndex, leftChild] = leftNode.seek(depth, leftIndex + 1, true);
+      [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
+    }
+  }
+
   PARTree = class {
     constructor(child = null) {
       this.keyLength = KEY_LENGTH;
@@ -474,10 +548,24 @@ const makePART = function (KEY_LENGTH) {
       return this.child === null;
     }
 
-    equals(other) {
+    isEqual(other) {
       return this.child === other.child ||
         (this.keyLength === other.keyLength && !!this.child && !!other.child &&
           equalHash(this.child.hash, other.child.hash));
+    }
+
+    isSubsetOf(other) {
+      return this.keyLength === other.keyLength &&
+        (!this.child ||
+          (!!other.child && _isSubsetOf(this.child, other.child)));
+    }
+
+    isIntersecting(other) {
+      return this.keyLength === other.keyLength && !!this.child &&
+        !!other.child &&
+        ((this.child === other.child) ||
+          equalHash(this.child.hash, other.child.hash) ||
+          _isIntersecting(this.child, other.child));
     }
 
     union(other) {

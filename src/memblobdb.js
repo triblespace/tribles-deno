@@ -33,9 +33,9 @@ class MemBlobDB {
     return new MemBlobDB();
   }
 
-  equals(other) {
+  isEqual(other) {
     return (other instanceof MemBlobDB) &&
-      (this.blobs.equals(other.blobs));
+      (this.blobs.isEqual(other.blobs));
   }
 
   merge(other) {

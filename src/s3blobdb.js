@@ -67,7 +67,9 @@ class S3BlobDB {
         .filter((r) => r.status === "rejected")
         .map((r) => r.reason);
     if (reasons.length !== 0) {
-      const e = Error("Couldn't flush S3BlobDB, some puts returned errors. See error.reasons for more info.");
+      const e = Error(
+        "Couldn't flush S3BlobDB, some puts returned errors. See error.reasons for more info.",
+      );
       e.reasons = reasons;
       throw e;
     }
@@ -77,7 +79,7 @@ class S3BlobDB {
     return this;
   }
 
-  equals(other) {
+  isEqual(other) {
     return (other instanceof S3BlobDB) && (this.bucket === other.bucket);
   }
 

@@ -45,8 +45,16 @@ class MemTribleDB {
     return this.index[EAV].isEmpty();
   }
 
-  equals(other) {
-    return this.index[EAV].equals(other.index[EAV]);
+  isEqual(other) {
+    return this.index[EAV].isEqual(other.index[EAV]);
+  }
+
+  isSubsetOf(other) {
+    return this.index[EAV].isSubsetOf(other.index[EAV]);
+  }
+
+  isIntersecting(other) {
+    return this.index[EAV].isIntersecting(other.index[EAV]);
   }
 
   union(other) {
