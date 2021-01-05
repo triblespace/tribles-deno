@@ -115,7 +115,7 @@ Deno.test("KB Find", () => {
   const results = [
     ...knightskb.find(knightsCtx, (
       { name, title },
-    ) => [{ name, titles: [title] }]),
+    ) => [{ name: name.at(0).ascend(), titles: [title] }]),
   ];
   assertEquals(results, [
     { name: "Juliet", title: "princess" },
