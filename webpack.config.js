@@ -1,3 +1,5 @@
+const webpack = require('webpack');
+
 module.exports = [{
     mode: "development",
     entry: './src/index.js',
@@ -7,9 +9,7 @@ module.exports = [{
         library: 'tribles'
     },
     resolve: {
-        fallback: { "util": require.resolve("util/") }
-    }
-},
+        fallback: { "util": require.resolve("util/")}}},
 {
     mode: "production",
     entry: './src/index.js',
@@ -19,6 +19,4 @@ module.exports = [{
         library: 'tribles'
     },
     resolve: {
-        fallback: { "util": require.resolve("util/") }
-    }
-}];
+        fallback: { "util": require.resolve("util/")}}}];
