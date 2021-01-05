@@ -1,5 +1,5 @@
 import { TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
-import { equalHash, partHashChildren, partHashLeaf } from "./triblehash.js";
+import { equalHash, partHashChildren, partHashLeaf, xorHash } from "./triblehash.js";
 
 const makePART = function (KEY_LENGTH) {
   const linearNodeSize = 16;
@@ -877,7 +877,7 @@ const makePART = function (KEY_LENGTH) {
         if (batch) {
           batch.newNodesByLevel[depth].push(nnode);
         } else {
-          nnode.rehash();
+          nnode.hash = xorHash(xorHash(this.hash.slice(), child.hash), nchild.hash)
         }
         return nnode;
       }
@@ -908,7 +908,7 @@ const makePART = function (KEY_LENGTH) {
           if (batch) {
             batch.newNodesByLevel[depth].push(nnode);
           } else {
-            nnode.rehash();
+            nnode.hash = xorHash(this.hash.slice(), nchild.hash);
           }
           return nnode;
         }
@@ -924,18 +924,13 @@ const makePART = function (KEY_LENGTH) {
       if (batch) {
         batch.newNodesByLevel[depth].push(nnode);
       } else {
-        nnode.rehash();
+        nnode.hash = xorHash(this.hash.slice(), nchild.hash);
       }
       return nnode;
     }
 
     rehash() {
-      this.hash = partHashChildren(
-        [...this.children]
-          .map((c, i) => ({ c, i: this.index[i] }))
-          .sort((a, b) => a.i - b.i)
-          .map(({ c }) => c.hash),
-      );
+      this.hash = partHashChildren(this.children.map((c) => c.hash));
       return this;
     }
   };
@@ -980,7 +975,7 @@ const makePART = function (KEY_LENGTH) {
         if (batch) {
           batch.newNodesByLevel[depth].push(nnode);
         } else {
-          nnode.rehash();
+          nnode.hash = xorHash(xorHash(this.hash.slice(), child.hash), nchild.hash)
         }
         return nnode;
       }
@@ -1016,7 +1011,7 @@ const makePART = function (KEY_LENGTH) {
         if (batch) {
           batch.newNodesByLevel[depth].push(nnode);
         } else {
-          nnode.rehash();
+          nnode.hash = xorHash(this.hash.slice(), nchild.hash);
         }
         return nnode;
       }
@@ -1031,7 +1026,7 @@ const makePART = function (KEY_LENGTH) {
       if (batch) {
         batch.newNodesByLevel[depth].push(nnode);
       } else {
-        nnode.rehash();
+        nnode.hash = xorHash(this.hash.slice(), nchild.hash);
       }
       return nnode;
     }
@@ -1105,7 +1100,11 @@ const makePART = function (KEY_LENGTH) {
       if (batch) {
         batch.newNodesByLevel[depth].push(nnode);
       } else {
-        nnode.rehash();
+        if(child){
+          nnode.hash = xorHash(xorHash(this.hash.slice(), child.hash), nchild.hash);
+        } else {
+          nnode.hash = xorHash(this.hash.slice(), nchild.hash)
+        }
       }
       return nnode;
     }

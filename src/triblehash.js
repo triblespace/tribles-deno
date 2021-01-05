@@ -47,7 +47,7 @@ function tribleHashFinal(ctx, output) {
 }
 
 function partHashLeaf(key, output = new Uint8Array(32)) {
-  var ctx = blake2sInit(32, null);
+  const ctx = blake2sInit(32, null);
   blake2sUpdate(ctx, key);
   return blake2sFinal(ctx, output);
 }
@@ -56,11 +56,12 @@ function partHashChildren(children, output = new Uint8Array(32)) {
   if (children.length === 1) {
     return children[0];
   }
-  var ctx = blake2sInit(32, null);
+  var outHash = new Uint8Array(32);
+
   for (const h of children) {
-    blake2sUpdate(ctx, h);
+    xorHash(outHash, h)
   }
-  return blake2sFinal(ctx, output);
+  return outHash;
 }
 
 const equalHash = (hashA, hashB) => {
@@ -72,10 +73,20 @@ const equalHash = (hashA, hashB) => {
   return true;
 };
 
+const xorHash = (hashA, hashB) => {
+  const viewA = new Uint32Array(hashA.buffer, hashA.byteOffset, 8);
+  const viewB = new Uint32Array(hashB.buffer, hashB.byteOffset, 8);
+  for (let i = 0; i < 8; i++) {
+    viewA[i] ^= viewB[i];
+  }
+  return viewA;
+};
+
 export {
   equalHash,
   partHashChildren,
   partHashLeaf,
+  xorHash,
   tribleHashFinal,
   tribleHashInit,
   tribleHashUpdate,
