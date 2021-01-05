@@ -1102,7 +1102,11 @@ const makePART = function (KEY_LENGTH) {
       if (batch) {
         batch.newNodesByLevel[depth].push(nnode);
       } else {
-        nnode.hash = xorHash(xorHash(this.hash.slice(), child.hash), nchild.hash)
+        if(child){
+          nnode.hash = xorHash(xorHash(this.hash.slice(), child.hash), nchild.hash);
+        } else {
+          nnode.hash = xorHash(this.hash.slice(), nchild.hash)
+        }
       }
       return nnode;
     }

@@ -1,6 +1,6 @@
 {
   "name": "tribles",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "This is the javascript/browser implementation of the _tribles_ ecosystem.",
   "repository": "git@github.com:triblesspace/tribles.js.git",
   "author": "⚫ <jp@bultmann.eu>",
