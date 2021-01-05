@@ -87,6 +87,7 @@ module.exports = {
   equalHash,
   partHashChildren,
   partHashLeaf,
+  xorHash,
   tribleHashFinal,
   tribleHashInit,
   tribleHashUpdate,
