@@ -2,7 +2,7 @@ const uuid = require("uuid");
 
 function uuidEncoder(v, b) {
   if (!uuid.validate(v)) {
-    throw Error("Provided value is not an encodable uuid.");
+    throw Error("Provided value ${v} is not an encodable uuid.");
   }
   if (v === uuid.NIL) {
     throw Error("Can't encode NIL uuid.");
