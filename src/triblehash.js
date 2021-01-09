@@ -59,7 +59,7 @@ function partHashChildren(children, output = new Uint8Array(32)) {
   var outHash = new Uint8Array(32);
 
   for (const h of children) {
-    xorHash(outHash, h)
+    xorHash(outHash, h);
   }
   return outHash;
 }
@@ -86,8 +86,8 @@ export {
   equalHash,
   partHashChildren,
   partHashLeaf,
-  xorHash,
   tribleHashFinal,
   tribleHashInit,
   tribleHashUpdate,
+  xorHash,
 };

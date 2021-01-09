@@ -8,6 +8,7 @@ import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 import { encode } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
 import {
+  ctx,
   id,
   MemBlobDB,
   MemTribleDB,
@@ -26,13 +27,24 @@ Deno.test({
   name: "Check loopback.",
   fn: async () => {
     // Define a context, mapping between js data and tribles.
-    const knightsCtx = {
-      [id]: { ...types.uuid },
-      name: { id: v4.generate(), ...types.longstring },
-      loves: { id: v4.generate(), isLink: true },
-      titles: { id: v4.generate(), ...types.shortstring, isMany: true },
-    };
-    knightsCtx["lovedBy"] = { id: knightsCtx.loves.id, isInverseLink: true };
+    const nameId = v4.generate();
+    const lovesId = v4.generate();
+    const titlesId = v4.generate();
+
+    const knightsCtx = ctx({
+      ns: {
+        [id]: { ...types.uuid },
+        name: { id: nameId, ...types.shortstring },
+        loves: { id: lovesId },
+        lovedBy: { id: lovesId, isInverse: true },
+        titles: { id: titlesId, ...types.shortstring },
+      },
+      ids: {
+        [nameId]: { isUnique: true },
+        [lovesId]: { isLink: true, isUnique: true },
+        [titlesId]: {},
+      },
+    });
     // Add some data.
 
     const kb = new TribleKB(

@@ -1,5 +1,10 @@
 import { TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
-import { equalHash, partHashChildren, partHashLeaf, xorHash } from "./triblehash.js";
+import {
+  equalHash,
+  partHashChildren,
+  partHashLeaf,
+  xorHash,
+} from "./triblehash.js";
 
 const makePART = function (KEY_LENGTH) {
   const linearNodeSize = 16;
@@ -877,7 +882,10 @@ const makePART = function (KEY_LENGTH) {
         if (batch) {
           batch.newNodesByLevel[depth].push(nnode);
         } else {
-          nnode.hash = xorHash(xorHash(this.hash.slice(), child.hash), nchild.hash)
+          nnode.hash = xorHash(
+            xorHash(this.hash.slice(), child.hash),
+            nchild.hash,
+          );
         }
         return nnode;
       }
@@ -975,7 +983,10 @@ const makePART = function (KEY_LENGTH) {
         if (batch) {
           batch.newNodesByLevel[depth].push(nnode);
         } else {
-          nnode.hash = xorHash(xorHash(this.hash.slice(), child.hash), nchild.hash)
+          nnode.hash = xorHash(
+            xorHash(this.hash.slice(), child.hash),
+            nchild.hash,
+          );
         }
         return nnode;
       }
@@ -1100,10 +1111,13 @@ const makePART = function (KEY_LENGTH) {
       if (batch) {
         batch.newNodesByLevel[depth].push(nnode);
       } else {
-        if(child){
-          nnode.hash = xorHash(xorHash(this.hash.slice(), child.hash), nchild.hash);
+        if (child) {
+          nnode.hash = xorHash(
+            xorHash(this.hash.slice(), child.hash),
+            nchild.hash,
+          );
         } else {
-          nnode.hash = xorHash(this.hash.slice(), nchild.hash)
+          nnode.hash = xorHash(this.hash.slice(), nchild.hash);
         }
       }
       return nnode;
