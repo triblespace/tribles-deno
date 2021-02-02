@@ -765,6 +765,16 @@ const ctx = (...ctxs) => {
             `Inconsistent ctx attr "${name}": isInverse:${existing.isInverse} !== isInverse:${novel.isInverse}`,
           );
         }
+        if (existing.decoder !== novel.decoder) {
+          throw Error(
+            `Inconsistent ctx attr "${name}": decoder:${existing.decoder} !== decoder:${novel.decoder}`,
+          );
+        }
+        if (existing.encoder !== novel.encoder) {
+          throw Error(
+            `Inconsistent ctx attr "${name}": encoder:${existing.decoder} !== encoder:${novel.decoder}`,
+          );
+        }
       } else {
         if (!outCtx.ids[novel.id]) {
           throw Error(
@@ -776,29 +786,27 @@ const ctx = (...ctxs) => {
             `Inconsistent ctx attr "${name}": Only links can be inverse.`,
           );
         }
+        if (!(novel.decoder || outCtx.ids[novel.id].isLink)) {
+          throw Error(`Invalid ctx attr: No decoder in context for ${name}.`);
+        }
+        if (!(novel.encoder || outCtx.ids[novel.id].isLink)) {
+          throw Error(`Invalid ctx attr: No encoder in context for ${name}.`);
+        }
         outCtx.ns[name] = novel;
       }
     }
   }
   if (!outCtx.ns[id]) {
-    throw Error(
-      `Incomplete ctx: Missing [id] field in ns.`,
-    );
+    throw Error(`Incomplete ctx: Missing [id] field in ns.`);
   }
   if (!outCtx.ns[id].decoder) {
-    throw Error(
-      `Incomplete ctx: Missing [id] decoder in ns.`,
-    );
+    throw Error(`Incomplete ctx: Missing [id] decoder in ns.`);
   }
   if (!outCtx.ns[id].encoder) {
-    throw Error(
-      `Incomplete ctx: Missing [id] encoder in ns.`,
-    );
+    throw Error(`Incomplete ctx: Missing [id] encoder in ns.`);
   }
   if (!outCtx.ns[id].factory) {
-    throw Error(
-      `Incomplete ctx: Missing [id] factory in ns.`,
-    );
+    throw Error(`Incomplete ctx: Missing [id] factory in ns.`);
   }
   return outCtx;
 };
