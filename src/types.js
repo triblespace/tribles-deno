@@ -1,3 +1,4 @@
+const { ufoidType } = require("./types/ufoid.js");
 const { uuidType } = require("./types/uuid.js");
 const { shortstringType } = require("./types/shortstring.js");
 const { longstringType } = require("./types/longstring.js");
@@ -6,6 +7,7 @@ const { biguint256Type } = require("./types/biguint256.js");
 const { float64Type } = require("./types/float64.js");
 
 const types = {
+  ufoid: ufoidType,
   uuid: uuidType,
   shortstring: shortstringType,
   longstring: longstringType,

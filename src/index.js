@@ -5,6 +5,7 @@ const { MemTribleDB } = require("./memtribledb.js");
 const { S3BlobDB } = require("./s3blobdb.js");
 const { MemBlobDB } = require("./memblobdb.js");
 const { emptyTriblePART, emptyValuePART, makePART } = require("./part.js");
+const { UFOID } = require("./ufoid.js");
 
 module.exports = {
   emptyTriblePART,
@@ -20,4 +21,5 @@ module.exports = {
   TribleKB,
   types,
   WSConnector,
+  UFOID,
 };
