@@ -1,4 +1,4 @@
-import { UFOID } from "../ufoid.js";
+const { UFOID } = require("../ufoid.js");
 
 function ufoidEncoder(v, b) {
   if (v === "00000000000000000000000000000000") {
