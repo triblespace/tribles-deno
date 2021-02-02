@@ -5,6 +5,7 @@ import { MemTribleDB } from "./src/memtribledb.js";
 import { S3BlobDB } from "./src/s3blobdb.js";
 import { MemBlobDB } from "./src/memblobdb.js";
 import { emptyTriblePART, emptyValuePART, makePART } from "./src/part.js";
+import { UFOID } from "./src/ufoid.js";
 
 export {
   ctx,
@@ -19,5 +20,6 @@ export {
   TribleBox,
   TribleKB,
   types,
+  UFOID,
   WSConnector,
 };

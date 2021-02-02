@@ -12,17 +12,16 @@ import {
   MemTribleDB,
   TribleKB,
   types,
+  UFOID,
 } from "../mod.js";
 
 Deno.test("KB Find", () => {
   // Define a context, mapping between js data and tribles.
-  const nameId = v4.generate();
-  const lovesId = v4.generate();
-  const titlesId = v4.generate();
+  const { nameId, lovesId, titlesId } = UFOID.namedCache();
 
   const knightsCtx = ctx({
     ns: {
-      [id]: { ...types.uuid },
+      [id]: { ...types.ufoid },
       name: { id: nameId, ...types.shortstring },
       loves: { id: lovesId },
       lovedBy: { id: lovesId, isInverse: true },
@@ -74,13 +73,11 @@ Deno.test("KB Find", () => {
 
 Deno.test("Find Ascending", () => {
   // Define a context, mapping between js data and tribles.
-  const nameId = v4.generate();
-  const lovesId = v4.generate();
-  const titlesId = v4.generate();
+  const { nameId, lovesId, titlesId } = UFOID.namedCache();
 
   const knightsCtx = ctx({
     ns: {
-      [id]: { ...types.uuid },
+      [id]: { ...types.ufoid },
       name: { id: nameId, ...types.shortstring },
       loves: { id: lovesId },
       lovedBy: { id: lovesId, isInverse: true },
@@ -136,14 +133,11 @@ Deno.test("Find Ascending", () => {
 
 Deno.test("Find Descending", () => {
   // Define a context, mapping between js data and tribles.
-  // Define a context, mapping between js data and tribles.
-  const nameId = v4.generate();
-  const lovesId = v4.generate();
-  const titlesId = v4.generate();
+  const { nameId, lovesId, titlesId } = UFOID.namedCache();
 
   const knightsCtx = ctx({
     ns: {
-      [id]: { ...types.uuid },
+      [id]: { ...types.ufoid },
       name: { id: nameId, ...types.shortstring },
       loves: { id: lovesId },
       lovedBy: { id: lovesId, isInverse: true },

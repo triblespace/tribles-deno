@@ -72,28 +72,27 @@ class VariableProvider {
     this.constantVariables = emptyValuePART;
   }
 
-  named() {
-    return new Proxy({}, {
-      get: (_, name) => {
-        let v = this.namedVariables.get(name);
-        if (v) {
+  namedCache() {
+    return new Proxy(
+      {},
+      {
+        get: (_, name) => {
+          let v = this.namedVariables.get(name);
+          if (v) {
+            return v;
+          }
+          v = new Variable(this, name);
+          this.namedVariables.set(name, v);
           return v;
-        }
-        v = new Variable(this, name);
-        this.namedVariables.set(name, v);
-        return v;
+        },
       },
-    });
+    );
   }
 
   unnamed() {
-    return {
-      next: () => {
-        const variable = new Variable(this);
-        this.unnamedVariables.push(variable);
-        return { value: variable };
-      },
-    };
+    const variable = new Variable(this);
+    this.unnamedVariables.push(variable);
+    return variable;
   }
 
   constant(c) {
@@ -127,17 +126,6 @@ class VariableProvider {
         this.variables[vProbe] = v;
       }
     }
-  }
-}
-
-class IDSequence {
-  constructor() {}
-
-  [Symbol.iterator]() {
-    return this;
-  }
-  next() {
-    return { value: v4.generate() };
   }
 }
 
@@ -237,7 +225,8 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
 
         const attrId = ctx.ns[attr].id;
         if (
-          attr in o || !ctx.ids[attrId].isUnique ||
+          attr in o ||
+          !ctx.ids[attrId].isUnique ||
           (ctx.ns[attr].isInverse && !ctx.ids[attrId].isUniqueInverse)
         ) {
           return true;
@@ -255,8 +244,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
           ],
           3,
           2,
-        )
-          .next();
+        ).next();
         return !done;
       },
       deleteProperty: function (_, attr) {
@@ -343,7 +331,7 @@ const isPojo = (obj) => {
   return Object.getPrototypeOf(obj) === Object.prototype;
 };
 
-const entitiesToTriples = (ctx, unknowns, root) => {
+const entitiesToTriples = (ctx, unknownFactory, root) => {
   const triples = [];
   const work = [];
   const rootIsArray = root instanceof Array;
@@ -371,7 +359,7 @@ const entitiesToTriples = (ctx, unknowns, root) => {
       // And again without knowing the type of the array there is no non-trivial/performant
       // way to distinguish between the byte array of an id, and an entity array.
     ) {
-      const entityId = w.value[id] || unknowns.next().value;
+      const entityId = w.value[id] || unknownFactory();
       if (w.parent_id) {
         if (ctx.ns[w.parent_attr].isInverse) {
           triples.push({
@@ -467,10 +455,7 @@ const triplesToTribles = function (ctx, triples, tribles = [], blobs = []) {
       if (!encoder) {
         throw Error("No encoder in context.");
       }
-      blob = encoder(
-        value,
-        encodedValue,
-      );
+      blob = encoder(value, encodedValue);
     } catch (err) {
       throw Error(
         `Error at path [${path}]:Couldn't encode '${value}' as value for attribute '${attr}':\n${err}`,
@@ -592,7 +577,7 @@ const precompileTriples = (ctx, vars, triples) => {
 
 function* find(ctx, cfn, blobdb) {
   const vars = new VariableProvider();
-  const constraintBuilderPrepares = cfn(vars.named());
+  const constraintBuilderPrepares = cfn(vars.namedCache());
   const constraintBuilders = constraintBuilderPrepares.map((prepare) =>
     prepare(ctx, vars)
   );
@@ -603,8 +588,8 @@ function* find(ctx, cfn, blobdb) {
 
   const constraints = constraintBuilders.flatMap((builder) => builder());
   constraints.push(
-    ...[...vars.constantVariables.values()].map((v) =>
-      new ConstantConstraint(v.index, v.constant)
+    ...[...vars.constantVariables.values()].map(
+      (v) => new ConstantConstraint(v.index, v.constant),
     ),
   );
 
@@ -617,17 +602,28 @@ function* find(ctx, cfn, blobdb) {
     )
   ) {
     yield Object.fromEntries(
-      namedVariables.map(
-        ({ index, walked, decoder, name }) => {
-          const encoded = r[index];
-          const decoded = decoder(
-            encoded.slice(0),
-            async () => await blobdb.get(encoded),
-          );
-          return [name, walked ? walked.walk(ctx, decoded) : decoded];
-        },
-      ),
+      namedVariables.map(({ index, walked, decoder, name }) => {
+        const encoded = r[index];
+        const decoded = decoder(
+          encoded.slice(0),
+          async () => await blobdb.get(encoded),
+        );
+        return [name, walked ? walked.walk(ctx, decoded) : decoded];
+      }),
     );
+  }
+}
+
+class IDSequence {
+  constructor(factory) {
+    this.factory = factory;
+  }
+
+  [Symbol.iterator]() {
+    return this;
+  }
+  next() {
+    return { value: this.factory() };
   }
 }
 
@@ -646,9 +642,9 @@ class TribleKB {
   }
 
   with(ctx, efn) {
-    const ids = new IDSequence();
-    const entities = efn(ids);
-    const rawTriples = entitiesToTriples(ctx, ids, entities);
+    const idFactory = ctx.ns[id].factory;
+    const entities = efn(new IDSequence(idFactory));
+    const rawTriples = entitiesToTriples(ctx, idFactory, entities);
     const { triples, blobs } = triplesToTribles(ctx, rawTriples);
     const newTribleDB = this.tribledb.with(triples);
     if (newTribleDB !== this.tribledb) {
@@ -664,11 +660,12 @@ class TribleKB {
 
   where(entities) {
     return (ctx, vars) => {
-      const triples = entitiesToTriples(ctx, vars.unnamed(), entities);
+      const triples = entitiesToTriples(ctx, () => vars.unnamed(), entities);
       const triplesWithVars = precompileTriples(ctx, vars, triples);
       return () => [
-        ...triplesWithVars.map(([{ index: e }, { index: a }, { index: v }]) =>
-          new TripleConstraint(this.tribledb, [e, a, v])
+        ...triplesWithVars.map(
+          ([{ index: e }, { index: a }, { index: v }]) =>
+            new TripleConstraint(this.tribledb, [e, a, v]),
         ),
       ];
     };
@@ -687,8 +684,9 @@ class TribleKB {
   }
 
   isEqual(other) {
-    return this.tribledb.isEqual(other.tribledb) &&
-      this.blobdb.isEqual(other.blobdb);
+    return (
+      this.tribledb.isEqual(other.tribledb) && this.blobdb.isEqual(other.blobdb)
+    );
   }
 
   isSubsetOf(other) {
@@ -781,6 +779,26 @@ const ctx = (...ctxs) => {
         outCtx.ns[name] = novel;
       }
     }
+  }
+  if (!outCtx.ns[id]) {
+    throw Error(
+      `Incomplete ctx: Missing [id] field in ns.`,
+    );
+  }
+  if (!outCtx.ns[id].decoder) {
+    throw Error(
+      `Incomplete ctx: Missing [id] decoder in ns.`,
+    );
+  }
+  if (!outCtx.ns[id].encoder) {
+    throw Error(
+      `Incomplete ctx: Missing [id] encoder in ns.`,
+    );
+  }
+  if (!outCtx.ns[id].factory) {
+    throw Error(
+      `Incomplete ctx: Missing [id] factory in ns.`,
+    );
   }
   return outCtx;
 };

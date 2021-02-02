@@ -16,6 +16,7 @@ import {
   TribleBox,
   TribleKB,
   types,
+  UFOID,
   WSConnector,
 } from "../mod.js";
 
@@ -27,13 +28,11 @@ Deno.test({
   name: "Check loopback.",
   fn: async () => {
     // Define a context, mapping between js data and tribles.
-    const nameId = v4.generate();
-    const lovesId = v4.generate();
-    const titlesId = v4.generate();
+    const { nameId, lovesId, titlesId } = UFOID.namedCache();
 
     const knightsCtx = ctx({
       ns: {
-        [id]: { ...types.uuid },
+        [id]: { ...types.ufoid },
         name: { id: nameId, ...types.shortstring },
         loves: { id: lovesId },
         lovedBy: { id: lovesId, isInverse: true },
