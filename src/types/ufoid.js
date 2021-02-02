@@ -21,7 +21,7 @@ function ufoidDecoder(b, blob) {
   ).join("");
 }
 
-export const ufoidType = {
+const ufoidType = {
   encoder: ufoidEncoder,
   decoder: ufoidDecoder,
   factory: UFOID.now,
