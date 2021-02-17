@@ -1,168 +1,30 @@
-import {
-  A,
-  E,
-  equalId,
-  TRIBLE_SIZE,
-  V,
-  v1zero,
-  V2,
-  VALUE_SIZE,
-} from "./trible.js";
-import { emptyTriblePART, emptyValuePART } from "./part.js";
+import { SEGMENT_SIZE } from "./trible.js";
+import { emptyPART } from "./part.js";
 
-const EAV = 0;
-const EVA = 1;
-const AEV = 2;
-const AVE = 3;
-const VEA = 4;
-const VAE = 5;
-const EXX = 6;
-const XXE = 7;
-const AXX = 8;
-const XXA = 9;
-const VXX = 10;
-const XXV = 11;
-const XXX = 12;
-
-const INDEX_COUNT = 13;
-
-const INDEX_INFIX = new Array(INDEX_COUNT);
-INDEX_INFIX[EAV] = [0, 16, 16, 32];
-INDEX_INFIX[EVA] = [0, 16, 32, 16];
-INDEX_INFIX[AEV] = [0, 16, 16, 32];
-INDEX_INFIX[AVE] = [0, 16, 32, 16];
-INDEX_INFIX[VEA] = [0, 32, 16, 16];
-INDEX_INFIX[VAE] = [0, 32, 16, 16];
-INDEX_INFIX[EXX] = [0, 32, 16, 16];
-INDEX_INFIX[XXE] = [0, 16, 16];
-INDEX_INFIX[AXX] = [0, 16, 16];
-INDEX_INFIX[XXA] = [0, 16, 16];
-INDEX_INFIX[VXX] = [0, 32, 16];
-INDEX_INFIX[XXV] = [0, 16, 32];
-INDEX_INFIX[XXX] = [0, 16];
-
-const indexOrder = new Array(INDEX_COUNT);
-indexOrder[EAV] = (trible) => trible;
-indexOrder[EVA] = (trible) => {
-  const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(E(trible), 0);
-  indexOrderedKey.set(V(trible), 16);
-  indexOrderedKey.set(A(trible), 48);
-  return indexOrderedKey;
-};
-indexOrder[AEV] = (trible) => {
-  const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(A(trible), 0);
-  indexOrderedKey.set(E(trible), 16);
-  indexOrderedKey.set(V(trible), 32);
-  return indexOrderedKey;
-};
-indexOrder[AVE] = (trible) => {
-  const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(A(trible), 0);
-  indexOrderedKey.set(V(trible), 16);
-  indexOrderedKey.set(E(trible), 48);
-  return indexOrderedKey;
-};
-indexOrder[VEA] = (trible) => {
-  const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(V(trible), 0);
-  indexOrderedKey.set(E(trible), 32);
-  indexOrderedKey.set(A(trible), 48);
-  return indexOrderedKey;
-};
-indexOrder[VAE] = (trible) => {
-  const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(V(trible), 0);
-  indexOrderedKey.set(A(trible), 32);
-  indexOrderedKey.set(E(trible), 48);
-  return indexOrderedKey;
-};
-indexOrder[EXX] = (trible) => {
-  const e = E(trible);
-  const a = A(trible);
-  const v2 = V2(trible);
-  if (!(v1zero(trible) && equalId(a, v2))) return null;
-  const indexOrderedKey = new Uint8Array(32);
-  indexOrderedKey.set(e, 0);
-  indexOrderedKey.set(a, 16);
-  return indexOrderedKey;
-};
-indexOrder[XXE] = (trible) => {
-  const e = E(trible);
-  const a = A(trible);
-  const v2 = V2(trible);
-  if (!(v1zero(trible) && equalId(a, v2))) return null;
-  const indexOrderedKey = new Uint8Array(32);
-  indexOrderedKey.set(a, 0);
-  indexOrderedKey.set(e, 16);
-  return indexOrderedKey;
-};
-indexOrder[AXX] = (trible) => {
-  const e = E(trible);
-  const a = A(trible);
-  const v2 = V2(trible);
-  if (!(v1zero(trible) && equalId(e, v2))) return null;
-  const indexOrderedKey = new Uint8Array(32);
-  indexOrderedKey.set(a, 0);
-  indexOrderedKey.set(e, 16);
-  return indexOrderedKey;
-};
-indexOrder[XXA] = (trible) => {
-  const e = E(trible);
-  const a = A(trible);
-  const v2 = V2(trible);
-  if (!(v1zero(trible) && equalId(e, v2))) return null;
-  const indexOrderedKey = new Uint8Array(32);
-  indexOrderedKey.set(e, 0);
-  indexOrderedKey.set(a, 16);
-  return indexOrderedKey;
-};
-indexOrder[VXX] = (trible) => {
-  const e = E(trible);
-  const a = A(trible);
-  const v = V(trible);
-  if (equalId(e, a)) return null;
-  const indexOrderedKey = new Uint8Array(48);
-  indexOrderedKey.set(v, 0);
-  indexOrderedKey.set(e, 32);
-  return indexOrderedKey;
-};
-indexOrder[XXV] = (trible) => {
-  const e = E(trible);
-  const a = A(trible);
-  const v = V(trible);
-  if (equalId(e, a)) return null;
-  const indexOrderedKey = new Uint8Array(48);
-  indexOrderedKey.set(e, 0);
-  indexOrderedKey.set(v, 16);
-  return indexOrderedKey;
-};
-indexOrder[XXX] = (trible) => {
-  const e = E(trible);
-  const a = A(trible);
-  const v2 = V2(trible);
-  if (!(v1zero(trible) && equalId(e, a) && equalId(e, v2))) return null;
-  const indexOrderedKey = new Uint8Array(32);
-  indexOrderedKey.set(e, 0);
-  return indexOrderedKey;
-};
-
-const order = ([e, a, v]) => (((e < a) << 0) |
-  ((a < v) << 2) |
-  ((e < v) << 1) |
-  ((e === a) << 3) |
-  ((a === v) << 4) |
-  ((e === v) << 5));
-
-class ConstantCursor {
-  constructor(constant) {
+class ConstantConstraint {
+  constructor(variable, constant) {
+    this.variable = variable;
     this.constant = constant;
+    this.ascending = true;
+    this.valid = true;
+  }
+
+  propose() {
+    return { variable: this.variable, count: 1, forced: false };
+  }
+
+  push(variable, ascending = true) {
+    if (variable !== this.variable) return { relevant: false, done: false };
+    this.ascending = ascending;
+    return { relevant: true, done: true };
+  }
+
+  pop() {
     this.valid = true;
   }
 
   peek() {
-    return this.constant.slice();
+    return this.constant;
   }
 
   next() {
@@ -170,305 +32,322 @@ class ConstantCursor {
   }
 
   seek(value) {
-    for (let i = 0; i < VALUE_SIZE; i++) {
-      if (this.constant[i] !== value[i]) {
-        if (this.constant[i] < value[i]) this.valid = false;
-        return false;
+    if (this.ascending) {
+      for (let i = 0; i < SEGMENT_SIZE; i++) {
+        if (this.constant[i] !== value[i]) {
+          if (this.constant[i] < value[i]) this.valid = false;
+          return false;
+        }
+      }
+    } else {
+      for (let i = 0; i < SEGMENT_SIZE; i++) {
+        if (this.constant[i] !== value[i]) {
+          if (this.constant[i] > value[i]) this.valid = false;
+          return false;
+        }
       }
     }
     return true;
-  }
-
-  push(ascending = true) {}
-
-  pop() {
-    this.valid = true;
-  }
-}
-
-class ConstantConstraint {
-  constructor(variable, constant) {
-    this.variable = variable;
-    this.constant = constant;
-  }
-
-  variables() {
-    return [this.variable];
-  }
-
-  toCursor() {
-    return new ConstantCursor(this.constant);
-  }
-}
-
-class IndexCursor {
-  constructor(index) {
-    this.cursor = index.cursor();
-    this.valid = this.cursor.valid;
-  }
-
-  peek() {
-    if (this.valid) {
-      return this.cursor.peek();
-    }
-  }
-
-  next() {
-    this.cursor.next();
-    this.valid = this.cursor.valid;
-  }
-
-  seek(value) {
-    const match = this.cursor.seek(value);
-    this.valid = this.cursor.valid;
-    return match;
-  }
-
-  push(ascending) {
-    this.cursor.push(VALUE_SIZE, ascending);
-  }
-
-  pop() {
-    this.cursor.pop();
-    this.valid = this.cursor.valid;
   }
 }
 
 class IndexConstraint {
   constructor(variable, index) {
     this.index = index;
+    this.cursor = null;
     this.variable = variable;
+    this.ascending = true;
   }
 
-  variables() {
-    return [this.variable];
+  propose() {
+    return { variable: this.variable, count: this.index.count, forced: false };
   }
 
-  toCursor() {
-    return new IndexCursor(this.index);
-  }
-}
-
-class CollectionConstraint {
-  constructor(variable, collection) {
-    const indexBatch = emptyValuePART.batch();
-    for (const c of collection) {
-      indexBatch.put(c);
-    }
-    this.index = indexBatch.complete();
-    this.variable = variable;
-  }
-
-  variables() {
-    return [this.variable];
-  }
-
-  toCursor() {
-    return new IndexCursor(this.index);
-  }
-}
-
-const orderToIndex = new Uint8Array(63);
-orderToIndex[order([0, 1, 2])] = EAV;
-orderToIndex[order([0, 2, 1])] = EVA;
-orderToIndex[order([1, 0, 2])] = AEV;
-orderToIndex[order([2, 0, 1])] = AVE;
-orderToIndex[order([1, 2, 0])] = VEA;
-orderToIndex[order([2, 1, 0])] = VAE;
-orderToIndex[order([0, 1, 1])] = EXX;
-orderToIndex[order([1, 0, 0])] = XXE;
-orderToIndex[order([1, 0, 1])] = AXX;
-orderToIndex[order([0, 1, 0])] = XXA;
-orderToIndex[order([1, 1, 0])] = VXX;
-orderToIndex[order([0, 0, 1])] = XXV;
-orderToIndex[order([0, 0, 0])] = XXX;
-
-class TripleCursor {
-  constructor(db, index) {
-    this.index = index;
-    this.cursor = db.cursor(index);
+  push(variable, ascending) {
+    if (variable !== this.variable) return { relevant: false, done: false };
+    this.cursor = this.index.cursor(ascending);
     this.valid = this.cursor.valid;
-    this.depth = 0;
+    return { relevant: true, done: true };
+  }
+
+  pop() {}
+
+  valid() {
+    return this.cursor.valid;
   }
 
   peek() {
-    if (this.valid) {
-      const r = new Uint8Array(VALUE_SIZE);
-      const p = this.cursor.peek();
-      for (let i = 0; i < p.length; i++) {
-        r[r.length - p.length + i] = p[i];
-      }
-      return r;
-    }
+    return this.cursor.peek();
   }
 
   next() {
     this.cursor.next();
-    this.valid = this.cursor.valid;
   }
 
   seek(value) {
-    const len = INDEX_INFIX[this.index][this.depth];
-    for (let i = 0; i < VALUE_SIZE - len; i++) {
-      if (value[i] !== 0) {
-        this.valid = false;
-        return;
-      }
+    return this.cursor.seek(value);
+  }
+}
+
+class CollectionConstraint {
+  constructor(variable1, variable2, collection) {
+    this.variable1 = variable1;
+    this.variable2 = variable2;
+    this.pushed = false;
+
+    this.C1 = emptyPART;
+    for (const [c1, c2] of collection) {
+      this.C1 = this.C1.put(c1, (C2 = emptyPART) => C2.put(c2));
     }
-    const s = new Uint8Array(len);
-    for (let i = 0; i < s.length; i++) {
-      s[i] = value[value.length - s.length + i];
-    }
-    const match = this.cursor.seek(s);
-    this.valid = this.cursor.valid;
-    return match;
+
+    this.cursorC1 = null;
+    this.cursorC2 = null;
   }
 
-  push(ascending = true) {
-    this.depth++;
-    this.cursor.push(INDEX_INFIX[this.index][this.depth], ascending);
+  propose() {
+    if (!this.pushed) {
+      return {
+        variable: this.variable1,
+        count: this.C1.count,
+        forced: false,
+      };
+    } else {
+      return {
+        variable: this.variable2,
+        count: this.cursorC1.value().count,
+        forced: false,
+      };
+    }
+  }
+
+  push(variable, ascending) {
+    if (!this.pushed) {
+      if (variable !== this.variable1) return { relevant: false, done: false };
+      this.cursorC1 = this.C1.cursor(ascending);
+      return { relevant: true, done: false };
+    } else {
+      if (variable !== this.variable2) return { relevant: false, done: false };
+      this.cursorC1 = this.cursorC1.value().cursor(ascending);
+      return { relevant: true, done: true };
+    }
   }
 
   pop() {
-    this.depth--;
-    this.cursor.pop();
-    this.valid = this.cursor.valid;
+    this.pushed = false;
+  }
+
+  valid() {
+    if (!this.pushed) {
+      return this.cursorC1.valid;
+    } else {
+      return this.cursorC2.valid;
+    }
+  }
+
+  peek() {
+    if (!this.pushed) {
+      return this.cursorC1.peek();
+    } else {
+      return this.cursorC2.peek();
+    }
+  }
+
+  next() {
+    if (!this.pushed) {
+      this.cursorC1.next();
+      this.valid = this.cursorC1.valid;
+    } else {
+      this.cursorC2.next();
+      this.valid = this.cursorC2.valid;
+    }
+  }
+
+  seek(value) {
+    if (!this.pushed) {
+      const match = this.cursorC1.seek(value);
+      this.valid = this.cursorC1.valid;
+      return match;
+    } else {
+      const match = this.cursorC2.seek(value);
+      this.valid = this.cursorC2.valid;
+      return match;
+    }
   }
 }
 
 class TripleConstraint {
-  constructor(db, triple) {
-    this.db = db;
-    this.triple = triple;
-    this.index = orderToIndex[order(triple)];
+  constructor(db, variableE, variableA, variableV1, variableV2) {
+    this.branch = db;
+    this.variableE = variableE;
+    this.variableA = variableA;
+    this.variableV1 = variableV1;
+    this.variableV2 = variableV2;
+    this.cursors = [];
   }
 
-  variables() {
-    if (
-      this.triple[0] === this.triple[1] &&
-      this.triple[1] === this.triple[2]
-    ) {
-      return [this.triple[0]];
+  propose() {
+    let branch;
+    if (this.cursors.length === 0) {
+      branch = this.db.index;
+    } else {
+      branch = this.cursors[this.cursors.length - 1].value();
     }
-    if (this.triple[0] === this.triple[1]) {
-      return [this.triple[0], this.triple[2]];
+
+    let count = Number.MAX_VALUE;
+    let index;
+    let variable;
+
+    if (branch.V2) {
+      return {
+        variable: this.variableV2,
+        count: branch.V2.count,
+        forced: true,
+      };
     }
-    if (this.triple[1] === this.triple[2]) {
-      return [this.triple[0], this.triple[1]];
+    if (branch.E && branch.E.count <= count) {
+      count = branch.E.count;
+      index = branch.E;
+      variable = this.variableE;
     }
-    return this.triple;
+    if (branch.A && branch.A.count <= count) {
+      count = branch.A.count;
+      index = branch.A;
+      variable = this.variableA;
+    }
+    if (branch.V1 && branch.V1.count <= count) {
+      count = branch.V1.count;
+      index = branch.V1;
+      variable = this.variableV1;
+    }
+    return {
+      variable,
+      count,
+      forced: false,
+    };
   }
 
-  toCursor() {
-    return new TripleCursor(this.db, this.index);
+  push(variable, ascending = true) {
+    let branch;
+    if (this.cursors.length === 0) {
+      branch = this.db.index;
+    } else {
+      branch = this.cursors[this.cursors.length - 1].value();
+    }
+
+    const done = this.cursors.length === 3;
+    if (variable === this.variableE) {
+      this.cursors.push(branch.E.cursor(ascending));
+      return { relevant: true, done };
+    }
+    if (variable === this.variableA) {
+      this.cursors.push(branch.A.cursor(ascending));
+      return { relevant: true, done };
+    }
+    if (variable === this.variableV1) {
+      this.cursors.push(branch.V1.cursor(ascending));
+      return { relevant: true, done };
+    }
+    if (variable === this.variableV2) {
+      this.cursors.push(branch.V2.cursor(ascending));
+      return { relevant: true, done };
+    }
+    return { relevant: false, done };
+  }
+
+  pop() {
+    this.cursors.pop();
+  }
+
+  valid() {
+    this.cursors[this.cursors.length - 1].valid;
+  }
+
+  peek() {
+    if (this.cursors[this.cursors.length - 1].valid) {
+      return this.cursor.peek();
+    }
+    return null;
+  }
+
+  next() {
+    this.cursors[this.cursors.length - 1].next();
+  }
+
+  seek(value) {
+    return this.cursors[this.cursors.length - 1].seek(value);
   }
 }
 
-function* unsafeQuery(
-  constraints,
-  variableCount,
-  projectionCount = variableCount,
-  ascendingVariables = new Array(variableCount).fill(true),
-) {
-  const cursorsAtDepth = [...new Array(variableCount)].map(() => []);
-  for (const constraint of constraints) {
-    const cursor = constraint.toCursor();
-    if (!cursor.valid) {
+//TODO class VariableOrderConstraint {
+
+function* resolve(constraints, ascendingVariables, bindings = new Map()) {
+  //init
+  let candidateVariable;
+  let candidateCount = Number.MAX_VALUE;
+  for (const c of constraints) {
+    const proposal = c.propose();
+    if (proposal.count === 0) {
       return;
     }
-    for (const variable of constraint.variables()) {
-      cursorsAtDepth[variable].push(cursor);
+    if (!proposal.forced) {
+      candidateVariable = proposal.variable;
+      break;
+    }
+    if (proposal.count <= candidateCount) {
+      candidateVariable = proposal.variable;
+      candidateCount = proposal.count;
     }
   }
-  const bindings = new Array(variableCount);
-  const maxDepth = variableCount - 1;
-  const projectionDepth = projectionCount - 1;
-  let depth = 0;
-  //init
-  let cursors = cursorsAtDepth[depth];
-  cursors.forEach((c) => c.push(ascendingVariables[depth]));
-  //align / search
-  SEARCH:
-  while (true) {
-    let candidateOrigin = 0;
-    if (!cursors[candidateOrigin].valid) {
-      if (depth === 0) {
-        return;
-      }
-      cursors.forEach((c) => c.pop());
-      depth--;
-      cursors = cursorsAtDepth[depth];
-      cursors[0].next();
-      //Because we popped, we know that we pushed this level,
-      //therefore all cursors point to the same value.
-      //Which means we can next any of them,
-      //including 0 from which the search will continue.
 
-      continue SEARCH;
+  const ascending = ascendingVariables.has(candidateVariable);
+
+  const restConstraints = [];
+  const currentConstraints = [];
+  for (const c of constraints) {
+    const pushed = c.push(ascending);
+    if (!pushed.done) {
+      restConstraints.push(c);
     }
-    let candidate = cursors[candidateOrigin].peek();
-    let i = candidateOrigin;
-    while (true) {
-      i = (i + 1) % cursors.length;
-      if (i === candidateOrigin) {
-        bindings[depth] = candidate;
-        if (depth === maxDepth) {
-          //peek
-          yield [...bindings];
-          //next
-          for (; projectionDepth < depth; depth--) {
-            cursorsAtDepth[depth].forEach((c) => c.pop());
-          }
-          cursors = cursorsAtDepth[depth];
-          cursors[0].next();
+    if (pushed.relevant) {
+      currentConstraints.push(c);
+    }
+  }
 
-          continue SEARCH;
-        }
-        depth++;
-        cursors = cursorsAtDepth[depth];
-        cursors.forEach((c) => c.push(ascendingVariables[depth]));
+  const lastVariable = restConstraints.length === 0;
 
-        continue SEARCH;
+  let candidateOrigin = 0;
+  let candidate = currentConstraints[candidateOrigin].peek();
+  let i = candidateOrigin;
+  while (true) {
+    i = (candidateOrigin + 1) % currentConstraints.length;
+    if (i === candidateOrigin) {
+      bindings[candidateVariable] = candidate;
+      if (lastVariable) {
+        yield bindings;
+      } else {
+        yield* resolve(restConstraints, ascendingVariables, bindings);
       }
-      const match = cursors[i].seek(candidate);
-      if (!cursors[i].valid) {
-        if (depth === 0) {
-          return;
-        }
-        cursors.forEach((c) => c.pop());
-        depth--;
-        cursors = cursorsAtDepth[depth];
-        cursors[0].next();
-
-        continue SEARCH;
-      }
+      currentConstraints[candidateOrigin].next();
+      if (!currentConstraints[candidateOrigin].valid) break;
+      candidate = currentConstraints[candidateOrigin].peek();
+    } else {
+      const match = currentConstraints[i].seek(candidate);
+      if (!currentConstraints[i].valid) break;
       if (!match) {
         candidateOrigin = i;
-        candidate = cursors[i].peek();
+        candidate = currentConstraints[i].peek();
       }
     }
   }
+
+  currentConstraints.forEach((c) => c.pop());
+  return;
 }
 
 export {
-  AEV,
-  AVE,
-  AXX,
   CollectionConstraint,
   ConstantConstraint,
-  EAV,
-  EVA,
-  EXX,
-  INDEX_COUNT,
   IndexConstraint,
-  indexOrder,
+  query,
   TripleConstraint,
-  unsafeQuery,
-  VAE,
-  VEA,
-  VXX,
-  XXA,
-  XXE,
-  XXV,
-  XXX,
 };

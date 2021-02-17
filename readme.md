@@ -12,6 +12,7 @@ So far the following components have been implemented.
 - TribleDB js immutable trible database.
 - TribleKB js immutable trible knowledge-base.
 - Core types:
+  - UFOID
   - UUID
   - Shortstring
   - Longstring
