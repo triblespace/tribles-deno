@@ -1,4 +1,5 @@
 const TRIBLE_SIZE = 64;
+const VALUE_SIZE = 32;
 const SEGMENT_SIZE = 16;
 
 const E_START = 0;
@@ -108,4 +109,5 @@ export {
   V1,
   v1zero,
   V2,
+  VALUE_SIZE,
 };
