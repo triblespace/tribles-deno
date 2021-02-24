@@ -676,6 +676,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
   PARTLeaf = class {
     constructor(hash) {
       this.hash = hash;
+      this.segmentCount = 1;
     }
 
     put(depth, key, owner) {
@@ -692,8 +693,14 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       this.depth = depth;
       this.path = path;
       this.child = child;
-      this.hash = child.hash;
       this.owner = owner;
+
+      this.hash = child.hash;
+
+      this.segmentCount =
+        (((depth % SEGMENT_LENGTH) + path.length) >= SEGMENT_LENGTH)
+          ? 1
+          : child.segmentCount;
     }
     seek(depth, v, ascending) {
       const candidate = this.path[depth - this.depth];
@@ -716,12 +723,18 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
           key,
           owner,
         );
+        if (this.child === nchild) {
+          return this;
+        }
+
         if (this.owner === owner) {
           this.child = nchild;
           this.hash = nchild.hash;
-          return this;
-        }
-        if (this.child === nchild) {
+          this.segmentCount =
+            (((this.depth % SEGMENT_LENGTH) + this.path.length) >=
+                SEGMENT_LENGTH)
+              ? 1
+              : nchild.segmentCount;
           return this;
         }
         return new PARTPathNode(depth, this.path, nchild, owner);
@@ -744,7 +757,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
           childDepth,
           lpath,
           lchild,
-          owner
+          owner,
         );
       }
       if (keyRestLength !== 0) {
@@ -752,21 +765,28 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         for (let i = 0; i < keyRestLength; i++) {
           rpath[i] = key[KEY_LENGTH - keyRestLength + i];
         }
+
         rchild = new PARTPathNode(
           childDepth,
           rpath,
           rchild,
-          owner
+          owner,
         );
       }
       const forkDepth = depth + matchLength;
       const nindex = new Uint8Array(linearNodeSize);
       nindex[0] = this.path[matchLength];
       nindex[1] = key[forkDepth];
+
+      const segmentCount = ((forkDepth % SEGMENT_LENGTH) === SEGMENT_LENGTH - 1)
+        ? 1
+        : lchild.segmentCount + rchild.segmentCount;
+
       const nchild = new PARTLinearNode(
         nindex,
         [lchild, rchild],
         lchild.hash ^ rchild.hash,
+        segmentCount,
         owner,
       );
 
@@ -776,6 +796,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         this.child = nchild;
         this.path = this.path.subarray(0, matchLength);
         this.hash = nchild.hash;
+        this.segmentCount = segmentCount;
         return this;
       }
       const npath = new Uint8Array(matchLength);
@@ -788,7 +809,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
   };
 
   PARTLinearNode = class {
-    constructor(index, children, hash, owner) {
+    constructor(index, children, hash, segmentCount, owner) {
       this.index = index;
       this.children = children;
       this.hash = hash;
@@ -833,18 +854,23 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       if (child) {
         //We need to update the child where this key would belong.
         const nchild = this.children[pos].put(depth + 1, key, owner);
+        if (child.hash === nchild.hash) return this;
+        const segmentCount = ((depth % SEGMENT_LENGTH) === SEGMENT_LENGTH - 1)
+          ? this.segmentCount
+          : (this.segmentCount - child.segmentCount) + nchild.segmentCount;
         if (this.owner === owner) {
           this.children[pos] = nchild;
           this.hash = (this.hash ^ child.hash) ^ nchild.hash;
+          this.segmentCount = segmentCount;
           return this;
         }
-        if (child === nchild) return this;
         const nchildren = [...this.children];
         nchildren[pos] = nchild;
         return new PARTLinearNode(
           [...this.index],
           nchildren,
           (this.hash ^ child.hash) ^ nchild.hash,
+          segmentCount,
           owner,
         );
       }
@@ -853,12 +879,16 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         const path = key.slice(depth + 1, KEY_LENGTH);
         nchild = new PARTPathNode(depth + 1, path, nchild, owner);
       }
+      const segmentCount = ((depth % SEGMENT_LENGTH) === SEGMENT_LENGTH - 1)
+        ? this.segmentCount + 1
+        : this.segmentCount + nchild.segmentCount;
       if (this.children.length < linearNodeSize) {
         //We append a new child for this key.
         if (this.owner === owner) {
           this.children.push(nchild);
           this.index[this.children.length - 1] = key[depth];
           this.hash = this.hash ^ nchild.hash;
+          this.segmentCount = segmentCount;
           return this;
         } else {
           const nchildren = [...this.children, nchild];
@@ -868,6 +898,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
             nindex,
             nchildren,
             this.hash ^ nchild.hash,
+            segmentCount,
             owner,
           );
         }
@@ -883,16 +914,18 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         nindex,
         nchildren,
         this.hash ^ nchild.hash,
+        segmentCount,
         owner,
       );
     }
   };
 
   PARTIndirectNode = class {
-    constructor(index, children, hash, owner) {
+    constructor(index, children, hash, segmentCount, owner) {
       this.index = index;
       this.children = children;
       this.hash = hash;
+      this.segmentCount = segmentCount;
       this.owner = owner;
     }
     seek(depth, v, ascending) {
@@ -919,18 +952,24 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       if (child) {
         //We need to update the child where this key would belong.
         const nchild = child.put(depth + 1, key, owner);
+        if (child.hash === nchild.hash) return this;
+        const hash = (this.hash ^ child.hash) ^ nchild.hash;
+        const segmentCount = ((depth % SEGMENT_LENGTH) === SEGMENT_LENGTH - 1)
+          ? this.segmentCount
+          : (this.segmentCount - child.segmentCount) + nchild.segmentCount;
         if (this.owner === owner) {
           this.children[pos] = nchild;
-          this.hash = (this.hash ^ child.hash) ^ nchild.hash;
+          this.hash = hash;
+          this.segmentCount = segmentCount;
           return this;
         }
-        if (child === nchild) return this;
         const nchildren = [...this.children];
         nchildren[pos] = nchild;
         return new PARTIndirectNode(
           [...this.index],
           nchildren,
-          (this.hash ^ child.hash) ^ nchild.hash,
+          hash,
+          segmentCount,
           owner,
         );
       }
@@ -943,12 +982,17 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         }
         nchild = new PARTPathNode(depth + 1, path, nchild, owner);
       }
+      const hash = this.hash ^ nchild.hash;
+      const segmentCount = ((depth % SEGMENT_LENGTH) === SEGMENT_LENGTH - 1)
+        ? this.segmentCount + 1
+        : this.segmentCount + nchild.segmentCount;
       if (this.children.length < indirectNodeSize) {
         //We append a new child for this key.
         if (this.owner === owner) {
           this.children.push(nchild);
           this.index[key[depth]] = this.children.length;
-          this.hash = this.hash ^ nchild.hash;
+          this.hash = hash;
+          this.segmentCount = segmentCount;
           return this;
         }
         const nchildren = [...this.children];
@@ -958,7 +1002,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         return new PARTIndirectNode(
           nindex,
           nchildren,
-          this.hash ^ nchild.hash,
+          hash,
           owner,
         );
       }
@@ -969,14 +1013,15 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         if (child) nchildren[i] = child;
       }
       nchildren[key[depth]] = nchild;
-      return new PARTDirectNode(nchildren, this.hash ^ nchild.hash, owner);
+      return new PARTDirectNode(nchildren, hash, segmentCount, owner);
     }
   };
 
   PARTDirectNode = class {
-    constructor(children, hash, owner) {
+    constructor(children, hash, segmentCount, owner) {
       this.children = children;
       this.hash = hash;
+      this.segmentCount = segmentCount;
       this.owner = owner;
     }
     seek(depth, v, ascending) {
@@ -1002,10 +1047,15 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const child = this.children[pos];
       let nchild;
       let hash;
+      let segmentCount;
       if (child) {
         //We need to update the child where this key would belong.
         nchild = child.put(depth + 1, key, owner);
+        if (child.hash === nchild.hash) return this;
         hash = (this.hash ^ child.hash) ^ nchild.hash;
+        segmentCount = ((depth % SEGMENT_LENGTH) === SEGMENT_LENGTH - 1)
+          ? this.segmentCount
+          : (this.segmentCount - child.segmentCount) + nchild.segmentCount;
       } else {
         nchild = new PARTLeaf(PARTHash(key));
         const restLength = KEY_LENGTH - depth - 1;
@@ -1018,16 +1068,19 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
           nchild = new PARTPathNode(childDepth, path, nchild, owner);
         }
         hash = this.hash ^ nchild.hash;
+        segmentCount = ((depth % SEGMENT_LENGTH) === SEGMENT_LENGTH - 1)
+          ? this.segmentCount + 1
+          : this.segmentCount + nchild.segmentCount;
       }
       if (this.owner === owner) {
         this.children[pos] = nchild;
         this.hash = hash;
+        this.segmentCount = segmentCount;
         return this;
       }
-      if (child === nchild) return this;
       const nchildren = [...this.children];
       nchildren[pos] = nchild;
-      return new PARTDirectNode(nchildren, hash, owner);
+      return new PARTDirectNode(nchildren, hash, segmentCount, owner);
     }
   };
 

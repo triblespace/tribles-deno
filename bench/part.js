@@ -25,14 +25,14 @@ function generate_sample(size, sharing_prob = 0.1) {
   return facts;
 }
 function persistentPut(b, size) {
-    const sample = generate_sample(size);
-    let part = emptyTriblePART;
-    b.start();
-    for (const t of sample) {
-      part = part.put(t);
-    }
-    b.stop();
+  const sample = generate_sample(size);
+  let part = emptyTriblePART;
+  b.start();
+  for (const t of sample) {
+    part = part.put(t);
   }
+  b.stop();
+}
 
 bench({
   name: "put1e2",
@@ -66,26 +66,25 @@ bench({
   },
 });
 
-
 function batchedPut(b, size) {
-    const sample = generate_sample(size);
-    const part = emptyTriblePART;
-    b.start();
-    const batch = part.batch();
-    for (const t of sample) {
-      batch.put(t);
-    }
-    batch.complete();
-    b.stop();
+  const sample = generate_sample(size);
+  const part = emptyTriblePART;
+  b.start();
+  const batch = part.batch();
+  for (const t of sample) {
+    batch.put(t);
   }
+  batch.complete();
+  b.stop();
+}
 
 bench({
-    name: "putBatch1e2",
-    runs: 100,
-    func(b) {
-      batchedPut(b, 1e2);
-    },
-  });
+  name: "putBatch1e2",
+  runs: 100,
+  func(b) {
+    batchedPut(b, 1e2);
+  },
+});
 
 bench({
   name: "putBatch1e3",
@@ -112,52 +111,52 @@ bench({
 });
 
 function chunkedBatchedPut(b, chunkSize, sampleSize) {
-    const sample = generate_sample(sampleSize);
-    let part = emptyTriblePART;
-    b.start();
-    let batch = emptyTriblePART.batch();
-    let i = 0;
-    for (const t of sample) {
-      batch.put(t);
-      if(i++ > chunkSize) {
-          part = part.union(batch.complete());
-          batch = emptyTriblePART.batch();
-      }
+  const sample = generate_sample(sampleSize);
+  let part = emptyTriblePART;
+  b.start();
+  let batch = emptyTriblePART.batch();
+  let i = 0;
+  for (const t of sample) {
+    batch.put(t);
+    if (i++ > chunkSize) {
+      part = part.union(batch.complete());
+      batch = emptyTriblePART.batch();
     }
-    part = part.union(batch.complete())
-    b.stop();
   }
+  part = part.union(batch.complete());
+  b.stop();
+}
 
-  bench({
-    name: "putChunked1e1Batched1e4",
-    runs: 100,
-    func(b) {
-        chunkedBatchedPut(b, 1e1, 1e4)
-    },
-  });
+bench({
+  name: "putChunked1e1Batched1e4",
+  runs: 100,
+  func(b) {
+    chunkedBatchedPut(b, 1e1, 1e4);
+  },
+});
 
-  bench({
-    name: "putChunked1e2Batched1e4",
-    runs: 100,
-    func(b) {
-        chunkedBatchedPut(b, 1e2, 1e4)
-    },
-  });
+bench({
+  name: "putChunked1e2Batched1e4",
+  runs: 100,
+  func(b) {
+    chunkedBatchedPut(b, 1e2, 1e4);
+  },
+});
 
-  bench({
-    name: "putChunked1e3Batched1e4",
-    runs: 100,
-    func(b) {
-        chunkedBatchedPut(b, 1e3, 1e4)
-    },
-  });
-  
-  bench({
-    name: "putChunked1e4Batched1e4",
-    runs: 100,
-    func(b) {
-        chunkedBatchedPut(b, 1e4, 1e4)
-    },
-  });
+bench({
+  name: "putChunked1e3Batched1e4",
+  runs: 100,
+  func(b) {
+    chunkedBatchedPut(b, 1e3, 1e4);
+  },
+});
+
+bench({
+  name: "putChunked1e4Batched1e4",
+  runs: 100,
+  func(b) {
+    chunkedBatchedPut(b, 1e4, 1e4);
+  },
+});
 
 runBenchmarks();
