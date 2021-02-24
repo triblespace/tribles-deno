@@ -24,18 +24,21 @@ function generate_sample(size, sharing_prob = 0.1) {
   }
   return facts;
 }
-
-bench({
-  name: "put1e2",
-  runs: 100,
-  func(b) {
-    const sample = generate_sample(1e2);
+function persistentPut(b, size) {
+    const sample = generate_sample(size);
     let part = emptyTriblePART;
     b.start();
     for (const t of sample) {
       part = part.put(t);
     }
     b.stop();
+  }
+
+bench({
+  name: "put1e2",
+  runs: 100,
+  func(b) {
+    persistentPut(b, 1e2);
   },
 });
 
@@ -43,13 +46,7 @@ bench({
   name: "put1e3",
   runs: 100,
   func(b) {
-    const sample = generate_sample(1e3);
-    let part = emptyTriblePART;
-    b.start();
-    for (const t of sample) {
-      part = part.put(t);
-    }
-    b.stop();
+    persistentPut(b, 1e3);
   },
 });
 
@@ -57,13 +54,7 @@ bench({
   name: "put1e4",
   runs: 100,
   func(b) {
-    const sample = generate_sample(1e4);
-    let part = emptyTriblePART;
-    b.start();
-    for (const t of sample) {
-      part = part.put(t);
-    }
-    b.stop();
+    persistentPut(b, 1e4);
   },
 });
 
@@ -71,21 +62,13 @@ bench({
   name: "put1e5",
   runs: 10,
   func(b) {
-    const sample = generate_sample(1e5);
-    let part = emptyTriblePART;
-    b.start();
-    for (const t of sample) {
-      part = part.put(t);
-    }
-    b.stop();
+    persistentPut(b, 1e5);
   },
 });
 
-bench({
-  name: "putBatch1e2",
-  runs: 100,
-  func(b) {
-    const sample = generate_sample(1e2);
+
+function batchedPut(b, size) {
+    const sample = generate_sample(size);
     const part = emptyTriblePART;
     b.start();
     const batch = part.batch();
@@ -94,22 +77,21 @@ bench({
     }
     batch.complete();
     b.stop();
-  },
-});
+  }
+
+bench({
+    name: "putBatch1e2",
+    runs: 100,
+    func(b) {
+      batchedPut(b, 1e2);
+    },
+  });
 
 bench({
   name: "putBatch1e3",
   runs: 100,
   func(b) {
-    const sample = generate_sample(1e3);
-    const part = emptyTriblePART;
-    b.start();
-    const batch = part.batch();
-    for (const t of sample) {
-      batch.put(t);
-    }
-    batch.complete();
-    b.stop();
+    batchedPut(b, 1e3);
   },
 });
 
@@ -117,15 +99,7 @@ bench({
   name: "putBatch1e4",
   runs: 100,
   func(b) {
-    const sample = generate_sample(1e4);
-    const part = emptyTriblePART;
-    b.start();
-    const batch = part.batch();
-    for (const t of sample) {
-      batch.put(t);
-    }
-    batch.complete();
-    b.stop();
+    batchedPut(b, 1e4);
   },
 });
 
@@ -133,16 +107,57 @@ bench({
   name: "putBatch1e5",
   runs: 10,
   func(b) {
-    const sample = generate_sample(1e5);
-    const part = emptyTriblePART;
-    b.start();
-    const batch = part.batch();
-    for (const t of sample) {
-      batch.put(t);
-    }
-    batch.complete();
-    b.stop();
+    batchedPut(b, 1e5);
   },
 });
+
+function chunkedBatchedPut(b, chunkSize, sampleSize) {
+    const sample = generate_sample(sampleSize);
+    let part = emptyTriblePART;
+    b.start();
+    let batch = emptyTriblePART.batch();
+    let i = 0;
+    for (const t of sample) {
+      batch.put(t);
+      if(i++ > chunkSize) {
+          part = part.union(batch.complete());
+          batch = emptyTriblePART.batch();
+      }
+    }
+    part = part.union(batch.complete())
+    b.stop();
+  }
+
+  bench({
+    name: "putChunked1e1Batched1e4",
+    runs: 100,
+    func(b) {
+        chunkedBatchedPut(b, 1e1, 1e4)
+    },
+  });
+
+  bench({
+    name: "putChunked1e2Batched1e4",
+    runs: 100,
+    func(b) {
+        chunkedBatchedPut(b, 1e2, 1e4)
+    },
+  });
+
+  bench({
+    name: "putChunked1e3Batched1e4",
+    runs: 100,
+    func(b) {
+        chunkedBatchedPut(b, 1e3, 1e4)
+    },
+  });
+  
+  bench({
+    name: "putChunked1e4Batched1e4",
+    runs: 100,
+    func(b) {
+        chunkedBatchedPut(b, 1e4, 1e4)
+    },
+  });
 
 runBenchmarks();
