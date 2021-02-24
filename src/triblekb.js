@@ -96,16 +96,12 @@ class VariableProvider {
   }
 
   constant(c) {
-    let v;
-    this.constantVariables = this.constantVariables.put(c, (old) => {
-      if (old) {
-        v = old;
-      } else {
-        v = new Variable(this);
-        v.constant = c;
-      }
-      return v;
-    });
+    let v = this.constantVariables.get(c);
+    if (!v) {
+      v = new Variable(this);
+      v.constant = c;
+      this.constantVariables = this.constantVariables.put(c, v);
+    }
     return v;
   }
 
@@ -135,11 +131,21 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
   for (const [attr, { id: attrId, isInverse }] of Object.entries(ctx.ns)) {
     const aId = new Uint8Array(VALUE_SIZE);
     ctx.ns[id].encoder(attrId, aId);
+    let attrs;
     if (isInverse) {
-      inverseAttrsBatch.put(aId, (attrs = []) => [...attrs, attr]);
+      attrs = inverseAttrsBatch.get(aId);
+      if(!attrs) {
+        attrs = [];
+        inverseAttrsBatch.put(aId, attrs);
+      }
     } else {
-      attrsBatch.put(aId, (attrs = []) => [...attrs, attr]);
+      attrs = attrsBatch.get(aId);
+      if(!attrs) {
+        attrs = [];
+        attrsBatch.put(aId, attrs);
+      }
     }
+    attrs.push(attr);
   }
   const attrsById = attrsBatch.complete();
   const inverseAttrsById = inverseAttrsBatch.complete();
