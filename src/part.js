@@ -65,6 +65,11 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const prefixLen = this.prefixStack[this.prefixStack.length - 1];
       return this.path.slice(prefixLen, prefixLen + infixLen);
     }
+    value() {
+      const infixLen = this.infixStack[this.infixStack.length - 1];
+      const prefixLen = this.prefixStack[this.prefixStack.length - 1];
+      return this.pathNodes[prefixLen + infixLen].value;
+    }
     next() {
       if (this.valid) {
         const ascending = this.orderStack[this.orderStack.length - 1];
@@ -512,12 +517,12 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       this.completed = true;
       return new PARTree(this.child);
     }
-    put(key) {
+    put(key, value = null) {
       if (this.completed) {
         throw Error("Can't put into already completed batch.");
       }
       if (this.child) {
-        this.child = this.child.put(0, key, this.owner);
+        this.child = this.child.put(0, key, value, this.owner);
       } else {
         const path = new Uint8Array(KEY_LENGTH);
         for (let i = 0; i < KEY_LENGTH; i++) {
@@ -526,7 +531,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         this.child = new PARTPathNode(
           0,
           path,
-          new PARTLeaf(PARTHash(key)),
+          new PARTLeaf(PARTHash(key), value),
           this.owner,
         );
       }
@@ -543,11 +548,11 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       return new PARTBatch(this.child);
     }
 
-    put(key) {
+    put(key, value = null) {
       const owner = {};
 
       if (this.child) {
-        const nchild = this.child.put(0, key, owner);
+        const nchild = this.child.put(0, key, value, owner);
         if (this.child === nchild) return this;
         return new PARTree(nchild);
       }
@@ -556,7 +561,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         new PARTPathNode(
           0,
           path,
-          new PARTLeaf(PARTHash(key)),
+          new PARTLeaf(PARTHash(key), value),
           owner,
         ),
       );
@@ -658,7 +663,24 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       return new PARTree(_difference(thisNode, otherNode));
     }
 
-    // This is only a convenience functions for js interop and no API requirement.
+    // These are only convenience functions for js interop and no API requirement.
+    entries() {
+      const cursor = this.cursor();
+      if (cursor.valid) cursor.push(KEY_LENGTH);
+      return {
+        [Symbol.iterator]() {
+          return this;
+        },
+        next() {
+          if (!cursor.valid) return { done: true };
+          const key = cursor.peek();
+          const value = cursor.value();
+          cursor.next();
+          return { value: [key, value] };
+        },
+      };
+    }
+
     keys() {
       const cursor = this.cursor();
       if (cursor.valid) cursor.push(KEY_LENGTH);
@@ -674,15 +696,32 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         },
       };
     }
+
+    values() {
+      const cursor = this.cursor();
+      if (cursor.valid) cursor.push(KEY_LENGTH);
+      return {
+        [Symbol.iterator]() {
+          return this;
+        },
+        next() {
+          if (!cursor.valid) return { done: true };
+          const value = cursor.value();
+          cursor.next();
+          return { value };
+        },
+      };
+    }
   };
 
   PARTLeaf = class {
-    constructor(hash) {
+    constructor(hash, value) {
       this.hash = hash;
+      this.value = value;
       this.segmentCount = 1;
     }
 
-    put(depth, key, owner) {
+    put(depth, key, value, owner) {
       return this;
     }
 
@@ -715,7 +754,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       }
       return [v, null];
     }
-    put(depth, key, owner) {
+    put(depth, key, value, owner) {
       let matchLength = 0;
       for (; matchLength < this.path.length; matchLength++) {
         if (this.path[matchLength] !== key[depth + matchLength]) break;
@@ -724,6 +763,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         const nchild = this.child.put(
           depth + this.path.length,
           key,
+          value,
           owner,
         );
         if (this.child === nchild) {
@@ -747,7 +787,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const restLength = this.path.length - matchLength - 1;
 
       let lchild = this.child;
-      let rchild = new PARTLeaf(PARTHash(key));
+      let rchild = new PARTLeaf(PARTHash(key), value);
 
       const childDepth = depth + matchLength + 1;
       if (restLength !== 0) {
@@ -848,7 +888,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       }
       return [v, null];
     }
-    put(depth, key, owner) {
+    put(depth, key, value, owner) {
       let pos = 0;
       for (; pos < this.children.length; pos++) {
         if (key[depth] === this.index[pos]) break;
@@ -856,7 +896,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const child = this.children[pos];
       if (child) {
         //We need to update the child where this key would belong.
-        const nchild = this.children[pos].put(depth + 1, key, owner);
+        const nchild = this.children[pos].put(depth + 1, key, value, owner);
         if (child.hash === nchild.hash) return this;
         const segmentCount = ((depth % SEGMENT_LENGTH) === SEGMENT_LENGTH - 1)
           ? this.segmentCount
@@ -877,7 +917,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
           owner,
         );
       }
-      let nchild = new PARTLeaf(PARTHash(key));
+      let nchild = new PARTLeaf(PARTHash(key), value);
       if (depth + 1 < KEY_LENGTH) {
         const path = key.slice(depth + 1, KEY_LENGTH);
         nchild = new PARTPathNode(depth + 1, path, nchild, owner);
@@ -949,12 +989,12 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       }
       return [v, null];
     }
-    put(depth, key, owner) {
+    put(depth, key, value, owner) {
       const pos = this.index[key[depth]] - 1;
       const child = this.children[pos];
       if (child) {
         //We need to update the child where this key would belong.
-        const nchild = child.put(depth + 1, key, owner);
+        const nchild = child.put(depth + 1, key, value, owner);
         if (child.hash === nchild.hash) return this;
         const hash = (this.hash ^ child.hash) ^ nchild.hash;
         const segmentCount = ((depth % SEGMENT_LENGTH) === SEGMENT_LENGTH - 1)
@@ -977,7 +1017,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         );
       }
       const restLength = KEY_LENGTH - depth - 1;
-      let nchild = new PARTLeaf(PARTHash(key));
+      let nchild = new PARTLeaf(PARTHash(key), value);
       if (restLength !== 0) {
         const path = new Uint8Array(restLength);
         for (let i = 0; i < restLength; i++) {
@@ -1045,7 +1085,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       }
       return [v, null];
     }
-    put(depth, key, owner) {
+    put(depth, key, value, owner) {
       const pos = key[depth];
       const child = this.children[pos];
       let nchild;
@@ -1053,14 +1093,14 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       let segmentCount;
       if (child) {
         //We need to update the child where this key would belong.
-        nchild = child.put(depth + 1, key, owner);
+        nchild = child.put(depth + 1, key, value, owner);
         if (child.hash === nchild.hash) return this;
         hash = (this.hash ^ child.hash) ^ nchild.hash;
         segmentCount = ((depth % SEGMENT_LENGTH) === SEGMENT_LENGTH - 1)
           ? this.segmentCount
           : (this.segmentCount - child.segmentCount) + nchild.segmentCount;
       } else {
-        nchild = new PARTLeaf(PARTHash(key));
+        nchild = new PARTLeaf(PARTHash(key), value);
         const restLength = KEY_LENGTH - depth - 1;
         if (restLength !== 0) {
           const path = new Uint8Array(restLength);
