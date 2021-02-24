@@ -8,7 +8,7 @@ const SESSION_SEED = [...crypto.getRandomValues(new Uint32Array(16))].reduce(
   0n,
 );
 function PARTHash(key) {
-  if(!key.__cached_XXH3_128){
+  if (!key.__cached_XXH3_128) {
     key.__cached_XXH3_128 = XXH3_128(key, SESSION_SEED);
   }
   return key.__cached_XXH3_128;
@@ -1134,4 +1134,10 @@ const emptyTriblePART = makePART(TRIBLE_SIZE, SEGMENT_SIZE);
 const emptyValuePART = makePART(VALUE_SIZE, SEGMENT_SIZE);
 const emptySegmentPART = makePART(SEGMENT_SIZE, SEGMENT_SIZE);
 
-export { emptySegmentPART, emptyTriblePART, emptyValuePART, makePART, PARTHash };
+export {
+  emptySegmentPART,
+  emptyTriblePART,
+  emptyValuePART,
+  makePART,
+  PARTHash,
+};
