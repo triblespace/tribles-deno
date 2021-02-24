@@ -1,5 +1,5 @@
 import { SEGMENT_SIZE } from "./trible.js";
-import { emptyPART } from "./part.js";
+import { emptyPART as emptySegmentPart } from "./part.js";
 
 class ConstantConstraint {
   constructor(variable, constant) {
@@ -95,9 +95,9 @@ class CollectionConstraint {
     this.variable2 = variable2;
     this.pushed = false;
 
-    this.C1 = emptyPART;
+    this.C1 = emptySegmentPart;
     for (const [c1, c2] of collection) {
-      this.C1 = this.C1.put(c1, (C2 = emptyPART) => C2.put(c2));
+      this.C1 = this.C1.put(c1, (C2 = emptySegmentPart) => C2.put(c2));
     }
 
     this.cursorC1 = null;
@@ -280,7 +280,7 @@ class TripleConstraint {
 
 //TODO class VariableOrderConstraint {
 
-function* resolve(constraints, ascendingVariables, bindings = new Map()) {
+function* query(constraints, ascendingVariables, bindings = new Map()) {
   //init
   let candidateVariable;
   let candidateCount = Number.MAX_VALUE;

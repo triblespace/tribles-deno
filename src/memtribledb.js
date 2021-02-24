@@ -1,93 +1,97 @@
-import { EAV, INDEX_COUNT, indexOrder } from "./query.js";
+import { emptySegmentPART, emptyTriblePART } from "./part.js";
 import {
   A,
   E,
-  emptyPART,
-  emptyValuePART,
   equalId,
+  scrambleAEV,
+  scrambleAVE,
+  scrambleEAV,
+  scrambleEVA,
+  scrambleVAE,
+  scrambleVEA,
   V1,
   v1zero,
   V2,
-} from "./part.js";
+} from "./trible.js";
 
 class MemTribleDB {
-  constructor(index = {
-    E = emptyPART,
-    A = emptyPART,
-    V1 = emptyPART,
-    EA = emptyPART,
-    EV = emptyPART,
-    AV = emptyPART,
-    EAV = emptyPART,
-  }) {
-    this.index = index;
+  constructor(
+    EAV = emptyTriblePART,
+    EVA = emptyTriblePART,
+    AEV = emptyTriblePART,
+    AVE = emptyTriblePART,
+    VEA = emptyTriblePART,
+    VAE = emptyTriblePART,
+    EisA = emptySegmentPART,
+    EisV = emptySegmentPART,
+    AisV = emptySegmentPART,
+    EisAisV = emptySegmentPART,
+  ) {
+    this.EAV = EAV;
+    this.EVA = EVA;
+    this.AEV = AEV;
+    this.AVE = AVE;
+    this.VEA = VEA;
+    this.VAE = VAE;
+    this.EisA = EisA;
+    this.EisV = EisV;
+    this.AisV = AisV;
+    this.EisAisV = EisAisV;
   }
 
   with(tribles) {
-    const index = { ...this.index };
+    const EAV = this.EAV.batch();
+    const EVA = this.EVA.batch();
+    const AEV = this.AEV.batch();
+    const AVE = this.AVE.batch();
+    const VEA = this.VEA.batch();
+    const VAE = this.VEA.batch();
+
+    const EisA = this.EisA.batch();
+    const EisV = this.EisV.batch();
+    const AisV = this.AisV.batch();
+    const EisAisV = this.EisAisV.batch();
+
+    for (const trible of tribles) EAV.put(scrambleEAV(trible));
+    for (const trible of tribles) EVA.put(scrambleEVA(trible));
+    for (const trible of tribles) AEV.put(scrambleAEV(trible));
+    for (const trible of tribles) AVE.put(scrambleAVE(trible));
+    for (const trible of tribles) VEA.put(scrambleVEA(trible));
+    for (const trible of tribles) VAE.put(scrambleVAE(trible));
 
     for (const trible of tribles) {
       const e = E(trible);
       const a = A(trible);
-      const v1 = V1(trible);
       const v2 = V2(trible);
-
-      index.E = index.E.put(
-        e,
-        (branch = { A: emptyPART, V1: emptyPART, AV: emptyPART }) => ({
-          A: branch.A.put(
-            a,
-            ({ V1 = emptyPART }) => ({
-              V1: V1.put(v1, ({ V2 = emptyPART }) => ({ V2: V2.put(v2) })),
-            }),
-          ),
-          V1: branch.V1.put(
-            v1,
-            ({ V2 = emptyPART }) => ({
-              V2: V2.put(v2, ({ A = emptyPART }) => ({ A: A.put(a) })),
-            }),
-          ),
-        }),
-      );
-
-      index.A = index.A.put(
-        a,
-        (branch = { E: emptyPART, V1: emptyPART, EV: emptyPART }) => ({
-          E: branch.E.put(
-            e,
-            ({ V1 = emptyPART }) => ({
-              V1: V1.put(v1, ({ V2 = emptyPART }) => ({ V2: V2.put(v2) })),
-            }),
-          ),
-          V1: branch.V1.put(
-            v1,
-            ({ V2 = emptyPART }) => ({
-              V2: V2.put(v2, ({ E = emptyPART }) => ({ E: E.put(e) })),
-            }),
-          ),
-        }),
-      );
-
-      index.V1 = index.V1.put(v1, ({ V2 = emptyPART }) => ({
-        V2: V2.put(
-          v2,
-          (branch = { E: emptyPART, A: emptyPART, EA: emptyPART }) => ({
-            E: branch.E.put(e, ({ A = emptyPART }) => ({ A: A.put(a) })),
-            A: branch.A.put(a, ({ E = emptyPART }) => ({ E: E.put(e) })),
-          }),
-        ),
-      }));
-
       const eIsA = equalId(e, a);
       const eIsV = v1zero(trible) && equalId(e, v2);
       const aIsV = v1zero(trible) && equalId(a, v2);
 
-      index.EA = eIsA ? index.EA.put(e) : index.EA;
-      index.EV = eIsV ? index.EV.put(e) : index.EV;
-      index.AV = aIsV ? index.AV.put(a) : index.AV;
-      index.EAV = eIsA && aIsV ? index.EAV.put(e) : index.EAV;
+      if (eIsA) {
+        EisA = EisA.put(e);
+      }
+      if (eIsV) {
+        EisV = EisV.put(e);
+      }
+      if (aIsV) {
+        AisV = AisV.put(a);
+      }
+      if (eIsA && aIsV) {
+        EisAisV = EisAisV.put(e);
+      }
     }
-    return new MemTribleDB(index);
+    return new MemTribleDB(
+      EAV.complete(),
+      EVA.complete(),
+      AEV.complete(),
+      AVE.complete(),
+      VEA.complete(),
+      VAE.complete(),
+      EisA.complete(),
+      EisV.complete(),
+      AisV.complete(),
+      EisAisV.complete(),
+    );
   }
 
   empty() {
@@ -95,115 +99,79 @@ class MemTribleDB {
   }
 
   isEmpty() {
-    return this.indexE.isEmpty();
+    return this.EAV.isEmpty();
   }
 
   isEqual(other) {
-    return this.indexE.isEqual(other.indexE);
+    return this.EAV.isEqual(other.EAV);
   }
 
   isSubsetOf(other) {
-    return this.indexE.isSubsetWith(
-      other.indexE,
-      ({ A: thisA }, { A: otherA }) =>
-        thisA.isSubsetWith(
-          otherA,
-          ({ V: thisV }, { V: otherV }) => thisV.isSubset(otherV),
-        ),
-    );
+    return this.EAV.isSubsetOf(other.indexE);
   }
 
   isIntersecting(other) {
-    return this.indexE.isIntersectingWith(
-      other.indexE,
-      ({ A: thisA }, { A: otherA }) =>
-        thisA.isIntersectingWith(
-          otherA,
-          ({ V: thisV }, { V: otherV }) => thisV.isIntersecting(otherV),
-        ),
-    );
+    return this.EAV.isIntersecting(other.indexE);
   }
 
   union(other) {
-    const indexE = this.indexE.unionWith(
-      other.indexE,
-      (
-        { A: thisA, V: thisV, AV: thisAV },
-        { A: otherA, V: otherV, AV: otherAV },
-      ) => ({
-        A: thisA.unionWith(otherA, (thisV, otherV) => thisV.union(otherV)),
-        V: thisV.unionWith(otherV, (thisA, otherA) => thisA.union(otherA)),
-        AV: thisAV.union(otherAV),
-      }),
-    );
-    const indexA = this.indexA.unionWith(
-      other.indexA,
-      (
-        { E: thisE, V: thisV, EV: thisEV },
-        { E: otherE, V: otherV, EV: otherEV },
-      ) => ({
-        E: thisE.unionWith(otherE, (thisV, otherV) => thisV.union(otherV)),
-        V: thisV.unionWith(otherV, (thisE, otherE) => thisE.union(otherE)),
-        EV: thisEV.union(otherEV),
-      }),
-    );
-    const indexV = this.indexV.unionWith(
-      other.indexV,
-      (
-        { E: thisE, A: thisA, EA: thisEA },
-        { E: otherE, A: otherA, EA: otherEA },
-      ) => ({
-        E: thisE.unionWith(otherE, (thisA, otherA) => thisA.union(otherA)),
-        A: thisA.unionWith(otherA, (thisE, otherE) => thisE.union(otherE)),
-        EA: thisEA.union(otherEA),
-      }),
-    );
-    const indexEA = this.indexEA.unionWith(
-      other.indexEA,
-      ({ V: thisV }, { V: otherV }) => thisV.union(otherV),
-    );
-    const indexEV = this.indexEV.unionWith(
-      other.indexEV,
-      ({ A: thisA }, { A: otherA }) => thisA.union(otherA),
-    );
-    const indexAV = this.indexAV.unionWith(
-      other.indexAV,
-      ({ E: thisE }, { E: otherE }) => thisE.union(otherE),
-    );
-    const indexEAV = this.indexEAV.union(other.indexEAV);
     return new MemTribleDB(
-      indexE,
-      indexA,
-      indexV,
-      indexEA,
-      indexEV,
-      indexAV,
-      indexEAV,
+      this.EAV.union(other.EAV),
+      this.EVA.union(other.EVA),
+      this.AEV.union(other.AEV),
+      this.AVE.union(other.AVE),
+      this.VEA.union(other.VEA),
+      this.VAE.union(other.VAE),
+      this.EisA.union(other.EisA),
+      this.EisV.union(other.EisV),
+      this.AisV.union(other.AisV),
+      this.EisAisV.union(other.EisAisV),
     );
   }
 
   subtract(other) {
-    const index = new Array(INDEX_COUNT);
-    for (let i = 0; i < INDEX_COUNT; i++) {
-      index[i] = this.index[i].subtract(other.index[i]);
-    }
-    return new MemTribleDB(index);
+    return new MemTribleDB(
+      this.EAV.subtract(other.EAV),
+      this.EVA.subtract(other.EVA),
+      this.AEV.subtract(other.AEV),
+      this.AVE.subtract(other.AVE),
+      this.VEA.subtract(other.VEA),
+      this.VAE.subtract(other.VAE),
+      this.EisA.subtract(other.EisA),
+      this.EisV.subtract(other.EisV),
+      this.AisV.subtract(other.AisV),
+      this.EisAisV.subtract(other.EisAisV),
+    );
   }
 
   difference(other) {
-    const index = new Array(INDEX_COUNT);
-    for (let i = 0; i < INDEX_COUNT; i++) {
-      index[i] = this.index[i].difference(other.index[i]);
-    }
-    return new MemTribleDB(index);
+    return new MemTribleDB(
+      this.EAV.difference(other.EAV),
+      this.EVA.difference(other.EVA),
+      this.AEV.difference(other.AEV),
+      this.AVE.difference(other.AVE),
+      this.VEA.difference(other.VEA),
+      this.VAE.difference(other.VAE),
+      this.EisA.difference(other.EisA),
+      this.EisV.difference(other.EisV),
+      this.AisV.difference(other.AisV),
+      this.EisAisV.difference(other.EisAisV),
+    );
   }
 
   intersect(other) {
-    const index = new Array(INDEX_COUNT);
-    for (let i = 0; i < INDEX_COUNT; i++) {
-      index[i] = this.index[i].intersect(other.index[i]);
-    }
-    return new MemTribleDB(index);
+    return new MemTribleDB(
+      this.EAV.intersect(other.EAV),
+      this.EVA.intersect(other.EVA),
+      this.AEV.intersect(other.AEV),
+      this.AVE.intersect(other.AVE),
+      this.VEA.intersect(other.VEA),
+      this.VAE.intersect(other.VAE),
+      this.EisA.intersect(other.EisA),
+      this.EisV.intersect(other.EisV),
+      this.AisV.intersect(other.AisV),
+      this.EisAisV.intersect(other.EisAisV),
+    );
   }
 }
 

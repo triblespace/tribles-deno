@@ -23,6 +23,50 @@ const V = (trible) => trible.subarray(V_START, V_END);
 const V1 = (trible) => trible.subarray(V1_START, V1_END);
 const V2 = (trible) => trible.subarray(V2_START, V2_END);
 
+function scrambleEAV(trible) {
+  return trible;
+}
+function scrambleEVA(trible) {
+  const indexOrderedKey = new Uint8Array(64);
+  indexOrderedKey.set(E(trible), 0);
+  indexOrderedKey.set(V(trible), 16);
+  indexOrderedKey.set(A(trible), 48);
+  indexOrderedKey.__cached_XXH3_128 = trible.__cached_XXH3_128;
+  return indexOrderedKey;
+}
+function scrambleAEV(trible) {
+  const indexOrderedKey = new Uint8Array(64);
+  indexOrderedKey.set(A(trible), 0);
+  indexOrderedKey.set(E(trible), 16);
+  indexOrderedKey.set(V(trible), 32);
+  indexOrderedKey.__cached_XXH3_128 = trible.__cached_XXH3_128;
+  return indexOrderedKey;
+}
+function scrambleAVE(trible) {
+  const indexOrderedKey = new Uint8Array(64);
+  indexOrderedKey.set(A(trible), 0);
+  indexOrderedKey.set(V(trible), 16);
+  indexOrderedKey.set(E(trible), 48);
+  indexOrderedKey.__cached_XXH3_128 = trible.__cached_XXH3_128;
+  return indexOrderedKey;
+}
+function scrambleVEA(trible) {
+  const indexOrderedKey = new Uint8Array(64);
+  indexOrderedKey.set(V(trible), 0);
+  indexOrderedKey.set(E(trible), 32);
+  indexOrderedKey.set(A(trible), 48);
+  indexOrderedKey.__cached_XXH3_128 = trible.__cached_XXH3_128;
+  return indexOrderedKey;
+}
+function scrambleVAE(trible) {
+  const indexOrderedKey = new Uint8Array(64);
+  indexOrderedKey.set(V(trible), 0);
+  indexOrderedKey.set(A(trible), 32);
+  indexOrderedKey.set(E(trible), 48);
+  indexOrderedKey.__cached_XXH3_128 = trible.__cached_XXH3_128;
+  return indexOrderedKey;
+}
+
 const v1zero = (trible) => {
   const view = new Uint32Array(trible.buffer, trible.byteOffset, 4);
   return view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0;
@@ -103,6 +147,12 @@ export {
   equalValue,
   isTransactionMarker,
   isValidTransaction,
+  scrambleAEV,
+  scrambleAVE,
+  scrambleEAV,
+  scrambleEVA,
+  scrambleVAE,
+  scrambleVEA,
   SEGMENT_SIZE,
   TRIBLE_SIZE,
   V,
