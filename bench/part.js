@@ -6,8 +6,8 @@ function generate_sample(size, sharing_prob = 0.1) {
   const fact = new Uint8Array(64);
   const e = fact.subarray(0, 16);
   const a = fact.subarray(16, 32);
-  const v1 = fact.subarray(32, 60);
-  const v2 = fact.subarray(60, 64);
+  const v1 = fact.subarray(32, 48);
+  const v2 = fact.subarray(48, 64);
   crypto.getRandomValues(fact);
   for (let i = 0; i < size; i++) {
     if (sharing_prob < Math.random()) {
