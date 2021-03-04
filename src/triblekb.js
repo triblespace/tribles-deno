@@ -134,13 +134,13 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
     let attrs;
     if (isInverse) {
       attrs = inverseAttrsBatch.get(aId);
-      if(!attrs) {
+      if (!attrs) {
         attrs = [];
         inverseAttrsBatch.put(aId, attrs);
       }
     } else {
       attrs = attrsBatch.get(aId);
-      if(!attrs) {
+      if (!attrs) {
         attrs = [];
         attrsBatch.put(aId, attrs);
       }

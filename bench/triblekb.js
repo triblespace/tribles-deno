@@ -166,5 +166,4 @@ bench({
   },
 });
 
-
 runBenchmarks();
