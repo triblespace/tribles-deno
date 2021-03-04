@@ -218,7 +218,6 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const [index, child] = children[i];
       nchildbits = nchildbits | (1n << BigInt(index));
       nchildren[index] = child;
-      
     }
     return new PARTNode(
       children[0].key,
@@ -227,11 +226,13 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       nchildren,
       hash,
       1, //TODO segmentCount,
-      {});
+      {}
+    );
   }
 
   function _union(leftNode, rightNode, depth = 0) {
-    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) return leftNode;
+    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH)
+      return leftNode;
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     let branchDepth = depth;
     for (; branchDepth < maxDepth; branchDepth++) {
@@ -249,16 +250,29 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     const leftPositions = bitPositions(leftBits);
     const rightPositions = bitPositions(rightBits);
     const children = new Array(256);
+    let segmentCount = 0;
     let hash = 0n;
     for (const pos of leftPositions) {
       const leftChild = leftNode.get(branchDepth, pos);
       children[pos] = leftChild;
       hash = hash ^ leftChild.hash;
+      segmentCount =
+        segmentCount +
+        (Math.floor(branchDepth / SEGMENT_LENGTH) <
+        Math.floor(leftChild.branchDepth / SEGMENT_LENGTH)
+          ? 1
+          : leftChild.segmentCount);
     }
     for (const pos of rightPositions) {
       const rightChild = rightNode.get(branchDepth, pos);
       children[pos] = rightChild;
       hash = hash ^ rightChild.hash;
+      segmentCount =
+        segmentCount +
+        (Math.floor(branchDepth / SEGMENT_LENGTH) <
+        Math.floor(rightChild.branchDepth / SEGMENT_LENGTH)
+          ? 1
+          : rightChild.segmentCount);
     }
     for (const pos of commonPositions) {
       const leftChild = leftNode.get(branchDepth, pos);
@@ -266,17 +280,13 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const union = _union(leftChild, rightChild, branchDepth + 1);
       children[pos] = union;
       hash = hash ^ union.hash;
+      segmentCount =
+        segmentCount +
+        (Math.floor(branchDepth / SEGMENT_LENGTH) <
+        Math.floor(union.branchDepth / SEGMENT_LENGTH)
+          ? 1
+          : union.segmentCount);
     }
-    const segmentCount = 1;/*
-      (Math.floor(branchDepth / SEGMENT_LENGTH) <
-      Math.floor(leftNode.branchDepth / SEGMENT_LENGTH)
-        ? 1
-        : leftNode.segmentCount) +
-      (Math.floor(branchDepth / SEGMENT_LENGTH) <
-      Math.floor(rightNode.branchDepth / SEGMENT_LENGTH)
-        ? 1
-        : rightNode.segmentCount);
-        */
     return new PARTNode(
       leftNode.key,
       branchDepth,
@@ -289,165 +299,227 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
   }
 
   function _subtract(leftNode, rightNode, depth = 0) {
-    const children = [];
-    let hash = 0n;
-
-    let [leftIndex, leftChild] = leftNode.seek(depth, 0, true);
-    let [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
-    search: while (true) {
-      if (!leftChild) break search;
-
-      if (!rightChild || leftIndex < rightIndex) {
-        children.push([leftIndex, leftChild]);
-        hash = hash ^ leftChild.hash;
-        [leftIndex, leftChild] = leftNode.seek(depth, leftIndex + 1, true);
-        continue search;
-      }
-
-      if (rightIndex < leftIndex) {
-        [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
-        continue search;
-      }
-
-      //implicit leftIndex === rightIndex
-      if (!(depth === KEY_LENGTH - 1) && leftChild.hash !== rightChild.hash) {
-        const diff = _subtract(leftChild, rightChild, depth + 1);
-        if (diff) {
-          children.push([leftIndex, diff]);
-          hash = hash ^ diff.hash;
-        }
-      }
-      [leftIndex, leftChild] = leftNode.seek(depth, leftIndex + 1, true);
-      [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
+    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) return null;
+    const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
+    let branchDepth = depth;
+    for (; branchDepth < maxDepth; branchDepth++) {
+      if (leftNode.key[branchDepth] !== rightNode.key[branchDepth])
+        return leftNode;
     }
-    return _makeNode(children, depth, hash);
+    if (branchDepth === KEY_LENGTH) return null;
+
+    const lbits = leftNode.bits(branchDepth);
+    const rbits = rightNode.bits(branchDepth);
+    const leftBits = lbits & ~rbits;
+    const commonBits = lbits & rbits;
+    const leftPositions = bitPositions(leftBits);
+    const commonPositions = bitPositions(commonBits);
+    const children = new Array(256);
+    let bits = leftBits;
+    let segmentCount = 0;
+    let hash = 0n;
+    for (const pos of leftPositions) {
+      const leftChild = leftNode.get(branchDepth, pos);
+      children[pos] = leftChild;
+      hash = hash ^ leftChild.hash;
+      segmentCount =
+        segmentCount +
+        (Math.floor(branchDepth / SEGMENT_LENGTH) <
+        Math.floor(leftChild.branchDepth / SEGMENT_LENGTH)
+          ? 1
+          : leftChild.segmentCount);
+    }
+    for (const pos of commonPositions) {
+      const leftChild = leftNode.get(branchDepth, pos);
+      const rightChild = rightNode.get(branchDepth, pos);
+      const subtraction = _subtract(leftChild, rightChild, branchDepth + 1);
+      if (subtraction) {
+        bits = bits | (1n << BigInt(pos));
+        children[pos] = subtraction;
+        hash = hash ^ subtraction.hash;
+        segmentCount =
+          segmentCount +
+          (Math.floor(branchDepth / SEGMENT_LENGTH) <
+          Math.floor(subtraction.branchDepth / SEGMENT_LENGTH)
+            ? 1
+            : subtraction.segmentCount);
+      }
+    }
+    if (bits === 0n) return null;
+    return new PARTNode(
+      leftNode.key,
+      branchDepth,
+      bits,
+      children,
+      hash,
+      segmentCount,
+      {}
+    );
   }
 
   function _intersect(leftNode, rightNode, depth = 0) {
-    const children = [];
-    let hash = 0n;
-
-    let [leftIndex, leftChild] = leftNode.seek(depth, 0, true);
-    let [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
-    search: while (true) {
-      if (!leftChild || !rightChild) break search;
-
-      if (leftIndex < rightIndex) {
-        [leftIndex, leftChild] = leftNode.seek(depth, rightIndex, true);
-        continue search;
-      }
-
-      if (rightIndex < leftIndex) {
-        [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
-        continue search;
-      }
-
-      //implicit leftIndex === rightIndex
-      if (depth === KEY_LENGTH - 1 || leftChild.hash === rightChild.hash) {
-        children.push([leftIndex, leftChild]);
-        hash = hash ^ leftChild.hash;
-      } else {
-        const intersection = _intersect(leftChild, rightChild, depth + 1);
-        if (intersection) {
-          children.push([leftIndex, intersection]);
-          hash = hash ^ intersection.hash;
-        }
-      }
-      [leftIndex, leftChild] = leftNode.seek(depth, leftIndex + 1, true);
-      [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
+    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH)
+      return leftNode;
+    const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
+    let branchDepth = depth;
+    for (; branchDepth < maxDepth; branchDepth++) {
+      if (leftNode.key[branchDepth] !== rightNode.key[branchDepth]) return null;
     }
-    return _makeNode(children, depth, hash);
+    if (branchDepth === KEY_LENGTH) return leftNode;
+
+    const lbits = leftNode.bits(branchDepth);
+    const rbits = rightNode.bits(branchDepth);
+    const commonBits = lbits & rbits;
+    const commonPositions = bitPositions(commonBits);
+    const children = new Array(256);
+    let bits = 0n;
+    let segmentCount = 0;
+    let hash = 0n;
+    for (const pos of commonPositions) {
+      const leftChild = leftNode.get(branchDepth, pos);
+      const rightChild = rightNode.get(branchDepth, pos);
+      const intersection = _intersect(leftChild, rightChild, branchDepth + 1);
+      if (intersection) {
+        bits = bits | (1n << BigInt(pos));
+        children[pos] = intersection;
+        hash = hash ^ intersection.hash;
+        segmentCount =
+          segmentCount +
+          (Math.floor(branchDepth / SEGMENT_LENGTH) <
+          Math.floor(intersection.branchDepth / SEGMENT_LENGTH)
+            ? 1
+            : intersection.segmentCount);
+      }
+    }
+    if (bits === 0n) return null;
+    return new PARTNode(
+      leftNode.key,
+      branchDepth,
+      bits,
+      children,
+      hash,
+      segmentCount,
+      {}
+    );
   }
 
   function _difference(leftNode, rightNode, depth = 0) {
-    const children = [];
+    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) return null;
+    const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
+    let branchDepth = depth;
+    for (; branchDepth < maxDepth; branchDepth++) {
+      if (leftNode.key[branchDepth] !== rightNode.key[branchDepth]) break;
+    }
+    if (branchDepth === KEY_LENGTH) return null;
+
+    const lbits = leftNode.bits(branchDepth);
+    const rbits = rightNode.bits(branchDepth);
+    const commonBits = lbits & rbits;
+    const leftBits = lbits & ~rbits;
+    const rightBits = ~lbits & rbits;
+    const commonPositions = bitPositions(commonBits);
+    const leftPositions = bitPositions(leftBits);
+    const rightPositions = bitPositions(rightBits);
+    let bits = leftBits | rightBits;
+    const children = new Array(256);
+    let segmentCount = 0;
     let hash = 0n;
-
-    let [leftIndex, leftChild] = leftNode.seek(depth, 0, true);
-    let [rightIndex, rightChild] = rightNode.seek(depth, 0, true);
-    search: while (true) {
-      if (!leftChild && !rightChild) break search;
-
-      if (leftChild && (!rightChild || leftIndex < rightIndex)) {
-        children.push([leftIndex, leftChild]);
-        hash = hash ^ leftChild.hash;
-        [leftIndex, leftChild] = leftNode.seek(depth, leftIndex + 1, true);
-        continue search;
-      }
-
-      if (rightChild && (!leftChild || rightIndex < leftIndex)) {
-        children.push([rightIndex, rightChild]);
-        hash = hash ^ rightChild.hash;
-        [rightIndex, rightChild] = rightNode.seek(depth, rightIndex + 1, true);
-        continue search;
-      }
-
-      //implicit leftIndex === rightIndex
-      if (depth < KEY_LENGTH - 1 && leftChild.hash !== rightChild.hash) {
-        const difference = _difference(leftChild, rightChild, depth + 1);
-        if (difference) {
-          children.push([leftIndex, difference]);
-          hash = hash ^ difference.hash;
-        }
-      }
-      const nextIndex = leftIndex + 1;
-      [leftIndex, leftChild] = leftNode.seek(depth, nextIndex, true);
-      [rightIndex, rightChild] = rightNode.seek(depth, nextIndex, true);
+    for (const pos of leftPositions) {
+      const leftChild = leftNode.get(branchDepth, pos);
+      children[pos] = leftChild;
+      hash = hash ^ leftChild.hash;
+      segmentCount =
+        segmentCount +
+        (Math.floor(branchDepth / SEGMENT_LENGTH) <
+        Math.floor(leftChild.branchDepth / SEGMENT_LENGTH)
+          ? 1
+          : leftChild.segmentCount);
     }
-    return _makeNode(children, depth, hash);
+    for (const pos of rightPositions) {
+      const rightChild = rightNode.get(branchDepth, pos);
+      children[pos] = rightChild;
+      hash = hash ^ rightChild.hash;
+      segmentCount =
+        segmentCount +
+        (Math.floor(branchDepth / SEGMENT_LENGTH) <
+        Math.floor(rightChild.branchDepth / SEGMENT_LENGTH)
+          ? 1
+          : rightChild.segmentCount);
+    }
+    for (const pos of commonPositions) {
+      const leftChild = leftNode.get(branchDepth, pos);
+      const rightChild = rightNode.get(branchDepth, pos);
+      const difference = _difference(leftChild, rightChild, branchDepth + 1);
+      if (difference) {
+        bits = bits | (1n << BigInt(pos));
+        children[pos] = difference;
+        hash = hash ^ difference.hash;
+        segmentCount =
+          segmentCount +
+          (Math.floor(branchDepth / SEGMENT_LENGTH) <
+          Math.floor(difference.branchDepth / SEGMENT_LENGTH)
+            ? 1
+            : difference.segmentCount);
+      }
+    }
+    if (bits === 0n) return null;
+
+    return new PARTNode(
+      leftNode.key,
+      branchDepth,
+      bits,
+      children,
+      hash,
+      segmentCount,
+      {}
+    );
   }
-
   function _isSubsetOf(leftNode, rightNode, depth = 0) {
-    let [leftIndex, leftChild] = leftNode.seek(depth, 0, true);
-    let [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
-    while (true) {
-      if (!leftChild) return true;
-
-      if (leftChild && (!rightChild || leftIndex < rightIndex)) {
-        return false;
-      }
-
-      // implicit leftIndex === rightIndex
-      // as right always seeks after left, we can never have rightIndex < leftIndex
-      if (
-        !(depth === KEY_LENGTH - 1) &&
-        leftChild.hash !== rightChild.hash &&
-        !_isSubsetOf(leftChild, rightChild, depth + 1)
-      ) {
-        return false;
-      }
-      [leftIndex, leftChild] = leftNode.seek(depth, leftIndex + 1, true);
-      [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
+    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH)
+      return true;
+    const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
+    let branchDepth = depth;
+    for (; branchDepth < maxDepth; branchDepth++) {
+      if (leftNode.key[branchDepth] !== rightNode.key[branchDepth]) break;
     }
+    if (branchDepth === KEY_LENGTH) return true;
+
+    const lbits = leftNode.bits(branchDepth);
+    const rbits = rightNode.bits(branchDepth);
+    const leftBits = lbits & ~rbits;
+    if(leftBits !== 0n) return false;
+    const commonBits = lbits & rbits;
+    const commonPositions = bitPositions(commonBits);
+    for (const pos of commonPositions) {
+      const leftChild = leftNode.get(branchDepth, pos);
+      const rightChild = rightNode.get(branchDepth, pos);
+      const isSubset = _isSubsetOf(leftChild, rightChild, branchDepth + 1);
+      if (!isSubset) return false;
+    }
+    return true;
   }
 
   function _isIntersecting(leftNode, rightNode, depth = 0) {
-    let [leftIndex, leftChild] = leftNode.seek(depth, 0, true);
-    let [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
-    search: while (true) {
-      if (!leftChild || !rightChild) return false;
-
-      if (leftIndex < rightIndex) {
-        [leftIndex, leftChild] = leftNode.seek(depth, rightIndex, true);
-        continue search;
-      }
-
-      if (rightIndex < leftIndex) {
-        [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
-        continue search;
-      }
-
-      //implicit leftIndex === rightIndex
-      if (depth === KEY_LENGTH - 1 || leftChild.hash === rightChild.hash) {
-        return true;
-      } else {
-        if (_isIntersecting(leftChild, rightChild, depth + 1)) {
-          return true;
-        }
-      }
-      [leftIndex, leftChild] = leftNode.seek(depth, leftIndex + 1, true);
-      [rightIndex, rightChild] = rightNode.seek(depth, leftIndex, true);
+    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH)
+      return true;
+    const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
+    let branchDepth = depth;
+    for (; branchDepth < maxDepth; branchDepth++) {
+      if (leftNode.key[branchDepth] !== rightNode.key[branchDepth]) return false;
     }
+    if (branchDepth === KEY_LENGTH) return true;
+
+    const lbits = leftNode.bits(branchDepth);
+    const rbits = rightNode.bits(branchDepth);
+    const commonBits = lbits & rbits;
+    const commonPositions = bitPositions(commonBits);
+    for (const pos of commonPositions) {
+      const leftChild = leftNode.get(branchDepth, pos);
+      const rightChild = rightNode.get(branchDepth, pos);
+      const isIntersecting = _isIntersecting(leftChild, rightChild, branchDepth + 1);
+      if (isIntersecting) return true;
+    }
+    return false;
   }
 
   PARTBatch = class {

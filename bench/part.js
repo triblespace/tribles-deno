@@ -11,15 +11,17 @@ function generate_sample(size, sharing_prob = 0.1) {
   crypto.getRandomValues(fact);
   for (let i = 0; i < size; i++) {
     if (sharing_prob < Math.random()) {
-      crypto.getRandomValues(v1);
-      if (sharing_prob < Math.random()) {
-        crypto.getRandomValues(a);
-        if (sharing_prob < Math.random()) {
-          crypto.getRandomValues(e);
-        }
-      }
+      crypto.getRandomValues(e);
     }
-    crypto.getRandomValues(v2);
+    if (sharing_prob < Math.random()) {
+      crypto.getRandomValues(a);
+    }
+    if (sharing_prob < Math.random()) {
+      crypto.getRandomValues(v1);
+    }
+    if (sharing_prob < Math.random()) {
+      crypto.getRandomValues(v2);
+    }
     facts.push(Uint8Array.from(fact));
   }
   return facts;
