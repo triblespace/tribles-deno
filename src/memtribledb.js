@@ -1,4 +1,4 @@
-import { emptySegmentPART, emptyTriblePART } from "./part.js";
+import { emptySegmentPART, emptyTriblePART } from "./cuckoopart.js";
 import {
   A,
   E,

@@ -501,4 +501,4 @@ bench({
 });
 
 
-runBenchmarks({only: /Intersecting/});
+runBenchmarks();

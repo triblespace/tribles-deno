@@ -3,7 +3,7 @@ import { MemTribleDB } from "../src/memtribledb.js";
 import { UFOID } from "../src/ufoid.js";
 import { ufoid } from "../src/types/ufoid.js";
 
-function generateRandomSample(size) {
+function generateRandomSample(size, sharing_prob = 0.1) {
   const facts = [];
   const fact = new Uint8Array(64);
   const e = fact.subarray(0, 16);
@@ -12,16 +12,16 @@ function generateRandomSample(size) {
   const v2 = fact.subarray(48, 64);
   crypto.getRandomValues(fact);
   for (let i = 0; i < size; i++) {
-    if (0.1 >= Math.random()) {
+    if (sharing_prob < Math.random()) {
       crypto.getRandomValues(e);
     }
-    if (0.1 >= Math.random()) {
+    if (sharing_prob < Math.random()) {
       crypto.getRandomValues(a);
     }
-    if (0.8 >= Math.random()) {
+    if (sharing_prob < Math.random()) {
       crypto.getRandomValues(v1);
     }
-    if (0.8 >= Math.random()) {
+    if (sharing_prob < Math.random()) {
       crypto.getRandomValues(v2);
     }
     facts.push(Uint8Array.from(fact));
