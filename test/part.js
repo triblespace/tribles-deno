@@ -17,7 +17,7 @@ import {
 } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
 import { equal, equalValue } from "../src/trible.js";
-import { emptyTriblePART, emptyValuePART } from "../src/part.js";
+import { emptyTriblePART, emptyValuePART } from "../src/cuckoopart.js";
 
 Deno.test("part insert", () => {
   const value = fc.array(fc.nat(255), { minLength: 32, maxLength: 32 }).map(
@@ -156,7 +156,6 @@ Deno.test("set union", () => {
         (part, trible) => part.put(trible),
         emptyValuePART,
       );
-
       const rawPartUnion = [...partA.union(partB).keys()];
       const partUnion = new Set(rawPartUnion
         .map((v) => encode(v)));
