@@ -212,7 +212,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       return null;
     }
 
-    const nchildren = new Array(256);
+    const nchildren = new Array();
     let nchildbits = 0n;
     for (let i = 0; i < children.length; i++) {
       const [index, child] = children[i];
@@ -249,7 +249,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     const commonPositions = bitPositions(commonBits);
     const leftPositions = bitPositions(leftBits);
     const rightPositions = bitPositions(rightBits);
-    const children = new Array(256);
+    const children = new Array();
     let segmentCount = 0;
     let hash = 0n;
     for (const pos of leftPositions) {
@@ -314,7 +314,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     const commonBits = lbits & rbits;
     const leftPositions = bitPositions(leftBits);
     const commonPositions = bitPositions(commonBits);
-    const children = new Array(256);
+    const children = new Array();
     let bits = leftBits;
     let segmentCount = 0;
     let hash = 0n;
@@ -371,7 +371,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     const rbits = rightNode.bits(branchDepth);
     const commonBits = lbits & rbits;
     const commonPositions = bitPositions(commonBits);
-    const children = new Array(256);
+    const children = new Array();
     let bits = 0n;
     let segmentCount = 0;
     let hash = 0n;
@@ -421,7 +421,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     const leftPositions = bitPositions(leftBits);
     const rightPositions = bitPositions(rightBits);
     let bits = leftBits | rightBits;
-    const children = new Array(256);
+    const children = new Array();
     let segmentCount = 0;
     let hash = 0n;
     for (const pos of leftPositions) {
@@ -751,7 +751,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
 
       const nchild = new PARTLeaf(key, value, PARTHash(key));
 
-      const nchildren = new Array(256);
+      const nchildren = new Array();
       const lindex = this.key[branchDepth];
       const rindex = key[branchDepth];
       nchildren[lindex] = this;
@@ -887,7 +887,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
 
       const nchild = new PARTLeaf(key, value, PARTHash(key));
 
-      const nchildren = new Array(256);
+      const nchildren = new Array();
       const lindex = this.key[branchDepth];
       const rindex = key[branchDepth];
       nchildren[lindex] = this;
