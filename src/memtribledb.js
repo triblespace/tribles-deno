@@ -1,4 +1,4 @@
-import { emptySegmentPART, emptyTriblePART } from "./cuckoopart.js";
+import { emptySegmentPART, emptyTriblePART } from "./cuckoopartint32.js";
 import {
   A,
   E,

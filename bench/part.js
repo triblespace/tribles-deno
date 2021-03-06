@@ -1,5 +1,56 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
-import { emptyTriblePART } from "../src/part.js";
+import { emptyTriblePART as vanilla } from "../src/part.js";
+import { emptyTriblePART as cuckoo } from "../src/cuckoopart.js";
+import { emptyTriblePART as int32 } from "../src/cuckoopartint32.js";
+
+const variants = [
+  {
+    runs: 100,
+    size: 1e2,
+    name: "1e2",
+  },
+  {
+    runs: 50,
+    size: 1e3,
+    name: "1e3",
+  },
+  {
+    runs: 10,
+    size: 1e4,
+    name: "1e4",
+  },
+  {
+    runs: 5,
+    size: 1e5,
+    name: "1e5",
+  },
+];
+
+const benchAllPART = ({ name, func }) => {
+  variants.forEach(({ runs, name: variantName, size }) => {
+    bench({
+      name: `vanilla@${variantName}:${name}`,
+      runs,
+      func(b) {
+        func(b, vanilla, size);
+      },
+    })
+    bench({
+      name: `cuckoo@${variantName}:${name}`,
+      runs,
+      func(b) {
+        func(b, cuckoo, size);
+      },
+    });
+    bench({
+      name: `int32@${variantName}:${name}`,
+      runs,
+      func(b) {
+        func(b, int32, size);
+      },
+    })
+  });
+};
 
 function generate_sample(size, sharing_prob = 0.1) {
   const facts = [];
@@ -26,9 +77,9 @@ function generate_sample(size, sharing_prob = 0.1) {
   }
   return facts;
 }
-function persistentPut(b, size) {
+function persistentPut(b, partType, size) {
   const sample = generate_sample(size);
-  let part = emptyTriblePART;
+  let part = partType;
   b.start();
   for (const t of sample) {
     part = part.put(t);
@@ -36,41 +87,14 @@ function persistentPut(b, size) {
   b.stop();
 }
 
-bench({
-  name: "put1e2",
-  runs: 100,
-  func(b) {
-    persistentPut(b, 1e2);
-  },
+benchAllPART({
+  name: "put",
+  func:persistentPut
 });
 
-bench({
-  name: "put1e3",
-  runs: 100,
-  func(b) {
-    persistentPut(b, 1e3);
-  },
-});
-
-bench({
-  name: "put1e4",
-  runs: 100,
-  func(b) {
-    persistentPut(b, 1e4);
-  },
-});
-
-bench({
-  name: "put1e5",
-  runs: 10,
-  func(b) {
-    persistentPut(b, 1e5);
-  },
-});
-
-function batchedPut(b, size) {
+function batchedPut(b, partType, size) {
   const sample = generate_sample(size);
-  const part = emptyTriblePART;
+  const part = partType;
   b.start();
   const batch = part.batch();
   for (const t of sample) {
@@ -80,91 +104,14 @@ function batchedPut(b, size) {
   b.stop();
 }
 
-bench({
-  name: "putBatch1e2",
-  runs: 100,
-  func(b) {
-    batchedPut(b, 1e2);
-  },
+benchAllPART({
+  name: "putBatch",
+  func: batchedPut
 });
 
-bench({
-  name: "putBatch1e3",
-  runs: 100,
-  func(b) {
-    batchedPut(b, 1e3);
-  },
-});
-
-bench({
-  name: "putBatch1e4",
-  runs: 100,
-  func(b) {
-    batchedPut(b, 1e4);
-  },
-});
-
-bench({
-  name: "putBatch1e5",
-  runs: 10,
-  func(b) {
-    batchedPut(b, 1e5);
-  },
-});
-
-function chunkedBatchedPut(b, chunkSize, sampleSize) {
-  const sample = generate_sample(sampleSize);
-  let part = emptyTriblePART;
-  b.start();
-  let batch = emptyTriblePART.batch();
-  let i = 0;
-  for (const t of sample) {
-    batch.put(t);
-    if (i++ > chunkSize) {
-      part = part.union(batch.complete());
-      batch = emptyTriblePART.batch();
-    }
-  }
-  part = part.union(batch.complete());
-  b.stop();
-}
-
-bench({
-  name: "putChunked1e1Batched1e4",
-  runs: 1,
-  func(b) {
-    chunkedBatchedPut(b, 1e1, 1e4);
-  },
-});
-
-bench({
-  name: "putChunked1e2Batched1e4",
-  runs: 1,
-  func(b) {
-    chunkedBatchedPut(b, 1e2, 1e4);
-  },
-});
-
-bench({
-  name: "putChunked1e3Batched1e4",
-  runs: 1,
-  func(b) {
-    chunkedBatchedPut(b, 1e3, 1e4);
-  },
-});
-
-bench({
-  name: "putChunked1e4Batched1e4",
-  runs: 1,
-  func(b) {
-    chunkedBatchedPut(b, 1e4, 1e4);
-  },
-});
-
-
-function setUnion(b, size) {
-  let partA = emptyTriblePART.batch();
-  let partB = emptyTriblePART.batch();
+function setUnion(b, partType, size) {
+  let partA = partType.batch();
+  let partB = partType.batch();
   for (const t of generate_sample(size)) {
     partA.put(t);
   }
@@ -178,54 +125,25 @@ function setUnion(b, size) {
   b.stop();
 }
 
-bench({
-  name: "SetUnion1e2",
-  runs: 100,
-  func(b) {
-    setUnion(b, 1e2);
-  },
+benchAllPART({
+  name: "SetUnion",
+  func: setUnion
 });
 
-bench({
-  name: "SetUnion1e3",
-  runs: 100,
-  func(b) {
-    setUnion(b, 1e3);
-  },
-});
-
-bench({
-  name: "SetUnion1e4",
-  runs: 10,
-  func(b) {
-    setUnion(b, 1e4);
-  },
-});
-
-bench({
-  name: "SetUnion1e5",
-  runs: 1,
-  func(b) {
-    setUnion(b, 1e5);
-  },
-});
-
-
-
-function setIntersect(b, size) {
-  let partA = emptyTriblePART.batch();
+function setIntersect(b, partType, size) {
+  let partA = partType.batch();
   let partB;
   let partC;
   for (const t of generate_sample(size)) {
     partA.put(t);
   }
   partA = partA.complete();
-  partB = partA.batch()
+  partB = partA.batch();
   for (const t of generate_sample(size)) {
     partB.put(t);
   }
   partB = partB.complete();
-  partC = partA.batch()
+  partC = partA.batch();
   for (const t of generate_sample(size)) {
     partC.put(t);
   }
@@ -235,52 +153,25 @@ function setIntersect(b, size) {
   b.stop();
 }
 
-bench({
-  name: "SetIntersect1e2",
-  runs: 100,
-  func(b) {
-    setIntersect(b, 1e2);
-  },
+benchAllPART({
+  name: "SetIntersect",
+  func: setIntersect
 });
 
-bench({
-  name: "SetIntersect1e3",
-  runs: 100,
-  func(b) {
-    setIntersect(b, 1e3);
-  },
-});
-
-bench({
-  name: "SetIntersect1e4",
-  runs: 10,
-  func(b) {
-    setIntersect(b, 1e4);
-  },
-});
-
-bench({
-  name: "SetIntersect1e5",
-  runs: 1,
-  func(b) {
-    setIntersect(b, 1e5);
-  },
-});
-
-function setSubtract(b, size) {
-  let partA = emptyTriblePART.batch();
+function setSubtract(b, partType, size) {
+  let partA = partType.batch();
   let partB;
   let partC;
   for (const t of generate_sample(size)) {
     partA.put(t);
   }
   partA = partA.complete();
-  partB = partA.batch()
+  partB = partA.batch();
   for (const t of generate_sample(size)) {
     partB.put(t);
   }
   partB = partB.complete();
-  partC = partA.batch()
+  partC = partA.batch();
   for (const t of generate_sample(size)) {
     partC.put(t);
   }
@@ -290,52 +181,25 @@ function setSubtract(b, size) {
   b.stop();
 }
 
-bench({
-  name: "SetSubtract1e2",
-  runs: 100,
-  func(b) {
-    setSubtract(b, 1e2);
-  },
+benchAllPART({
+  name: "SetSubtract",
+  func: setSubtract
 });
 
-bench({
-  name: "SetSubtract1e3",
-  runs: 100,
-  func(b) {
-    setSubtract(b, 1e3);
-  },
-});
-
-bench({
-  name: "SetSubtract1e4",
-  runs: 10,
-  func(b) {
-    setSubtract(b, 1e4);
-  },
-});
-
-bench({
-  name: "SetSubtract1e5",
-  runs: 1,
-  func(b) {
-    setSubtract(b, 1e5);
-  },
-});
-
-function setDifference(b, size) {
-  let partA = emptyTriblePART.batch();
+function setDifference(b, partType, size) {
+  let partA = partType.batch();
   let partB;
   let partC;
   for (const t of generate_sample(size)) {
     partA.put(t);
   }
   partA = partA.complete();
-  partB = partA.batch()
+  partB = partA.batch();
   for (const t of generate_sample(size)) {
     partB.put(t);
   }
   partB = partB.complete();
-  partC = partA.batch()
+  partC = partA.batch();
   for (const t of generate_sample(size)) {
     partC.put(t);
   }
@@ -345,52 +209,25 @@ function setDifference(b, size) {
   b.stop();
 }
 
-bench({
-  name: "SetDifference1e2",
-  runs: 100,
-  func(b) {
-    setDifference(b, 1e2);
-  },
+benchAllPART({
+  name: "SetDifference",
+  func: setDifference
 });
 
-bench({
-  name: "SetDifference1e3",
-  runs: 100,
-  func(b) {
-    setDifference(b, 1e3);
-  },
-});
-
-bench({
-  name: "SetDifference1e4",
-  runs: 10,
-  func(b) {
-    setDifference(b, 1e4);
-  },
-});
-
-bench({
-  name: "SetDifference1e5",
-  runs: 1,
-  func(b) {
-    setDifference(b, 1e5);
-  },
-});
-
-function setSubsetOf(b, size) {
-  let partA = emptyTriblePART.batch();
+function setSubsetOf(b, partType, size) {
+  let partA = partType.batch();
   let partB;
   let partC;
   for (const t of generate_sample(size)) {
     partA.put(t);
   }
   partA = partA.complete();
-  partB = partA.batch()
+  partB = partA.batch();
   for (const t of generate_sample(size)) {
     partB.put(t);
   }
   partB = partB.complete();
-  partC = partA.batch()
+  partC = partA.batch();
   for (const t of generate_sample(size)) {
     partC.put(t);
   }
@@ -406,43 +243,15 @@ function setSubsetOf(b, size) {
   }
 }
 
-bench({
-  name: "SetSubsetOf1e2",
-  runs: 100,
-  func(b) {
-    setSubsetOf(b, 1e2);
-  },
+benchAllPART({
+  name: "SetSubsetOf",
+  func: setSubsetOf
 });
 
-bench({
-  name: "SetSubsetOf1e3",
-  runs: 100,
-  func(b) {
-    setSubsetOf(b, 1e3);
-  },
-});
-
-bench({
-  name: "SetSubsetOf1e4",
-  runs: 10,
-  func(b) {
-    setSubsetOf(b, 1e4);
-  },
-});
-
-bench({
-  name: "SetSubsetOf1e5",
-  runs: 1,
-  func(b) {
-    setSubsetOf(b, 1e5);
-  },
-});
-
-
-function setIntersecting(b, size) {
-  let partA = emptyTriblePART.batch();
-  let partB = emptyTriblePART.batch();
-  let partC = emptyTriblePART.batch();
+function setIntersecting(b, partType, size) {
+  let partA = partType.batch();
+  let partB = partType.batch();
+  let partC = partType.batch();
   for (const t of generate_sample(size)) {
     partA.put(t);
   }
@@ -468,36 +277,9 @@ function setIntersecting(b, size) {
   }
 }
 
-bench({
-  name: "SetIntersectingOf1e2",
-  runs: 100,
-  func(b) {
-    setIntersecting(b, 1e2);
-  },
-});
-
-bench({
-  name: "SetIntersecting1e3",
-  runs: 100,
-  func(b) {
-    setIntersecting(b, 1e3);
-  },
-});
-
-bench({
-  name: "SetIntersecting1e4",
-  runs: 10,
-  func(b) {
-    setIntersecting(b, 1e4);
-  },
-});
-
-bench({
-  name: "SetIntersecting1e5",
-  runs: 1,
-  func(b) {
-    setIntersecting(b, 1e5);
-  },
+benchAllPART({
+  name: "SetIntersecting",
+  func: setIntersecting
 });
 
 
