@@ -17,7 +17,7 @@ import {
 } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
 import { equal, equalValue } from "../src/trible.js";
-import { emptyTriblePART, emptyValuePART } from "../src/cuckoopart.js";
+import { emptyTriblePART, emptyValuePART } from "../src/cuckoopartint32.js";
 
 Deno.test("part insert", () => {
   const value = fc.array(fc.nat(255), { minLength: 32, maxLength: 32 }).map(
@@ -50,6 +50,31 @@ Deno.test("part batch insert", () => {
 
       const jsSet = new Set(vs.map((t) => encode(t)));
       const partSet = new Set([...part.keys()].map((t) => encode(t)));
+
+      assertEquals(partSet, jsSet);
+    }),
+  );
+});
+
+Deno.test("part multi batch insert", () => {
+  const value = fc.array(fc.nat(255), { minLength: 32, maxLength: 32 }).map(
+    (a) => new Uint8Array(a),
+  );
+  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+
+  fc.assert(
+    fc.property(values, values, values, (vsA, vsB, vsC) => {
+      const partA = vsA.reduce((part, v) => part.put(v), emptyValuePART.batch())
+        .complete();
+
+        const partB = vsB.reduce((part, v) => part.put(v), partA.batch())
+        .complete();
+
+        const partC = vsC.reduce((part, v) => part.put(v), partA.batch())
+        .complete();
+
+      const jsSet = new Set([...vsA.map((t) => encode(t)), ...vsC.map((t) => encode(t))]);
+      const partSet = new Set([...partC.keys()].map((t) => encode(t)));
 
       assertEquals(partSet, jsSet);
     }),
