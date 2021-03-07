@@ -1,5 +1,5 @@
 import { SEGMENT_SIZE } from "./trible.js";
-import { emptyPART as emptySegmentPart } from "./part.js";
+import { emptyPART as emptySegmentPart } from "./cuckoopartint32.js";
 
 class ConstantConstraint {
   constructor(variable, constant) {

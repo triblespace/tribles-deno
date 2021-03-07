@@ -8,7 +8,7 @@ const SESSION_SEED = [...crypto.getRandomValues(new Uint32Array(16))].reduce(
   0n
 );
 function PARTHash(key) {
-  if (!key.__cached_XXH3_128) {
+  if (key.__cached_XXH3_128 === undefined) {
     key.__cached_XXH3_128 = XXH3_128(key, SESSION_SEED);
   }
   return key.__cached_XXH3_128;
@@ -32,7 +32,7 @@ const setBit = (bitmap, bitPosition) => {
 };
 
 const hasBit = (bitmap, bitPosition) => {
-  return !!(bitmap[bitPosition >>> 5] & (highBit32 >>> bitPosition));
+  return (bitmap[bitPosition >>> 5] & (highBit32 >>> bitPosition)) !== 0;
 };
 
 const nextBit = (bitmap, bitPosition) => {
@@ -96,7 +96,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       this.path = new Uint8Array(KEY_LENGTH);
       this.pathNodes = new Array(KEY_LENGTH + 1);
 
-      if (!part.child) {
+      if (part.child === null) {
         this.valid = false;
         return;
       }
@@ -135,7 +135,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
             ascending
           );
           this.pathNodes[depth + 1] = node;
-          if (node) break;
+          if (node !== null) break;
         }
         if (depth < prefixLen) {
           this.valid = false;
@@ -164,7 +164,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
             ascending
           );
           this.pathNodes[depth + 1] = node;
-          if (!node) {
+          if (node === null) {
             backtrack: for (depth--; prefixLen <= depth; depth--) {
               let node;
               [this.path[depth], node] = this.pathNodes[depth].seek(
@@ -173,7 +173,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
                 ascending
               );
               this.pathNodes[depth + 1] = node;
-              if (node) break backtrack;
+              if (node !== null) break backtrack;
             }
             if (depth < prefixLen) {
               this.valid = false;
@@ -240,9 +240,12 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
     let [rightIndex, rightChild] = rightNode.seek(branchDepth, 0, true);
     search: while (true) {
-      if (!leftChild && !rightChild) break search;
+      if (leftChild === null && rightChild === null) break search;
 
-      if (leftChild && (!rightChild || leftIndex < rightIndex)) {
+      if (
+        leftChild !== null &&
+        (rightChild === null || leftIndex < rightIndex)
+      ) {
         setBit(childbits, leftIndex);
         children[leftIndex] = leftChild;
         hash = hash ^ leftChild.hash;
@@ -260,7 +263,10 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         continue search;
       }
 
-      if (rightChild && (!leftChild || rightIndex < leftIndex)) {
+      if (
+        rightChild !== null &&
+        (leftChild === null || rightIndex < leftIndex)
+      ) {
         setBit(childbits, rightIndex);
         children[rightIndex] = rightChild;
         hash = hash ^ rightChild.hash;
@@ -323,9 +329,9 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
     let [rightIndex, rightChild] = rightNode.seek(branchDepth, leftIndex, true);
     search: while (true) {
-      if (!leftChild) break search;
+      if (leftChild === null) break search;
 
-      if (!rightChild || leftIndex < rightIndex) {
+      if (rightChild === null || leftIndex < rightIndex) {
         setBit(childbits, leftIndex);
         children[leftIndex] = leftChild;
         hash = hash ^ leftChild.hash;
@@ -350,7 +356,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
 
       //implicit leftIndex === rightIndex
       const diff = _subtract(leftChild, rightChild, branchDepth + 1);
-      if (diff) {
+      if (diff !== null) {
         setBit(childbits, leftIndex);
         children[leftIndex] = diff;
         hash = hash ^ diff.hash;
@@ -395,7 +401,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
     let [rightIndex, rightChild] = rightNode.seek(branchDepth, leftIndex, true);
     search: while (true) {
-      if (!leftChild || !rightChild) break search;
+      if (leftChild === null || rightChild === null) break search;
 
       if (leftIndex < rightIndex) {
         [leftIndex, leftChild] = leftNode.seek(branchDepth, rightIndex, true);
@@ -409,7 +415,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
 
       //implicit leftIndex === rightIndex
       const intersection = _intersect(leftChild, rightChild, branchDepth + 1);
-      if (intersection) {
+      if (intersection !== null) {
         setBit(childbits, leftIndex);
         children[leftIndex] = intersection;
         hash = hash ^ intersection.hash;
@@ -452,9 +458,12 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
     let [rightIndex, rightChild] = rightNode.seek(branchDepth, 0, true);
     search: while (true) {
-      if (!leftChild && !rightChild) break search;
+      if (leftChild === null && rightChild === null) break search;
 
-      if (leftChild && (!rightChild || leftIndex < rightIndex)) {
+      if (
+        leftChild !== null &&
+        (rightChild === null || leftIndex < rightIndex)
+      ) {
         setBit(childbits, leftIndex);
         children[leftIndex] = leftChild;
         hash = hash ^ leftChild.hash;
@@ -472,7 +481,10 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         continue search;
       }
 
-      if (rightChild && (!leftChild || rightIndex < leftIndex)) {
+      if (
+        rightChild !== null &&
+        (leftChild === null || rightIndex < leftIndex)
+      ) {
         setBit(childbits, rightIndex);
         children[rightIndex] = rightChild;
         hash = hash ^ rightChild.hash;
@@ -492,7 +504,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
 
       //implicit leftIndex === rightIndex
       const difference = _difference(leftChild, rightChild, branchDepth + 1);
-      if (difference) {
+      if (difference !== null) {
         setBit(childbits, leftIndex);
         children[leftIndex] = difference;
         hash = hash ^ difference.hash;
@@ -548,9 +560,12 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
     let [rightIndex, rightChild] = rightNode.seek(branchDepth, leftIndex, true);
     while (true) {
-      if (!leftChild) return true;
+      if (leftChild === null) return true;
 
-      if (leftChild && (!rightChild || leftIndex < rightIndex)) {
+      if (
+        leftChild !== null &&
+        (rightChild === null || leftIndex < rightIndex)
+      ) {
         return false;
       }
 
@@ -577,7 +592,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
     let [rightIndex, rightChild] = rightNode.seek(branchDepth, leftIndex, true);
     search: while (true) {
-      if (!leftChild || !rightChild) return false;
+      if (leftChild === null || rightChild === null) return false;
 
       if (leftIndex < rightIndex) {
         [leftIndex, leftChild] = leftNode.seek(branchDepth, rightIndex, true);
@@ -632,7 +647,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     }
 
     put(key, value = null) {
-      if (this.child) {
+      if (this.child !== null) {
         const nchild = this.child.put(0, key, value, {});
         if (this.child === nchild) return this;
         return new PARTree(nchild);
@@ -642,11 +657,11 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     get(key) {
       let found;
       let node = this.child;
-      if (!node) return undefined;
+      if (node === null) return undefined;
       for (let depth = 0; depth < KEY_LENGTH; depth++) {
         const sought = key[depth];
         [found, node] = node.seek(depth, sought, true);
-        if (!node || found !== sought) return undefined;
+        if (node === null || found !== sought) return undefined;
       }
       return node.value;
     }

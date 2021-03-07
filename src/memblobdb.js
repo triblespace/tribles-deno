@@ -1,4 +1,4 @@
-import { emptyValuePART } from "./cuckoopart.js";
+import { emptyValuePART } from "./cuckoopartint32.js";
 import { VALUE_SIZE } from "./trible.js";
 
 class MemBlobDB {
