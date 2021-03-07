@@ -1,5 +1,5 @@
 import { SEGMENT_SIZE } from "./trible.js";
-import { emptyPART as emptySegmentPart } from "./part.js";
+import { emptySegmentPart, emptyValuePART } from "./part.js";
 
 class ConstantConstraint {
   constructor(variable, constant) {
@@ -51,10 +51,10 @@ class ConstantConstraint {
   }
 }
 
-class IndexConstraint {
+class SegmentIndexConstraint {
   constructor(variable, index) {
     this.index = index;
-    this.cursor = null;
+    this.cursor = index.cursor();
     this.variable = variable;
     this.ascending = true;
   }
@@ -65,12 +65,13 @@ class IndexConstraint {
 
   push(variable, ascending) {
     if (variable !== this.variable) return { relevant: false, done: false };
-    this.cursor = this.index.cursor(ascending);
-    this.valid = this.cursor.valid;
+    this.cursor.push(SEGMENT_SIZE, ascending);
     return { relevant: true, done: true };
   }
 
-  pop() {}
+  pop() {
+    this.cursor.pop();
+  }
 
   valid() {
     return this.cursor.valid;
@@ -89,19 +90,14 @@ class IndexConstraint {
   }
 }
 
-class CollectionConstraint {
-  constructor(variable1, variable2, collection) {
+class ValueIndexConstraint {
+  constructor(variable1, variable2, index) {
     this.variable1 = variable1;
     this.variable2 = variable2;
+
     this.pushed = false;
 
-    this.C1 = emptySegmentPart;
-    for (const [c1, c2] of collection) {
-      this.C1 = this.C1.put(c1, (C2 = emptySegmentPart) => C2.put(c2));
-    }
-
-    this.cursorC1 = null;
-    this.cursorC2 = null;
+    this.cursor = index.cursor();
   }
 
   propose() {
@@ -123,106 +119,107 @@ class CollectionConstraint {
   push(variable, ascending) {
     if (!this.pushed) {
       if (variable !== this.variable1) return { relevant: false, done: false };
-      this.cursorC1 = this.C1.cursor(ascending);
+      this.cursor.push(SEGMENT_SIZE, ascending);
+      this.pushed = true;
       return { relevant: true, done: false };
     } else {
       if (variable !== this.variable2) return { relevant: false, done: false };
-      this.cursorC1 = this.cursorC1.value().cursor(ascending);
+      this.cursor.push(SEGMENT_SIZE, ascending);
       return { relevant: true, done: true };
     }
   }
 
   pop() {
     this.pushed = false;
+    this.cursor.pop();
   }
 
   valid() {
-    if (!this.pushed) {
-      return this.cursorC1.valid;
-    } else {
-      return this.cursorC2.valid;
-    }
+    return this.cursor.valid;
   }
 
   peek() {
-    if (!this.pushed) {
-      return this.cursorC1.peek();
-    } else {
-      return this.cursorC2.peek();
-    }
+    return this.cursor.peek();
   }
 
   next() {
-    if (!this.pushed) {
-      this.cursorC1.next();
-      this.valid = this.cursorC1.valid;
-    } else {
-      this.cursorC2.next();
-      this.valid = this.cursorC2.valid;
-    }
+    this.cursor.next();
   }
 
   seek(value) {
-    if (!this.pushed) {
-      const match = this.cursorC1.seek(value);
-      this.valid = this.cursorC1.valid;
-      return match;
-    } else {
-      const match = this.cursorC2.seek(value);
-      this.valid = this.cursorC2.valid;
-      return match;
-    }
+    return this.cursor.seek(value);
   }
 }
 
 class TripleConstraint {
   constructor(db, variableE, variableA, variableV1, variableV2) {
-    this.branch = db;
     this.variableE = variableE;
     this.variableA = variableA;
     this.variableV1 = variableV1;
     this.variableV2 = variableV2;
-    this.cursors = [];
+    this.cursorEAV = db.EAV.cursor();
+    this.cursorEVA = db.EVA.cursor();
+    this.cursorAEV = db.AEV.cursor();
+    this.cursorAVE = db.AVE.cursor();
+    this.cursorVEA = db.VEA.cursor();
+    this.cursorVAE = db.VAE.cursor();
+    this.index = "ROOT";
   }
 
   propose() {
-    let branch;
-    if (this.cursors.length === 0) {
-      branch = this.db.index;
-    } else {
-      branch = this.cursors[this.cursors.length - 1].value();
-    }
-
-    let count = Number.MAX_VALUE;
-    let index;
+    let count;
     let variable;
+    let forced = false;
+    switch (this.index) {
+      case "ROOT":
+        {
+          const countE = this.cursorEAV.countSubsegment();
+          const countA = this.cursorAVE.countSubsegment();
+          const countV = this.cursorVAE.countSubsegment();
 
-    if (branch.V2) {
-      return {
-        variable: this.variableV2,
-        count: branch.V2.count,
-        forced: true,
-      };
+          count = countE;
+          variable = this.variableE;
+
+          if (countA <= count) {
+            count = countA;
+            variable = this.variableE;
+          }
+          if (countV <= count) {
+            count = countV;
+            variable = this.variableE;
+          }
+        }
+        break;
+      case "E":
+        {
+          const countA = this.cursorEAV.countSubsegment();
+          const countV = this.cursorEVA.countSubsegment();
+          count = countA;
+          variable = this.variableE;
+          if (countV <= count) {
+            count = countV;
+            variable = this.variableE;
+          }
+        }
+        break;
+      case "A":
+        {
+          const countE = this.cursorAEV.countSubsegment();
+          const countV = this.cursorAVE.countSubsegment();
+          count = countE;
+          variable = this.variableE;
+          if (countV <= count) {
+            count = countV;
+            variable = this.variableE;
+          }
+        }
+        break;
     }
-    if (branch.E && branch.E.count <= count) {
-      count = branch.E.count;
-      index = branch.E;
-      variable = this.variableE;
-    }
-    if (branch.A && branch.A.count <= count) {
-      count = branch.A.count;
-      index = branch.A;
-      variable = this.variableA;
-    }
-    if (branch.V1 && branch.V1.count <= count) {
-      count = branch.V1.count;
-      index = branch.V1;
-      variable = this.variableV1;
-    }
+
     return {
       variable,
       count,
-      forced: false,
+      forced,
     };
   }
 

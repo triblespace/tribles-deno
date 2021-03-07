@@ -54,7 +54,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       }
       this.pathNodes[0] = part.child;
     }
-    countSubsegments() {
+    countSubsegment() {
       const prefixLen = this.prefixStack[this.prefixStack.length - 1];
       const infixLen = this.infixStack[this.infixStack.length - 1];
       const searchDepth = prefixLen + infixLen;

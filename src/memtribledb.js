@@ -10,8 +10,8 @@ import {
   scrambleVAE,
   scrambleVEA,
   V1,
-  v1zero,
   V2,
+  zero,
 } from "./trible.js";
 
 class MemTribleDB {
@@ -62,10 +62,11 @@ class MemTribleDB {
     for (const trible of tribles) {
       const e = E(trible);
       const a = A(trible);
+      const v1 = V2(trible);
       const v2 = V2(trible);
       const eIsA = equalId(e, a);
-      const eIsV = v1zero(trible) && equalId(e, v2);
-      const aIsV = v1zero(trible) && equalId(a, v2);
+      const eIsV = zero(v2) && equalId(e, v1);
+      const aIsV = zero(v2) && equalId(a, v1);
 
       if (eIsA) {
         EisA = EisA.put(e);

@@ -67,14 +67,14 @@ function scrambleVAE(trible) {
   return indexOrderedKey;
 }
 
-const v1zero = (trible) => {
-  const view = new Uint32Array(trible.buffer, trible.byteOffset, 4);
+const zero = (v) => {
+  const view = new Uint32Array(v.buffer, v.byteOffset, 4);
   return view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0;
 };
 
-const equalId = (tribleA, tribleB) => {
-  const viewA = new Uint32Array(tribleA.buffer, tribleA.byteOffset, 4);
-  const viewB = new Uint32Array(tribleB.buffer, tribleB.byteOffset, 4);
+const equalId = (idA, idB) => {
+  const viewA = new Uint32Array(idA.buffer, idA.byteOffset, 4);
+  const viewB = new Uint32Array(idB.buffer, idB.byteOffset, 4);
   return (
     viewA[0] === viewB[0] &&
     viewA[1] === viewB[1] &&
@@ -157,7 +157,7 @@ export {
   TRIBLE_SIZE,
   V,
   V1,
-  v1zero,
   V2,
   VALUE_SIZE,
+  zero,
 };
