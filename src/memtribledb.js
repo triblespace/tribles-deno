@@ -1,4 +1,4 @@
-import { emptySegmentPART, emptyTriblePART } from "./cuckoopartint32.js";
+import { emptyTriblePART } from "./cuckoopartint32.js";
 import {
   A,
   E,
@@ -9,10 +9,70 @@ import {
   scrambleEVA,
   scrambleVAE,
   scrambleVEA,
-  V1,
-  V2,
+  V,
   zero,
 } from "./trible.js";
+
+const inmemoryCosts = 1; //TODO estimate and change to microseconds.
+// TODO return both count and latency. Cost = min count * max latency;
+
+class MemTribleConstraint {
+  constructor(cursors, variableE, variableA, variableV) {
+    this.variables = { e: variableE, a: variableA, v: variableV };
+    this.pathStack = [[""]];
+    this.cursors = cursors;
+  }
+
+  propose() {
+    let count = Number.MAX_VALUE;
+    let segment = null;
+
+    const paths = this.pathStack[this.pathStack.length - 1];
+    for (const [name, cursor] of Object.entries(this.cursors)) {
+      if (paths.some((p) => name.startsWith(p))) {
+        const proposedCount = cursor.countSubsegment();
+        if (proposedCount <= count) {
+          count = proposedCount;
+          segment = name[this.path.length];
+        }
+      }
+    }
+    return {
+      variable: this.variables[segment],
+      costs: count * inmemoryCosts,
+    };
+  }
+
+  push(variable, ascending = true) {
+    const paths = new Set();
+    for (const [s, v] of Object.entries(this.variables)) {
+      if (v === variable) {
+        for (const path of this.pathStack[this.pathStack.length - 1]) {
+          paths.push(path + s);
+        }
+      }
+    }
+
+    const cursors = [];
+    for (const [name, cursor] of Object.entries(this.cursors)) {
+      if (paths.some((p) => name.startsWith(p))) {
+        cursors.push(cursor.push());
+      }
+    }
+    this.pathStack.push(paths);
+    return cursors;
+  }
+
+  pop() {
+    for (const path of this.pathStack.pop()) {
+      for (const [name, cursor] of Object.entries(this.cursors)) {
+        if (name.startsWith(path)) {
+          cursor.pop();
+        }
+      }
+    }
+  }
+}
 
 class MemTribleDB {
   constructor(
@@ -22,10 +82,6 @@ class MemTribleDB {
     AVE = emptyTriblePART,
     VEA = emptyTriblePART,
     VAE = emptyTriblePART,
-    EisA = emptySegmentPART,
-    EisV = emptySegmentPART,
-    AisV = emptySegmentPART,
-    EisAisV = emptySegmentPART,
   ) {
     this.EAV = EAV;
     this.EVA = EVA;
@@ -33,10 +89,6 @@ class MemTribleDB {
     this.AVE = AVE;
     this.VEA = VEA;
     this.VAE = VAE;
-    this.EisA = EisA;
-    this.EisV = EisV;
-    this.AisV = AisV;
-    this.EisAisV = EisAisV;
   }
 
   with(tribles) {
@@ -47,11 +99,6 @@ class MemTribleDB {
     const VEA = this.VEA.batch();
     const VAE = this.VEA.batch();
 
-    const EisA = this.EisA.batch();
-    const EisV = this.EisV.batch();
-    const AisV = this.AisV.batch();
-    const EisAisV = this.EisAisV.batch();
-
     for (const trible of tribles) EAV.put(scrambleEAV(trible));
     for (const trible of tribles) EVA.put(scrambleEVA(trible));
     for (const trible of tribles) AEV.put(scrambleAEV(trible));
@@ -59,28 +106,6 @@ class MemTribleDB {
     for (const trible of tribles) VEA.put(scrambleVEA(trible));
     for (const trible of tribles) VAE.put(scrambleVAE(trible));
 
-    for (const trible of tribles) {
-      const e = E(trible);
-      const a = A(trible);
-      const v1 = V2(trible);
-      const v2 = V2(trible);
-      const eIsA = equalId(e, a);
-      const eIsV = zero(v2) && equalId(e, v1);
-      const aIsV = zero(v2) && equalId(a, v1);
-
-      if (eIsA) {
-        EisA = EisA.put(e);
-      }
-      if (eIsV) {
-        EisV = EisV.put(e);
-      }
-      if (aIsV) {
-        AisV = AisV.put(a);
-      }
-      if (eIsA && aIsV) {
-        EisAisV = EisAisV.put(e);
-      }
-    }
     return new MemTribleDB(
       EAV.complete(),
       EVA.complete(),
@@ -88,10 +113,22 @@ class MemTribleDB {
       AVE.complete(),
       VEA.complete(),
       VAE.complete(),
-      EisA.complete(),
-      EisV.complete(),
-      AisV.complete(),
-      EisAisV.complete(),
+    );
+  }
+
+  constraint(e, a, v) {
+    return new MemTribleConstraint(
+      {
+        eav: this.EAV.cursor(),
+        eva: this.EVA.cursor(),
+        aev: this.AEV.cursor(),
+        ave: this.AVE.cursor(),
+        vea: this.VEA.cursor(),
+        vae: this.VAE.cursor(),
+      },
+      e,
+      a,
+      v,
     );
   }
 
@@ -123,10 +160,6 @@ class MemTribleDB {
       this.AVE.union(other.AVE),
       this.VEA.union(other.VEA),
       this.VAE.union(other.VAE),
-      this.EisA.union(other.EisA),
-      this.EisV.union(other.EisV),
-      this.AisV.union(other.AisV),
-      this.EisAisV.union(other.EisAisV),
     );
   }
 
@@ -138,10 +171,6 @@ class MemTribleDB {
       this.AVE.subtract(other.AVE),
       this.VEA.subtract(other.VEA),
       this.VAE.subtract(other.VAE),
-      this.EisA.subtract(other.EisA),
-      this.EisV.subtract(other.EisV),
-      this.AisV.subtract(other.AisV),
-      this.EisAisV.subtract(other.EisAisV),
     );
   }
 
@@ -153,10 +182,6 @@ class MemTribleDB {
       this.AVE.difference(other.AVE),
       this.VEA.difference(other.VEA),
       this.VAE.difference(other.VAE),
-      this.EisA.difference(other.EisA),
-      this.EisV.difference(other.EisV),
-      this.AisV.difference(other.AisV),
-      this.EisAisV.difference(other.EisAisV),
     );
   }
 
@@ -168,10 +193,6 @@ class MemTribleDB {
       this.AVE.intersect(other.AVE),
       this.VEA.intersect(other.VEA),
       this.VAE.intersect(other.VAE),
-      this.EisA.intersect(other.EisA),
-      this.EisV.intersect(other.EisV),
-      this.AisV.intersect(other.AisV),
-      this.EisAisV.intersect(other.EisAisV),
     );
   }
 }

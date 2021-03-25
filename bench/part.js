@@ -34,7 +34,7 @@ const benchAllPART = ({ name, func }) => {
       func(b) {
         func(b, vanilla, size);
       },
-    })
+    });
     bench({
       name: `cuckoo@${variantName}:${name}`,
       runs,
@@ -48,7 +48,7 @@ const benchAllPART = ({ name, func }) => {
       func(b) {
         func(b, int32, size);
       },
-    })
+    });
   });
 };
 
@@ -89,7 +89,7 @@ function persistentPut(b, partType, size) {
 
 benchAllPART({
   name: "put",
-  func:persistentPut
+  func: persistentPut,
 });
 
 function batchedPut(b, partType, size) {
@@ -106,7 +106,7 @@ function batchedPut(b, partType, size) {
 
 benchAllPART({
   name: "putBatch",
-  func: batchedPut
+  func: batchedPut,
 });
 
 function setUnion(b, partType, size) {
@@ -127,7 +127,7 @@ function setUnion(b, partType, size) {
 
 benchAllPART({
   name: "SetUnion",
-  func: setUnion
+  func: setUnion,
 });
 
 function setIntersect(b, partType, size) {
@@ -155,7 +155,7 @@ function setIntersect(b, partType, size) {
 
 benchAllPART({
   name: "SetIntersect",
-  func: setIntersect
+  func: setIntersect,
 });
 
 function setSubtract(b, partType, size) {
@@ -183,7 +183,7 @@ function setSubtract(b, partType, size) {
 
 benchAllPART({
   name: "SetSubtract",
-  func: setSubtract
+  func: setSubtract,
 });
 
 function setDifference(b, partType, size) {
@@ -211,7 +211,7 @@ function setDifference(b, partType, size) {
 
 benchAllPART({
   name: "SetDifference",
-  func: setDifference
+  func: setDifference,
 });
 
 function setSubsetOf(b, partType, size) {
@@ -245,7 +245,7 @@ function setSubsetOf(b, partType, size) {
 
 benchAllPART({
   name: "SetSubsetOf",
-  func: setSubsetOf
+  func: setSubsetOf,
 });
 
 function setIntersecting(b, partType, size) {
@@ -279,8 +279,7 @@ function setIntersecting(b, partType, size) {
 
 benchAllPART({
   name: "SetIntersecting",
-  func: setIntersecting
+  func: setIntersecting,
 });
-
 
 runBenchmarks();

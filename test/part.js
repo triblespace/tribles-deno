@@ -67,13 +67,16 @@ Deno.test("part multi batch insert", () => {
       const partA = vsA.reduce((part, v) => part.put(v), emptyValuePART.batch())
         .complete();
 
-        const partB = vsB.reduce((part, v) => part.put(v), partA.batch())
+      const partB = vsB.reduce((part, v) => part.put(v), partA.batch())
         .complete();
 
-        const partC = vsC.reduce((part, v) => part.put(v), partA.batch())
+      const partC = vsC.reduce((part, v) => part.put(v), partA.batch())
         .complete();
 
-      const jsSet = new Set([...vsA.map((t) => encode(t)), ...vsC.map((t) => encode(t))]);
+      const jsSet = new Set([
+        ...vsA.map((t) => encode(t)),
+        ...vsC.map((t) => encode(t)),
+      ]);
       const partSet = new Set([...partC.keys()].map((t) => encode(t)));
 
       assertEquals(partSet, jsSet);

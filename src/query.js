@@ -1,298 +1,113 @@
 import { SEGMENT_SIZE } from "./trible.js";
-import { emptyPART as emptySegmentPart } from "./cuckoopartint32.js";
+import { emptyValuePART } from "./cuckoopartint32.js";
 
-class ConstantConstraint {
-  constructor(variable, constant) {
-    this.variable = variable;
-    this.constant = constant;
-    this.ascending = true;
-    this.valid = true;
-  }
-
-  propose() {
-    return { variable: this.variable, count: 1, forced: false };
-  }
-
-  push(variable, ascending = true) {
-    if (variable !== this.variable) return { relevant: false, done: false };
-    this.ascending = ascending;
-    return { relevant: true, done: true };
-  }
-
-  pop() {
-    this.valid = true;
-  }
-
-  peek() {
-    return this.constant;
-  }
-
-  next() {
-    this.valid = false;
-  }
-
-  seek(value) {
-    if (this.ascending) {
-      for (let i = 0; i < SEGMENT_SIZE; i++) {
-        if (this.constant[i] !== value[i]) {
-          if (this.constant[i] < value[i]) this.valid = false;
-          return false;
-        }
-      }
-    } else {
-      for (let i = 0; i < SEGMENT_SIZE; i++) {
-        if (this.constant[i] !== value[i]) {
-          if (this.constant[i] > value[i]) this.valid = false;
-          return false;
-        }
-      }
+class CollectionConstraint {
+  constructor(variable, collection) {
+    const indexBatch = emptyValuePART.batch();
+    for (const c of collection) {
+      indexBatch.put(c);
     }
-    return true;
-  }
-}
-
-class SegmentIndexConstraint {
-  constructor(variable, index) {
-    this.index = index;
-    this.cursor = index.cursor();
+    this.index = indexBatch.complete();
+    this.cursor = this.index.cursor();
     this.variable = variable;
-    this.ascending = true;
   }
 
   propose() {
-    return { variable: this.variable, count: this.index.count, forced: false };
+    return { variable: this.variable, costs: this.index.segmentCount() };
   }
 
   push(variable, ascending) {
-    if (variable !== this.variable) return { relevant: false, done: false };
-    this.cursor.push(SEGMENT_SIZE, ascending);
-    return { relevant: true, done: true };
+    if (variable === this.variable) {
+      return [this.cursor.push(ascending)];
+    }
+    return [];
   }
 
   pop() {
-    this.cursor.pop();
-  }
-
-  valid() {
-    return this.cursor.valid;
-  }
-
-  peek() {
-    return this.cursor.peek();
-  }
-
-  next() {
-    this.cursor.next();
-  }
-
-  seek(value) {
-    return this.cursor.seek(value);
+    if (variable === this.variable) {
+      return this.cursor.pop();
+    }
   }
 }
 
-class ValueIndexConstraint {
-  constructor(variable1, variable2, index) {
-    this.variable1 = variable1;
-    this.variable2 = variable2;
-
-    this.pushed = false;
-
-    this.cursor = index.cursor();
-  }
-
-  propose() {
-    if (!this.pushed) {
-      return {
-        variable: this.variable1,
-        count: this.C1.count,
-        forced: false,
-      };
-    } else {
-      return {
-        variable: this.variable2,
-        count: this.cursorC1.value().count,
-        forced: false,
-      };
-    }
-  }
-
-  push(variable, ascending) {
-    if (!this.pushed) {
-      if (variable !== this.variable1) return { relevant: false, done: false };
-      this.cursor.push(SEGMENT_SIZE, ascending);
-      this.pushed = true;
-      return { relevant: true, done: false };
-    } else {
-      if (variable !== this.variable2) return { relevant: false, done: false };
-      this.cursor.push(SEGMENT_SIZE, ascending);
-      return { relevant: true, done: true };
-    }
-  }
-
-  pop() {
-    this.pushed = false;
-    this.cursor.pop();
-  }
-
-  valid() {
-    return this.cursor.valid;
-  }
-
-  peek() {
-    return this.cursor.peek();
-  }
-
-  next() {
-    this.cursor.next();
-  }
-
-  seek(value) {
-    return this.cursor.seek(value);
-  }
-}
+const inmemoryCosts = 1; //TODO estimate and change to microseconds.
+// TODO return both count and latency. Cost = min count * max latency;
 
 class TripleConstraint {
-  constructor(db, variableE, variableA, variableV1, variableV2) {
-    this.variableE = variableE;
-    this.variableA = variableA;
-    this.variableV1 = variableV1;
-    this.variableV2 = variableV2;
-    this.cursorEAV = db.EAV.cursor();
-    this.cursorEVA = db.EVA.cursor();
-    this.cursorAEV = db.AEV.cursor();
-    this.cursorAVE = db.AVE.cursor();
-    this.cursorVEA = db.VEA.cursor();
-    this.cursorVAE = db.VAE.cursor();
-    this.index = "ROOT";
+  constructor(db, variableE, variableA, variableV) {
+    this.variables = { e: variableE, a: variableA, v: variableV };
+    this.pathStack = [[""]];
+    this.cursors = {
+      eav: db.EAV.cursor(),
+      eva: db.EVA.cursor(),
+      aev: db.AEV.cursor(),
+      ave: db.AVE.cursor(),
+      vea: db.VEA.cursor(),
+      vae: db.VAE.cursor(),
+    };
   }
 
   propose() {
-    let count;
-    let variable;
-    let forced = false;
-    switch (this.index) {
-      case "ROOT":
-        {
-          const countE = this.cursorEAV.countSubsegment();
-          const countA = this.cursorAVE.countSubsegment();
-          const countV = this.cursorVAE.countSubsegment();
+    let count = Number.MAX_VALUE;
+    let segment = null;
 
-          count = countE;
-          variable = this.variableE;
-
-          if (countA <= count) {
-            count = countA;
-            variable = this.variableE;
-          }
-          if (countV <= count) {
-            count = countV;
-            variable = this.variableE;
-          }
+    const paths = this.pathStack[this.pathStack.length - 1];
+    for (const [name, cursor] of Object.entries(this.cursors)) {
+      if (paths.some((p) => name.startsWith(p))) {
+        const proposedCount = cursor.countSubsegment();
+        if (proposedCount <= count) {
+          count = proposedCount;
+          segment = name[this.path.length];
         }
-        break;
-      case "E":
-        {
-          const countA = this.cursorEAV.countSubsegment();
-          const countV = this.cursorEVA.countSubsegment();
-          count = countA;
-          variable = this.variableE;
-          if (countV <= count) {
-            count = countV;
-            variable = this.variableE;
-          }
-        }
-        break;
-      case "A":
-        {
-          const countE = this.cursorAEV.countSubsegment();
-          const countV = this.cursorAVE.countSubsegment();
-          count = countE;
-          variable = this.variableE;
-          if (countV <= count) {
-            count = countV;
-            variable = this.variableE;
-          }
-        }
-        break;
+      }
     }
-
     return {
-      variable,
-      count,
-      forced,
+      variable: this.variables[segment],
+      costs: count * inmemoryCosts,
     };
   }
 
   push(variable, ascending = true) {
-    let branch;
-    if (this.cursors.length === 0) {
-      branch = this.db.index;
-    } else {
-      branch = this.cursors[this.cursors.length - 1].value();
+    const paths = new Set();
+    for (const [s, v] of Object.entries(this.variables)) {
+      if (v === variable) {
+        for (const path of this.pathStack[this.pathStack.length - 1]) {
+          paths.push(path + s);
+        }
+      }
     }
 
-    const done = this.cursors.length === 3;
-    if (variable === this.variableE) {
-      this.cursors.push(branch.E.cursor(ascending));
-      return { relevant: true, done };
+    const cursors = [];
+    for (const [name, cursor] of Object.entries(this.cursors)) {
+      if (paths.some((p) => name.startsWith(p))) {
+        cursors.push(cursor.push());
+      }
     }
-    if (variable === this.variableA) {
-      this.cursors.push(branch.A.cursor(ascending));
-      return { relevant: true, done };
-    }
-    if (variable === this.variableV1) {
-      this.cursors.push(branch.V1.cursor(ascending));
-      return { relevant: true, done };
-    }
-    if (variable === this.variableV2) {
-      this.cursors.push(branch.V2.cursor(ascending));
-      return { relevant: true, done };
-    }
-    return { relevant: false, done };
+    this.pathStack.push(paths);
+    return cursors;
   }
 
   pop() {
-    this.cursors.pop();
-  }
-
-  valid() {
-    this.cursors[this.cursors.length - 1].valid;
-  }
-
-  peek() {
-    if (this.cursors[this.cursors.length - 1].valid) {
-      return this.cursor.peek();
+    for (const path of this.pathStack.pop()) {
+      for (const [name, cursor] of Object.entries(this.cursors)) {
+        if (name.startsWith(path)) {
+          cursor.pop();
+        }
+      }
     }
-    return null;
-  }
-
-  next() {
-    this.cursors[this.cursors.length - 1].next();
-  }
-
-  seek(value) {
-    return this.cursors[this.cursors.length - 1].seek(value);
   }
 }
+//TODO VariableOrderConstraint vs order on resolve, e.g. before map like {x: y}, when x is choosen from propose we use y.
 
-//TODO class VariableOrderConstraint {
-
-function* query(constraints, ascendingVariables, bindings = new Map()) {
+function* resolve(constraints, ascendingVariables, bindings = new Map()) {
   //init
   let candidateVariable;
-  let candidateCount = Number.MAX_VALUE;
+  let candidateCosts = Number.MAX_VALUE;
   for (const c of constraints) {
     const proposal = c.propose();
-    if (proposal.count === 0) {
-      return;
-    }
-    if (!proposal.forced) {
+    if (proposal.costs <= candidateCosts) {
       candidateVariable = proposal.variable;
-      break;
-    }
-    if (proposal.count <= candidateCount) {
-      candidateVariable = proposal.variable;
-      candidateCount = proposal.count;
+      candidateCosts = proposal.costs;
     }
   }
 
@@ -345,6 +160,6 @@ export {
   CollectionConstraint,
   ConstantConstraint,
   IndexConstraint,
-  query,
+  resolve,
   TripleConstraint,
 };

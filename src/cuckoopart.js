@@ -5,7 +5,7 @@ import { XXH3_128 } from "./xxh128.js";
 
 const SESSION_SEED = [...crypto.getRandomValues(new Uint32Array(16))].reduce(
   (acc, v, i) => acc | (BigInt(v) << BigInt(i * 4)),
-  0n
+  0n,
 );
 function PARTHash(key) {
   if (!key.__cached_XXH3_128) {
@@ -88,7 +88,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const prefixLen = this.prefixStack[this.prefixStack.length - 1];
       const node = this.path[prefixLen];
       Math.floor(prefixLen / SEGMENT_LENGTH) <
-      Math.floor(node.branchDepth / SEGMENT_LENGTH)
+          Math.floor(node.branchDepth / SEGMENT_LENGTH)
         ? 1
         : node.segmentCount;
     }
@@ -114,7 +114,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
           [this.path[depth], node] = this.pathNodes[depth].seek(
             depth,
             this.path[depth] + (ascending ? +1 : -1),
-            ascending
+            ascending,
           );
           this.pathNodes[depth + 1] = node;
           if (node) break;
@@ -137,22 +137,24 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         const infixLen = this.infixStack[this.infixStack.length - 1];
         const searchDepth = prefixLen + infixLen;
         let depth = prefixLen;
-        search: for (; depth < searchDepth; depth++) {
+        search:
+        for (; depth < searchDepth; depth++) {
           const sought = infix[depth - prefixLen];
           let node;
           [this.path[depth], node] = this.pathNodes[depth].seek(
             depth,
             sought,
-            ascending
+            ascending,
           );
           this.pathNodes[depth + 1] = node;
           if (!node) {
-            backtrack: for (depth--; prefixLen <= depth; depth--) {
+            backtrack:
+            for (depth--; prefixLen <= depth; depth--) {
               let node;
               [this.path[depth], node] = this.pathNodes[depth].seek(
                 depth,
                 this.path[depth] + (ascending ? +1 : -1),
-                ascending
+                ascending,
               );
               this.pathNodes[depth + 1] = node;
               if (node) break backtrack;
@@ -180,8 +182,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       if (infixLen % SEGMENT_LENGTH !== 0) {
         throw Error("Infix length must be multiple of Segment size.");
       }
-      const newPrefix =
-        this.prefixStack[this.prefixStack.length - 1] +
+      const newPrefix = this.prefixStack[this.prefixStack.length - 1] +
         this.infixStack[this.infixStack.length - 1];
       if (KEY_LENGTH < newPrefix + infixLen) {
         throw Error("Can't push cursor beyond key length.");
@@ -226,13 +227,14 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       nchildren,
       hash,
       1, //TODO segmentCount,
-      {}
+      {},
     );
   }
 
   function _union(leftNode, rightNode, depth = 0) {
-    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH)
+    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) {
       return leftNode;
+    }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     let branchDepth = depth;
     for (; branchDepth < maxDepth; branchDepth++) {
@@ -256,10 +258,9 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const leftChild = leftNode.get(branchDepth, pos);
       children[pos] = leftChild;
       hash = hash ^ leftChild.hash;
-      segmentCount =
-        segmentCount +
+      segmentCount = segmentCount +
         (Math.floor(branchDepth / SEGMENT_LENGTH) <
-        Math.floor(leftChild.branchDepth / SEGMENT_LENGTH)
+            Math.floor(leftChild.branchDepth / SEGMENT_LENGTH)
           ? 1
           : leftChild.segmentCount);
     }
@@ -267,10 +268,9 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const rightChild = rightNode.get(branchDepth, pos);
       children[pos] = rightChild;
       hash = hash ^ rightChild.hash;
-      segmentCount =
-        segmentCount +
+      segmentCount = segmentCount +
         (Math.floor(branchDepth / SEGMENT_LENGTH) <
-        Math.floor(rightChild.branchDepth / SEGMENT_LENGTH)
+            Math.floor(rightChild.branchDepth / SEGMENT_LENGTH)
           ? 1
           : rightChild.segmentCount);
     }
@@ -280,10 +280,9 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const union = _union(leftChild, rightChild, branchDepth + 1);
       children[pos] = union;
       hash = hash ^ union.hash;
-      segmentCount =
-        segmentCount +
+      segmentCount = segmentCount +
         (Math.floor(branchDepth / SEGMENT_LENGTH) <
-        Math.floor(union.branchDepth / SEGMENT_LENGTH)
+            Math.floor(union.branchDepth / SEGMENT_LENGTH)
           ? 1
           : union.segmentCount);
     }
@@ -294,7 +293,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       children,
       hash,
       segmentCount,
-      {}
+      {},
     );
   }
 
@@ -303,8 +302,9 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     let branchDepth = depth;
     for (; branchDepth < maxDepth; branchDepth++) {
-      if (leftNode.key[branchDepth] !== rightNode.key[branchDepth])
+      if (leftNode.key[branchDepth] !== rightNode.key[branchDepth]) {
         return leftNode;
+      }
     }
     if (branchDepth === KEY_LENGTH) return null;
 
@@ -322,10 +322,9 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const leftChild = leftNode.get(branchDepth, pos);
       children[pos] = leftChild;
       hash = hash ^ leftChild.hash;
-      segmentCount =
-        segmentCount +
+      segmentCount = segmentCount +
         (Math.floor(branchDepth / SEGMENT_LENGTH) <
-        Math.floor(leftChild.branchDepth / SEGMENT_LENGTH)
+            Math.floor(leftChild.branchDepth / SEGMENT_LENGTH)
           ? 1
           : leftChild.segmentCount);
     }
@@ -337,10 +336,9 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         bits = bits | (1n << BigInt(pos));
         children[pos] = subtraction;
         hash = hash ^ subtraction.hash;
-        segmentCount =
-          segmentCount +
+        segmentCount = segmentCount +
           (Math.floor(branchDepth / SEGMENT_LENGTH) <
-          Math.floor(subtraction.branchDepth / SEGMENT_LENGTH)
+              Math.floor(subtraction.branchDepth / SEGMENT_LENGTH)
             ? 1
             : subtraction.segmentCount);
       }
@@ -353,13 +351,14 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       children,
       hash,
       segmentCount,
-      {}
+      {},
     );
   }
 
   function _intersect(leftNode, rightNode, depth = 0) {
-    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH)
+    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) {
       return leftNode;
+    }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     let branchDepth = depth;
     for (; branchDepth < maxDepth; branchDepth++) {
@@ -383,10 +382,9 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         bits = bits | (1n << BigInt(pos));
         children[pos] = intersection;
         hash = hash ^ intersection.hash;
-        segmentCount =
-          segmentCount +
+        segmentCount = segmentCount +
           (Math.floor(branchDepth / SEGMENT_LENGTH) <
-          Math.floor(intersection.branchDepth / SEGMENT_LENGTH)
+              Math.floor(intersection.branchDepth / SEGMENT_LENGTH)
             ? 1
             : intersection.segmentCount);
       }
@@ -399,7 +397,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       children,
       hash,
       segmentCount,
-      {}
+      {},
     );
   }
 
@@ -428,10 +426,9 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const leftChild = leftNode.get(branchDepth, pos);
       children[pos] = leftChild;
       hash = hash ^ leftChild.hash;
-      segmentCount =
-        segmentCount +
+      segmentCount = segmentCount +
         (Math.floor(branchDepth / SEGMENT_LENGTH) <
-        Math.floor(leftChild.branchDepth / SEGMENT_LENGTH)
+            Math.floor(leftChild.branchDepth / SEGMENT_LENGTH)
           ? 1
           : leftChild.segmentCount);
     }
@@ -439,10 +436,9 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const rightChild = rightNode.get(branchDepth, pos);
       children[pos] = rightChild;
       hash = hash ^ rightChild.hash;
-      segmentCount =
-        segmentCount +
+      segmentCount = segmentCount +
         (Math.floor(branchDepth / SEGMENT_LENGTH) <
-        Math.floor(rightChild.branchDepth / SEGMENT_LENGTH)
+            Math.floor(rightChild.branchDepth / SEGMENT_LENGTH)
           ? 1
           : rightChild.segmentCount);
     }
@@ -454,10 +450,9 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         bits = bits | (1n << BigInt(pos));
         children[pos] = difference;
         hash = hash ^ difference.hash;
-        segmentCount =
-          segmentCount +
+        segmentCount = segmentCount +
           (Math.floor(branchDepth / SEGMENT_LENGTH) <
-          Math.floor(difference.branchDepth / SEGMENT_LENGTH)
+              Math.floor(difference.branchDepth / SEGMENT_LENGTH)
             ? 1
             : difference.segmentCount);
       }
@@ -471,12 +466,13 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       children,
       hash,
       segmentCount,
-      {}
+      {},
     );
   }
   function _isSubsetOf(leftNode, rightNode, depth = 0) {
-    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH)
+    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) {
       return true;
+    }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     let branchDepth = depth;
     for (; branchDepth < maxDepth; branchDepth++) {
@@ -487,7 +483,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     const lbits = leftNode.bits(branchDepth);
     const rbits = rightNode.bits(branchDepth);
     const leftBits = lbits & ~rbits;
-    if(leftBits !== 0n) return false;
+    if (leftBits !== 0n) return false;
     const commonBits = lbits & rbits;
     const commonPositions = bitPositions(commonBits);
     for (const pos of commonPositions) {
@@ -500,12 +496,15 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
   }
 
   function _isIntersecting(leftNode, rightNode, depth = 0) {
-    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH)
+    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) {
       return true;
+    }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     let branchDepth = depth;
     for (; branchDepth < maxDepth; branchDepth++) {
-      if (leftNode.key[branchDepth] !== rightNode.key[branchDepth]) return false;
+      if (leftNode.key[branchDepth] !== rightNode.key[branchDepth]) {
+        return false;
+      }
     }
     if (branchDepth === KEY_LENGTH) return true;
 
@@ -516,7 +515,11 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
     for (const pos of commonPositions) {
       const leftChild = leftNode.get(branchDepth, pos);
       const rightChild = rightNode.get(branchDepth, pos);
-      const isIntersecting = _isIntersecting(leftChild, rightChild, branchDepth + 1);
+      const isIntersecting = _isIntersecting(
+        leftChild,
+        rightChild,
+        branchDepth + 1,
+      );
       if (isIntersecting) return true;
     }
     return false;
@@ -757,11 +760,10 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       nchildren[lindex] = this;
       nchildren[rindex] = nchild;
       const nchildbits = (1n << BigInt(lindex)) | (1n << BigInt(rindex));
-      const segmentCount =
-        Math.floor(branchDepth / SEGMENT_LENGTH) <
-        Math.floor(this.branchDepth / SEGMENT_LENGTH)
-          ? 1
-          : this.segmentCount + 1;
+      const segmentCount = Math.floor(branchDepth / SEGMENT_LENGTH) <
+          Math.floor(this.branchDepth / SEGMENT_LENGTH)
+        ? 1
+        : this.segmentCount + 1;
       const hash = this.hash ^ nchild.hash;
 
       return new PARTNode(
@@ -771,7 +773,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         nchildren,
         hash,
         segmentCount,
-        owner
+        owner,
       );
     }
   };
@@ -784,7 +786,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       children,
       hash,
       segmentCount,
-      owner
+      owner,
     ) {
       this.key = key;
       this.branchDepth = branchDepth;
@@ -850,20 +852,18 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
           nchild = child.put(childDepth, key, value, owner);
           if (child.hash === nchild.hash) return this;
           hash = this.hash ^ child.hash ^ nchild.hash;
-          segmentCount =
-            Math.floor(this.branchDepth / SEGMENT_LENGTH) <
-            Math.floor(child.branchDepth / SEGMENT_LENGTH)
-              ? this.segmentCount
-              : this.segmentCount - child.segmentCount + nchild.segmentCount;
+          segmentCount = Math.floor(this.branchDepth / SEGMENT_LENGTH) <
+              Math.floor(child.branchDepth / SEGMENT_LENGTH)
+            ? this.segmentCount
+            : this.segmentCount - child.segmentCount + nchild.segmentCount;
         } else {
           nchild = new PARTLeaf(key, value, PARTHash(key));
           nchildbits = this.childbits | childBit;
           hash = this.hash ^ nchild.hash;
-          segmentCount =
-            Math.floor(this.branchDepth / SEGMENT_LENGTH) <
-            Math.floor(nchild.branchDepth / SEGMENT_LENGTH)
-              ? this.segmentCount + 1
-              : this.segmentCount + nchild.segmentCount;
+          segmentCount = Math.floor(this.branchDepth / SEGMENT_LENGTH) <
+              Math.floor(nchild.branchDepth / SEGMENT_LENGTH)
+            ? this.segmentCount + 1
+            : this.segmentCount + nchild.segmentCount;
         }
         if (this.owner === owner) {
           this.childbits = nchildbits;
@@ -881,7 +881,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
           nchildren,
           hash,
           segmentCount,
-          owner
+          owner,
         );
       }
 
@@ -893,11 +893,10 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
       nchildren[lindex] = this;
       nchildren[rindex] = nchild;
       const nchildbits = (1n << BigInt(lindex)) | (1n << BigInt(rindex));
-      const segmentCount =
-        Math.floor(branchDepth / SEGMENT_LENGTH) <
-        Math.floor(this.branchDepth / SEGMENT_LENGTH)
-          ? 1
-          : this.segmentCount + 1;
+      const segmentCount = Math.floor(branchDepth / SEGMENT_LENGTH) <
+          Math.floor(this.branchDepth / SEGMENT_LENGTH)
+        ? 1
+        : this.segmentCount + 1;
       const hash = this.hash ^ nchild.hash;
 
       return new PARTNode(
@@ -907,7 +906,7 @@ const makePART = function (KEY_LENGTH, SEGMENT_LENGTH) {
         nchildren,
         hash,
         segmentCount,
-        owner
+        owner,
       );
     }
   };

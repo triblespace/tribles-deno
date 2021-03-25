@@ -48,21 +48,21 @@ class MemBlobDB {
     const blobCursor = this.blobs.cursor();
     const valueCursor = tribledb.VEA.cursor();
     if (blobCursor.valid && valueCursor.valid) {
-    blobCursor.push(VALUE_SIZE);
-    valueCursor.push(VALUE_SIZE);
-    search:
-    while (true) {
-      const match = blobCursor.seek(valueCursor.peek());
-      if (!blobCursor.valid) break search;
-      if (match) {
-        blobs.put(blobCursor.peek(), blobCursor.value());
-      }
-      blobCursor.next()
-      if (!blobCursor.valid) break search;
-      valueCursor.seek(blobCursor.peek());
-      if (!valueCursor.valid) break search;
+      blobCursor.push(VALUE_SIZE);
+      valueCursor.push(VALUE_SIZE);
+      search:
+      while (true) {
+        const match = blobCursor.seek(valueCursor.peek());
+        if (!blobCursor.valid) break search;
+        if (match) {
+          blobs.put(blobCursor.peek(), blobCursor.value());
+        }
+        blobCursor.next();
+        if (!blobCursor.valid) break search;
+        valueCursor.seek(blobCursor.peek());
+        if (!valueCursor.valid) break search;
 
-      continue search;
+        continue search;
       }
     }
     return MemBlobDB(blobs.complete());
