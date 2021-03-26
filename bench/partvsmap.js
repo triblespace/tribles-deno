@@ -1,5 +1,5 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
-import { emptyValuePART } from "../src/part.js";
+import { emptyValuePACT } from "../src/pact.js";
 
 function generate_sample(size, sharing_prob = 0.1) {
   const values = [];
@@ -17,10 +17,10 @@ function generate_sample(size, sharing_prob = 0.1) {
 
 function persistentPut(b, size) {
   const sample = generate_sample(size);
-  let part = emptyValuePART;
+  let pact = emptyValuePACT;
   b.start();
   for (const blob of sample) {
-    part = part.put(blob, { blob: blob });
+    pact = pact.put(blob, { blob: blob });
   }
   b.stop();
 }
@@ -59,9 +59,9 @@ bench({
 
 function batchedPut(b, size) {
   const sample = generate_sample(size);
-  const part = emptyValuePART;
+  const pact = emptyValuePACT;
   b.start();
-  const batch = part.batch();
+  const batch = pact.batch();
   for (const blob of sample) {
     batch.put(blob, { blob: blob });
   }

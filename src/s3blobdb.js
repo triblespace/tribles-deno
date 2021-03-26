@@ -1,6 +1,6 @@
 import { S3Bucket } from "https://deno.land/x/s3@0.3.0/mod.ts";
 
-import { emptyValuePART } from "./part.js";
+import { emptyValuePACT } from "./pact.js";
 
 class S3BlobDB {
   constructor(

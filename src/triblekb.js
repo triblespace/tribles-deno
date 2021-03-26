@@ -1,6 +1,6 @@
 import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 
-import { emptyValuePART } from "./part.js";
+import { emptyValuePACT } from "./pact.js";
 import {
   CollectionConstraint,
   ConstantConstraint,
@@ -69,7 +69,7 @@ class VariableProvider {
     this.variables = [];
     this.unnamedVariables = [];
     this.namedVariables = new Map();
-    this.constantVariables = emptyValuePART;
+    this.constantVariables = emptyValuePACT;
   }
 
   namedCache() {
@@ -126,8 +126,8 @@ class VariableProvider {
 }
 
 const entityProxy = function entityProxy(kb, ctx, entityId) {
-  const attrsBatch = emptyValuePART.batch();
-  const inverseAttrsBatch = emptyValuePART.batch();
+  const attrsBatch = emptyValuePACT.batch();
+  const inverseAttrsBatch = emptyValuePACT.batch();
   for (const [attr, { id: attrId, isInverse }] of Object.entries(ctx.ns)) {
     const aId = new Uint8Array(VALUE_SIZE);
     ctx.ns[id].encoder(attrId, aId);

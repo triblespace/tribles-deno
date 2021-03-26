@@ -1,7 +1,5 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
-import { emptyTriblePART as vanilla } from "../src/part.js";
-import { emptyTriblePART as cuckoo } from "../src/cuckoopart.js";
-import { emptyTriblePART as int32 } from "../src/cuckoopartint32.js";
+import { emptyTriblePACT as baseline } from "../src/pact.js";
 
 const variants = [
   {
@@ -26,27 +24,13 @@ const variants = [
   },
 ];
 
-const benchAllPART = ({ name, func }) => {
+const benchAllPACT = ({ name, func }) => {
   variants.forEach(({ runs, name: variantName, size }) => {
     bench({
-      name: `vanilla@${variantName}:${name}`,
+      name: `baseline@${variantName}:${name}`,
       runs,
       func(b) {
-        func(b, vanilla, size);
-      },
-    });
-    bench({
-      name: `cuckoo@${variantName}:${name}`,
-      runs,
-      func(b) {
-        func(b, cuckoo, size);
-      },
-    });
-    bench({
-      name: `int32@${variantName}:${name}`,
-      runs,
-      func(b) {
-        func(b, int32, size);
+        func(b, baseline, size);
       },
     });
   });
@@ -77,26 +61,26 @@ function generate_sample(size, sharing_prob = 0.1) {
   }
   return facts;
 }
-function persistentPut(b, partType, size) {
+function persistentPut(b, pactType, size) {
   const sample = generate_sample(size);
-  let part = partType;
+  let pact = pactType;
   b.start();
   for (const t of sample) {
-    part = part.put(t);
+    pact = pact.put(t);
   }
   b.stop();
 }
 
-benchAllPART({
+benchAllPACT({
   name: "put",
   func: persistentPut,
 });
 
-function batchedPut(b, partType, size) {
+function batchedPut(b, pactType, size) {
   const sample = generate_sample(size);
-  const part = partType;
+  const pact = pactType;
   b.start();
-  const batch = part.batch();
+  const batch = pact.batch();
   for (const t of sample) {
     batch.put(t);
   }
@@ -104,180 +88,180 @@ function batchedPut(b, partType, size) {
   b.stop();
 }
 
-benchAllPART({
+benchAllPACT({
   name: "putBatch",
   func: batchedPut,
 });
 
-function setUnion(b, partType, size) {
-  let partA = partType.batch();
-  let partB = partType.batch();
+function setUnion(b, pactType, size) {
+  let pactA = pactType.batch();
+  let pactB = pactType.batch();
   for (const t of generate_sample(size)) {
-    partA.put(t);
+    pactA.put(t);
   }
-  partA = partA.complete();
+  pactA = pactA.complete();
   for (const t of generate_sample(size)) {
-    partB.put(t);
+    pactB.put(t);
   }
-  partB = partB.complete();
+  pactB = pactB.complete();
   b.start();
-  partA.union(partB);
+  pactA.union(pactB);
   b.stop();
 }
 
-benchAllPART({
+benchAllPACT({
   name: "SetUnion",
   func: setUnion,
 });
 
-function setIntersect(b, partType, size) {
-  let partA = partType.batch();
-  let partB;
-  let partC;
+function setIntersect(b, pactType, size) {
+  let pactA = pactType.batch();
+  let pactB;
+  let pactC;
   for (const t of generate_sample(size)) {
-    partA.put(t);
+    pactA.put(t);
   }
-  partA = partA.complete();
-  partB = partA.batch();
+  pactA = pactA.complete();
+  pactB = pactA.batch();
   for (const t of generate_sample(size)) {
-    partB.put(t);
+    pactB.put(t);
   }
-  partB = partB.complete();
-  partC = partA.batch();
+  pactB = pactB.complete();
+  pactC = pactA.batch();
   for (const t of generate_sample(size)) {
-    partC.put(t);
+    pactC.put(t);
   }
-  partC = partC.complete();
+  pactC = pactC.complete();
   b.start();
-  partB.intersect(partC);
+  pactB.intersect(pactC);
   b.stop();
 }
 
-benchAllPART({
+benchAllPACT({
   name: "SetIntersect",
   func: setIntersect,
 });
 
-function setSubtract(b, partType, size) {
-  let partA = partType.batch();
-  let partB;
-  let partC;
+function setSubtract(b, pactType, size) {
+  let pactA = pactType.batch();
+  let pactB;
+  let pactC;
   for (const t of generate_sample(size)) {
-    partA.put(t);
+    pactA.put(t);
   }
-  partA = partA.complete();
-  partB = partA.batch();
+  pactA = pactA.complete();
+  pactB = pactA.batch();
   for (const t of generate_sample(size)) {
-    partB.put(t);
+    pactB.put(t);
   }
-  partB = partB.complete();
-  partC = partA.batch();
+  pactB = pactB.complete();
+  pactC = pactA.batch();
   for (const t of generate_sample(size)) {
-    partC.put(t);
+    pactC.put(t);
   }
-  partC = partC.complete();
+  pactC = pactC.complete();
   b.start();
-  partB.subtract(partC);
+  pactB.subtract(pactC);
   b.stop();
 }
 
-benchAllPART({
+benchAllPACT({
   name: "SetSubtract",
   func: setSubtract,
 });
 
-function setDifference(b, partType, size) {
-  let partA = partType.batch();
-  let partB;
-  let partC;
+function setDifference(b, pactType, size) {
+  let pactA = pactType.batch();
+  let pactB;
+  let pactC;
   for (const t of generate_sample(size)) {
-    partA.put(t);
+    pactA.put(t);
   }
-  partA = partA.complete();
-  partB = partA.batch();
+  pactA = pactA.complete();
+  pactB = pactA.batch();
   for (const t of generate_sample(size)) {
-    partB.put(t);
+    pactB.put(t);
   }
-  partB = partB.complete();
-  partC = partA.batch();
+  pactB = pactB.complete();
+  pactC = pactA.batch();
   for (const t of generate_sample(size)) {
-    partC.put(t);
+    pactC.put(t);
   }
-  partC = partC.complete();
+  pactC = pactC.complete();
   b.start();
-  partB.difference(partC);
+  pactB.difference(pactC);
   b.stop();
 }
 
-benchAllPART({
+benchAllPACT({
   name: "SetDifference",
   func: setDifference,
 });
 
-function setSubsetOf(b, partType, size) {
-  let partA = partType.batch();
-  let partB;
-  let partC;
+function setSubsetOf(b, pactType, size) {
+  let pactA = pactType.batch();
+  let pactB;
+  let pactC;
   for (const t of generate_sample(size)) {
-    partA.put(t);
+    pactA.put(t);
   }
-  partA = partA.complete();
-  partB = partA.batch();
+  pactA = pactA.complete();
+  pactB = pactA.batch();
   for (const t of generate_sample(size)) {
-    partB.put(t);
+    pactB.put(t);
   }
-  partB = partB.complete();
-  partC = partA.batch();
+  pactB = pactB.complete();
+  pactC = pactA.batch();
   for (const t of generate_sample(size)) {
-    partC.put(t);
+    pactC.put(t);
   }
-  partC = partC.complete();
+  pactC = pactC.complete();
   if (0.5 < Math.random()) {
     b.start();
-    partB.isSubsetOf(partC);
+    pactB.isSubsetOf(pactC);
     b.stop();
   } else {
     b.start();
-    partA.isSubsetOf(partC);
+    pactA.isSubsetOf(pactC);
     b.stop();
   }
 }
 
-benchAllPART({
+benchAllPACT({
   name: "SetSubsetOf",
   func: setSubsetOf,
 });
 
-function setIntersecting(b, partType, size) {
-  let partA = partType.batch();
-  let partB = partType.batch();
-  let partC = partType.batch();
+function setIntersecting(b, pactType, size) {
+  let pactA = pactType.batch();
+  let pactB = pactType.batch();
+  let pactC = pactType.batch();
   for (const t of generate_sample(size)) {
-    partA.put(t);
+    pactA.put(t);
   }
   for (const t of generate_sample(size)) {
-    partA.put(t);
-    partB.put(t);
+    pactA.put(t);
+    pactB.put(t);
   }
   for (const t of generate_sample(size)) {
-    partB.put(t);
-    partC.put(t);
+    pactB.put(t);
+    pactC.put(t);
   }
-  partA = partA.complete();
-  partB = partB.complete();
-  partC = partC.complete();
+  pactA = pactA.complete();
+  pactB = pactB.complete();
+  pactC = pactC.complete();
   if (0.5 < Math.random()) {
     b.start();
-    partB.isIntersecting(partC);
+    pactB.isIntersecting(pactC);
     b.stop();
   } else {
     b.start();
-    partA.isIntersecting(partC);
+    pactA.isIntersecting(pactC);
     b.stop();
   }
 }
 
-benchAllPART({
+benchAllPACT({
   name: "SetIntersecting",
   func: setIntersecting,
 });

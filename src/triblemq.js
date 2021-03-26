@@ -1,6 +1,5 @@
-import { emptyTriblePART } from "./part.js";
+import { emptyTriblePACT } from "./pact.js";
 import { isTransactionMarker, isValidTransaction } from "./trible.js";
-import { EAV } from "./query.js";
 import { find, TribleKB } from "./triblekb.js";
 import {
   blake2s32,
@@ -14,8 +13,8 @@ const TRIBLES_PROTOCOL = "tribles";
 
 function buildTransaction(kb) {
   // TODO This could be done lazily, with either a growable buffer
-  // or by adding a size to parts.
-  const novelTriblesEager = [...kb.tribledb.index[EAV].keys()];
+  // or by adding a total size to pacts.
+  const novelTriblesEager = [...kb.tribledb.EAV.keys()];
   const transaction = new Uint8Array(
     TRIBLE_SIZE * (novelTriblesEager.length + 1),
   );
@@ -152,7 +151,7 @@ class TribleBox {
   }
 
   set kb(newKB) {
-    //TODO add size to PART, so this can be done lazily.
+    //TODO add size to PACT, so this can be done lazily.
     //TODO move this to set operations on tribledb
     const difKB = newKB.subtract(this._kb);
     if (!difKB.isEmpty()) {

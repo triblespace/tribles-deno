@@ -4,16 +4,16 @@ import { types } from "./src/types.js";
 import { MemTribleDB } from "./src/memtribledb.js";
 import { S3BlobDB } from "./src/s3blobdb.js";
 import { MemBlobDB } from "./src/memblobdb.js";
-import { emptyTriblePART, emptyValuePART, makePART } from "./src/part.js";
+import { emptyTriblePACT, emptyValuePACT, makePACT } from "./src/pact.js";
 import { UFOID } from "./src/ufoid.js";
 
 export {
   ctx,
-  emptyTriblePART as TRIBLE_PART,
-  emptyValuePART,
+  emptyTriblePACT as TRIBLE_PACT,
+  emptyValuePACT,
   find,
   id,
-  makePART,
+  makePACT,
   MemBlobDB,
   MemTribleDB,
   S3BlobDB,

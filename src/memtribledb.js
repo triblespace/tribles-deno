@@ -1,4 +1,4 @@
-import { emptyTriblePART } from "./cuckoopartint32.js";
+import { emptyTriblePACT } from "./pact.js";
 import {
   A,
   E,
@@ -76,12 +76,12 @@ class MemTribleConstraint {
 
 class MemTribleDB {
   constructor(
-    EAV = emptyTriblePART,
-    EVA = emptyTriblePART,
-    AEV = emptyTriblePART,
-    AVE = emptyTriblePART,
-    VEA = emptyTriblePART,
-    VAE = emptyTriblePART,
+    EAV = emptyTriblePACT,
+    EVA = emptyTriblePACT,
+    AEV = emptyTriblePACT,
+    AVE = emptyTriblePACT,
+    VEA = emptyTriblePACT,
+    VAE = emptyTriblePACT,
   ) {
     this.EAV = EAV;
     this.EVA = EVA;

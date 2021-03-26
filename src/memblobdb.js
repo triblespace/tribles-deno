@@ -1,9 +1,9 @@
-import { emptyValuePART } from "./cuckoopartint32.js";
+import { emptyValuePACT } from "./pact.js";
 import { VALUE_SIZE } from "./trible.js";
 
 class MemBlobDB {
   constructor(
-    blobs = emptyValuePART,
+    blobs = emptyValuePACT,
   ) {
     this.blobs = blobs;
   }
@@ -44,7 +44,7 @@ class MemBlobDB {
   }
 
   shrink(tribledb) {
-    const blobs = emptyValuePART.batch();
+    const blobs = emptyValuePACT.batch();
     const blobCursor = this.blobs.cursor();
     const valueCursor = tribledb.VEA.cursor();
     if (blobCursor.valid && valueCursor.valid) {

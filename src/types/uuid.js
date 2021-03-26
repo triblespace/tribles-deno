@@ -11,13 +11,13 @@ function uuidEncoder(v, b) {
   if (v === NIL_UUID) {
     throw Error("Can't encode NIL uuid.");
   }
-  b.fill(0, 16, b.length);
-  b.set(uuidToBytes(v));
+  b.fill(0, 0, b.length - 16);
+  b.set(uuidToBytes(v), b.length - 16);
   return null;
 }
 
 function uuidDecoder(b, blob) {
-  return bytesToUuid(b.subarray(0, 16));
+  return bytesToUuid(b.subarray(b.length - 16));
 }
 
 const uuid = ({
