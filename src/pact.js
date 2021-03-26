@@ -73,10 +73,13 @@ const noBit = (bitmap) =>
     bitmap[7]
   );
 
-const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
-  if (KEY_LENGTH % SEGMENT_LENGTH !== 0) {
-    throw Error("Key length must be multiple of segment length.");
-  }
+const makePACT = function (SEGMENTS) {
+  const KEY_LENGTH = SEGMENTS.reduce((a, n) => a + n, 0);
+  const SEGMENT_LUT = SEGMENTS.flatMap((l, i) => new Array(l).fill(i));
+  const SEGMENT_PREFIXES = SEGMENTS.reduce(
+    (a, n) => [...a, a[a.length - 1] + n],
+    [0],
+  );
 
   // deno-lint-ignore prefer-const
   let PACTCursor;
@@ -92,9 +95,8 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
   PACTCursor = class {
     constructor(pact) {
       this.pact = pact;
-      this.prefixStack = [0];
-      this.infixStack = [0];
-      this.orderStack = [];
+      this.order = new Array(SEGMENTS.length + 1).fill(true);
+      this.depth = 0;
       this.valid = true;
       this.path = new Uint8Array(KEY_LENGTH);
       this.pathNodes = new Array(KEY_LENGTH + 1);
@@ -106,29 +108,28 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
       this.pathNodes[0] = pact.child;
     }
     countSubsegment() {
-      const prefixLen = this.prefixStack[this.prefixStack.length - 1];
+      const prefixLen = SEGMENT_PREFIXES[this.depth];
       const node = this.path[prefixLen];
-      Math.floor(prefixLen / SEGMENT_LENGTH) <
-          Math.floor(node.branchDepth / SEGMENT_LENGTH)
-        ? 1
-        : node.segmentCount;
+      if (SEGMENT_LUT[prefixLen] === SEGMENT_LUT[node.branchDepth]) {
+        node.segmentCount;
+      } else {
+        return 1;
+      }
     }
     peek() {
-      const infixLen = this.infixStack[this.infixStack.length - 1];
-      const prefixLen = this.prefixStack[this.prefixStack.length - 1];
-      return this.path.slice(prefixLen, prefixLen + infixLen);
+      const start = SEGMENT_PREFIXES[this.depth];
+      const end = SEGMENT_PREFIXES[this.depth + 1];
+      return this.path.slice(start, end);
     }
     value() {
-      const infixLen = this.infixStack[this.infixStack.length - 1];
-      const prefixLen = this.prefixStack[this.prefixStack.length - 1];
-      return this.pathNodes[prefixLen + infixLen].value;
+      const end = SEGMENT_PREFIXES[this.depth + 1];
+      return this.pathNodes[end].value;
     }
     next() {
       if (this.valid) {
-        const ascending = this.orderStack[this.orderStack.length - 1];
-        const prefixLen = this.prefixStack[this.prefixStack.length - 1];
-        const infixLen = this.infixStack[this.infixStack.length - 1];
-        const searchDepth = prefixLen + infixLen;
+        const ascending = this.order[this.depth];
+        const prefixLen = SEGMENT_PREFIXES[this.depth];
+        const searchDepth = SEGMENT_PREFIXES[this.depth + 1];
         let depth = searchDepth - 1;
         for (; prefixLen <= depth; depth--) {
           let node;
@@ -153,10 +154,9 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
     }
     seek(infix) {
       if (this.valid) {
-        const ascending = this.orderStack[this.orderStack.length - 1];
-        const prefixLen = this.prefixStack[this.prefixStack.length - 1];
-        const infixLen = this.infixStack[this.infixStack.length - 1];
-        const searchDepth = prefixLen + infixLen;
+        const ascending = this.order[this.depth];
+        const prefixLen = SEGMENT_PREFIXES[this.depth];
+        const searchDepth = SEGMENT_PREFIXES[this.depth + 1];
         let depth = prefixLen;
         search:
         for (; depth < searchDepth; depth++) {
@@ -199,20 +199,16 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
         return false;
       }
     }
-    push(infixLen, ascending = true) {
-      if (infixLen % SEGMENT_LENGTH !== 0) {
-        throw Error("Infix length must be multiple of Segment size.");
-      }
-      const newPrefix = this.prefixStack[this.prefixStack.length - 1] +
-        this.infixStack[this.infixStack.length - 1];
-      if (KEY_LENGTH < newPrefix + infixLen) {
+    push(ascending = true) {
+      if (this.depth === SEGMENTS.length) {
         throw Error("Can't push cursor beyond key length.");
       }
-      this.prefixStack.push(newPrefix);
-      this.infixStack.push(infixLen);
-      this.orderStack.push(ascending);
+      this.depth++;
+      const newPrefix = SEGMENT_PREFIXES[this.depth];
+      const searchDepth = SEGMENT_PREFIXES[this.depth + 1];
+      this.order[this.depth](ascending);
 
-      for (let depth = newPrefix; depth < newPrefix + infixLen; depth++) {
+      for (let depth = newPrefix; depth < searchDepth; depth++) {
         [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[
           depth
         ].seek(depth, ascending ? 0 : 255, ascending);
@@ -220,9 +216,10 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
       return this;
     }
     pop() {
-      this.orderStack.pop();
-      this.prefixStack.pop();
-      this.infixStack.pop();
+      if (this.depth == 0) {
+        throw Error("Can't pop cursor beyond key start.");
+      }
+      this.depth--;
       this.valid = true;
       return this;
     }
@@ -258,10 +255,9 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
         children[leftIndex] = leftChild;
         hash = hash ^ leftChild.hash;
         segmentCount = segmentCount +
-          (Math.floor(branchDepth / SEGMENT_LENGTH) <
-              Math.floor(leftChild.branchDepth / SEGMENT_LENGTH)
-            ? 1
-            : leftChild.segmentCount);
+            (SEGMENT_LUT[branchDepth] === SEGMENT_LUT[leftChild.branchDepth])
+          ? leftChild.segmentCount
+          : 1;
         [leftIndex, leftChild] = leftNode.seek(
           branchDepth,
           leftIndex + 1,
@@ -278,10 +274,9 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
         children[rightIndex] = rightChild;
         hash = hash ^ rightChild.hash;
         segmentCount = segmentCount +
-          (Math.floor(branchDepth / SEGMENT_LENGTH) <
-              Math.floor(rightChild.branchDepth / SEGMENT_LENGTH)
-            ? 1
-            : rightChild.segmentCount);
+            (SEGMENT_LUT[branchDepth] === SEGMENT_LUT[rightChild.branchDepth])
+          ? rightChild.segmentCount
+          : 1;
         [rightIndex, rightChild] = rightNode.seek(
           branchDepth,
           rightIndex + 1,
@@ -296,10 +291,9 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
       children[leftIndex] = union;
       hash = hash ^ union.hash;
       segmentCount = segmentCount +
-        (Math.floor(branchDepth / SEGMENT_LENGTH) <
-            Math.floor(union.branchDepth / SEGMENT_LENGTH)
-          ? 1
-          : union.segmentCount);
+          (SEGMENT_LUT[branchDepth] === SEGMENT_LUT[union.branchDepth])
+        ? union.segmentCount
+        : 1;
 
       const nextIndex = leftIndex + 1;
       [leftIndex, leftChild] = leftNode.seek(branchDepth, nextIndex, true);
@@ -343,10 +337,9 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
         children[leftIndex] = leftChild;
         hash = hash ^ leftChild.hash;
         segmentCount = segmentCount +
-          (Math.floor(branchDepth / SEGMENT_LENGTH) <
-              Math.floor(leftChild.branchDepth / SEGMENT_LENGTH)
-            ? 1
-            : leftChild.segmentCount);
+            (SEGMENT_LUT[branchDepth] === SEGMENT_LUT[leftChild.branchDepth])
+          ? leftChild.segmentCount
+          : 1;
         [leftIndex, leftChild] = leftNode.seek(
           branchDepth,
           leftIndex + 1,
@@ -367,10 +360,9 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
         children[leftIndex] = diff;
         hash = hash ^ diff.hash;
         segmentCount = segmentCount +
-          (Math.floor(branchDepth / SEGMENT_LENGTH) <
-              Math.floor(diff.branchDepth / SEGMENT_LENGTH)
-            ? 1
-            : diff.segmentCount);
+            (SEGMENT_LUT[branchDepth] === SEGMENT_LUT[diff.branchDepth])
+          ? diff.segmentCount
+          : 1;
       }
 
       [leftIndex, leftChild] = leftNode.seek(branchDepth, leftIndex + 1, true);
@@ -427,10 +419,9 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
         children[leftIndex] = intersection;
         hash = hash ^ intersection.hash;
         segmentCount = segmentCount +
-          (Math.floor(branchDepth / SEGMENT_LENGTH) <
-              Math.floor(intersection.branchDepth / SEGMENT_LENGTH)
-            ? 1
-            : intersection.segmentCount);
+            (SEGMENT_LUT[branchDepth] === SEGMENT_LUT[intersection.branchDepth])
+          ? intersection.segmentCount
+          : 1;
       }
       [leftIndex, leftChild] = leftNode.seek(branchDepth, leftIndex + 1, true);
       [rightIndex, rightChild] = rightNode.seek(branchDepth, leftIndex, true);
@@ -475,10 +466,9 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
         children[leftIndex] = leftChild;
         hash = hash ^ leftChild.hash;
         segmentCount = segmentCount +
-          (Math.floor(branchDepth / SEGMENT_LENGTH) <
-              Math.floor(leftChild.branchDepth / SEGMENT_LENGTH)
-            ? 1
-            : leftChild.segmentCount);
+            (SEGMENT_LUT[branchDepth] === SEGMENT_LUT[leftChild.branchDepth])
+          ? leftChild.segmentCount
+          : 1;
         [leftIndex, leftChild] = leftNode.seek(
           branchDepth,
           leftIndex + 1,
@@ -495,10 +485,9 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
         children[rightIndex] = rightChild;
         hash = hash ^ rightChild.hash;
         segmentCount = segmentCount +
-          (Math.floor(branchDepth / SEGMENT_LENGTH) <
-              Math.floor(rightChild.branchDepth / SEGMENT_LENGTH)
-            ? 1
-            : rightChild.segmentCount);
+            (SEGMENT_LUT[branchDepth] === SEGMENT_LUT[rightChild.branchDepth])
+          ? rightChild.segmentCount
+          : 1;
         [rightIndex, rightChild] = rightNode.seek(
           branchDepth,
           rightIndex + 1,
@@ -514,10 +503,9 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
         children[leftIndex] = difference;
         hash = hash ^ difference.hash;
         segmentCount = segmentCount +
-          (Math.floor(branchDepth / SEGMENT_LENGTH) <
-              Math.floor(difference.branchDepth / SEGMENT_LENGTH)
-            ? 1
-            : difference.segmentCount);
+            (SEGMENT_LUT[branchDepth] === SEGMENT_LUT[difference.branchDepth])
+          ? difference.segmentCount
+          : 1;
       }
 
       const nextIndex = leftIndex + 1;
@@ -535,22 +523,6 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
       segmentCount,
       {},
     );
-  }
-
-  function _isSubsetOf(leftNode, rightNode, depth = 0) {
-    const lbits = leftNode.bits(branchDepth);
-    const rbits = rightNode.bits(branchDepth);
-    const leftBits = lbits & ~rbits;
-    if (leftBits !== 0n) return false;
-    const commonBits = lbits & rbits;
-    const commonPositions = bitPositions(commonBits);
-    for (const pos of commonPositions) {
-      const leftChild = leftNode.get(branchDepth, pos);
-      const rightChild = rightNode.get(branchDepth, pos);
-      const isSubset = _isSubsetOf(leftChild, rightChild, branchDepth + 1);
-      if (!isSubset) return false;
-    }
-    return true;
   }
 
   function _isSubsetOf(leftNode, rightNode, depth = 0) {
@@ -628,7 +600,7 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
     complete() {
       if (this.completed) throw Error("Batch already completed.");
       this.completed = true;
-      return new PACTree(this.child);
+      return new PACTTree(this.child);
     }
     put(key, value = null) {
       if (this.completed) {
@@ -643,7 +615,7 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
     }
   };
 
-  PACTree = class {
+  PACTTree = class {
     constructor(child = null) {
       this.keyLength = KEY_LENGTH;
       this.child = child;
@@ -656,9 +628,9 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
       if (this.child !== null) {
         const nchild = this.child.put(0, key, value, {});
         if (this.child === nchild) return this;
-        return new PACTree(nchild);
+        return new PACTTree(nchild);
       }
-      return new PACTree(new PACTLeaf(key, value, PACTHash(key)));
+      return new PACTTree(new PACTLeaf(key, value, PACTHash(key)));
     }
     get(key) {
       let found;
@@ -712,24 +684,24 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const thisNode = this.child;
       const otherNode = other.child;
       if (thisNode === null) {
-        return new PACTree(otherNode);
+        return new PACTTree(otherNode);
       }
       if (otherNode === null) {
-        return new PACTree(thisNode);
+        return new PACTTree(thisNode);
       }
-      return new PACTree(_union(thisNode, otherNode));
+      return new PACTTree(_union(thisNode, otherNode));
     }
 
     subtract(other) {
       const thisNode = this.child;
       const otherNode = other.child;
       if (otherNode === null) {
-        return new PACTree(thisNode);
+        return new PACTTree(thisNode);
       }
       if (this.child === null || this.child.hash === other.child.hash) {
-        return new PACTree();
+        return new PACTTree();
       } else {
-        return new PACTree(_subtract(thisNode, otherNode));
+        return new PACTTree(_subtract(thisNode, otherNode));
       }
     }
 
@@ -738,12 +710,12 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const otherNode = other.child;
 
       if (thisNode === null || otherNode === null) {
-        return new PACTree(null);
+        return new PACTTree(null);
       }
       if (thisNode === otherNode || thisNode.hash === otherNode.hash) {
-        return new PACTree(otherNode);
+        return new PACTTree(otherNode);
       }
-      return new PACTree(_intersect(thisNode, otherNode));
+      return new PACTTree(_intersect(thisNode, otherNode));
     }
 
     difference(other) {
@@ -751,15 +723,15 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const otherNode = other.child;
 
       if (thisNode === null) {
-        return new PACTree(otherNode);
+        return new PACTTree(otherNode);
       }
       if (otherNode === null) {
-        return new PACTree(thisNode);
+        return new PACTTree(thisNode);
       }
       if (thisNode === otherNode || thisNode.hash === otherNode.hash) {
-        return new PACTree(null);
+        return new PACTTree(null);
       }
-      return new PACTree(_difference(thisNode, otherNode));
+      return new PACTTree(_difference(thisNode, otherNode));
     }
 
     // These are only convenience functions for js interop and no API requirement.
@@ -848,10 +820,10 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const nchildbits = new Uint32Array(8);
       setBit(nchildbits, lindex);
       setBit(nchildbits, rindex);
-      const segmentCount = Math.floor(branchDepth / SEGMENT_LENGTH) <
-          Math.floor(this.branchDepth / SEGMENT_LENGTH)
-        ? 1
-        : this.segmentCount + 1;
+      const segmentCount =
+        (SEGMENT_LUT[branchDepth] === SEGMENT_LUT[this.branchDepth])
+          ? this.segmentCount + 1
+          : 1;
       const hash = this.hash ^ nchild.hash;
 
       return new PACTNode(
@@ -924,10 +896,10 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
           nchild = child.put(childDepth, key, value, owner);
           if (child.hash === nchild.hash) return this;
           hash = this.hash ^ child.hash ^ nchild.hash;
-          segmentCount = Math.floor(this.branchDepth / SEGMENT_LENGTH) <
-              Math.floor(child.branchDepth / SEGMENT_LENGTH)
-            ? this.segmentCount
-            : this.segmentCount - child.segmentCount + nchild.segmentCount;
+          segmentCount =
+            (SEGMENT_LUT[this.branchDepth] === SEGMENT_LUT[child.branchDepth])
+              ? this.segmentCount - child.segmentCount + nchild.segmentCount
+              : this.segmentCount;
           if (this.owner === owner) {
             this.children[pos] = nchild;
             this.hash = hash;
@@ -938,10 +910,11 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
         } else {
           nchild = new PACTLeaf(key, value, PACTHash(key));
           hash = this.hash ^ nchild.hash;
-          segmentCount = Math.floor(this.branchDepth / SEGMENT_LENGTH) <
-              Math.floor(nchild.branchDepth / SEGMENT_LENGTH)
-            ? this.segmentCount + 1
-            : this.segmentCount + nchild.segmentCount;
+          segmentCount = this.segmentCount +
+              (SEGMENT_LUT[this.branchDepth] ===
+                SEGMENT_LUT[nchild.branchDepth])
+            ? nchild.segmentCount
+            : 1;
           if (this.owner === owner) {
             setBit(this.childbits, pos);
             this.children[pos] = nchild;
@@ -975,10 +948,10 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
       const nchildbits = new Uint32Array(8);
       setBit(nchildbits, lindex);
       setBit(nchildbits, rindex);
-      const segmentCount = Math.floor(branchDepth / SEGMENT_LENGTH) <
-          Math.floor(this.branchDepth / SEGMENT_LENGTH)
-        ? 1
-        : this.segmentCount + 1;
+      const segmentCount =
+        (SEGMENT_LUT[branchDepth] === SEGMENT_LUT[this.branchDepth])
+          ? this.segmentCount + 1
+          : 1;
       const hash = this.hash ^ nchild.hash;
 
       return new PACTNode(
@@ -993,10 +966,10 @@ const makePACT = function (KEY_LENGTH, SEGMENT_LENGTH) {
     }
   };
 
-  return new PACTree();
+  return new PACTTree();
 };
 
-const emptyTriblePACT = makeTrie(TRIBLE_SIZE, SEGMENT_SIZE);
-const emptyValuePACT = makeTrie(VALUE_SIZE, SEGMENT_SIZE);
+const emptyTriblePACT = makePACT(TRIBLE_SIZE, SEGMENT_SIZE);
+const emptyValuePACT = makePACT(VALUE_SIZE, SEGMENT_SIZE);
 
-export { emptyTriblePACT, emptyValuePACT, makeTrie, PACTHash };
+export { emptyTriblePACT, emptyValuePACT, makePACT, PACTHash };
