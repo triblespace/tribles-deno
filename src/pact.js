@@ -1,4 +1,4 @@
-import { E_SIZE, A_SIZE, V_SIZE, VALUE_SIZE } from "./trible.js";
+import { A_SIZE, E_SIZE, V_SIZE, VALUE_SIZE } from "./trible.js";
 import { XXH3_128 } from "./xxh128.js";
 
 // Perstistent Adaptive Cuckoo Trie (PACT)
@@ -84,6 +84,8 @@ const makePACT = function (SEGMENTS) {
   // deno-lint-ignore prefer-const
   let PACTCursor;
   // deno-lint-ignore prefer-const
+  let PACTSegmentCursor;
+  // deno-lint-ignore prefer-const
   let PACTTree;
   // deno-lint-ignore prefer-const
   let PACTBatch;
@@ -93,6 +95,104 @@ const makePACT = function (SEGMENTS) {
   let PACTNode;
 
   PACTCursor = class {
+    constructor(pact, ascending) {
+      this.pact = pact;
+      this.order = ascending;
+      this.valid = true;
+      this.path = new Uint8Array(KEY_LENGTH);
+      this.pathNodes = new Array(KEY_LENGTH + 1);
+      this.pathNodes[0] = pact.child;
+
+      for (let depth = 0; depth < KEY_LENGTH; depth++) {
+        if (this.pathNodes[depth] === null) {
+          this.valid = false;
+          return;
+        }
+        [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[
+          depth
+        ].seek(depth, ascending ? 0 : 255, ascending);
+      }
+      return this;
+    }
+    peek() {
+      return this.path.slice();
+    }
+    value() {
+      return this.pathNodes[KEY_LENGTH].value;
+    }
+    next() {
+      if (this.valid) {
+        const ascending = this.order;
+        let depth = KEY_LENGTH - 1;
+        for (; 0 <= depth; depth--) {
+          let node;
+          [this.path[depth], node] = this.pathNodes[depth].seek(
+            depth,
+            this.path[depth] + (ascending ? +1 : -1),
+            ascending,
+          );
+          this.pathNodes[depth + 1] = node;
+          if (node !== null) break;
+        }
+        if (depth < 0) {
+          this.valid = false;
+          return;
+        }
+        for (depth++; depth < KEY_LENGTH; depth++) {
+          [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[
+            depth
+          ].seek(depth, ascending ? 0 : 255, ascending);
+        }
+      }
+    }
+    seek(infix) {
+      if (this.valid) {
+        const ascending = this.order[this.depth];
+        let depth = 0;
+        search:
+        for (; depth < KEY_LENGTH; depth++) {
+          const sought = infix[depth];
+          let node;
+          [this.path[depth], node] = this.pathNodes[depth].seek(
+            depth,
+            sought,
+            ascending,
+          );
+          this.pathNodes[depth + 1] = node;
+          if (node === null) {
+            backtrack:
+            for (depth--; 0 <= depth; depth--) {
+              let node;
+              [this.path[depth], node] = this.pathNodes[depth].seek(
+                depth,
+                this.path[depth] + (ascending ? +1 : -1),
+                ascending,
+              );
+              this.pathNodes[depth + 1] = node;
+              if (node !== null) break backtrack;
+            }
+            if (depth < 0) {
+              this.valid = false;
+              return false;
+            }
+            break search;
+          }
+          if (this.path[depth] !== sought) break search;
+        }
+        if (depth === KEY_LENGTH) {
+          return true;
+        }
+        for (depth++; depth < KEY_LENGTH; depth++) {
+          [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[
+            depth
+          ].seek(depth, ascending ? 0 : 255, ascending);
+        }
+        return false;
+      }
+    }
+  };
+
+  PACTSegmentCursor = class {
     constructor(pact) {
       this.pact = pact;
       this.order = new Array(SEGMENTS.length + 1).fill(true);
@@ -644,8 +744,12 @@ const makePACT = function (SEGMENTS) {
       return node.value;
     }
 
-    cursor() {
-      return new PACTCursor(this);
+    cursor(ascending) {
+      return new PACTCursor(this, ascending);
+    }
+
+    segmentCursor() {
+      return new PACTSegmentCursor(this);
     }
 
     isEmpty() {
@@ -754,7 +858,6 @@ const makePACT = function (SEGMENTS) {
 
     keys() {
       const cursor = this.cursor();
-      if (cursor.valid) cursor.push(KEY_LENGTH);
       return {
         [Symbol.iterator]() {
           return this;
@@ -770,7 +873,6 @@ const makePACT = function (SEGMENTS) {
 
     values() {
       const cursor = this.cursor();
-      if (cursor.valid) cursor.push(KEY_LENGTH);
       return {
         [Symbol.iterator]() {
           return this;
