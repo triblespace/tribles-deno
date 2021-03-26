@@ -1,4 +1,4 @@
-import { SEGMENT_SIZE, TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
+import { E_SIZE, A_SIZE, V_SIZE, VALUE_SIZE } from "./trible.js";
 import { XXH3_128 } from "./xxh128.js";
 
 // Perstistent Adaptive Cuckoo Trie (PACT)
@@ -969,7 +969,7 @@ const makePACT = function (SEGMENTS) {
   return new PACTTree();
 };
 
-const emptyTriblePACT = makePACT(TRIBLE_SIZE, SEGMENT_SIZE);
-const emptyValuePACT = makePACT(VALUE_SIZE, SEGMENT_SIZE);
+const emptyTriblePACT = makePACT([E_SIZE, A_SIZE, V_SIZE]);
+const emptyValuePACT = makePACT([VALUE_SIZE]);
 
 export { emptyTriblePACT, emptyValuePACT, makePACT, PACTHash };

@@ -3,7 +3,7 @@ import { emptyValuePACT } from "./pact.js";
 
 class CollectionConstraint {
   constructor(variable, collection) {
-    const indexBatch = emptyValuePART.batch();
+    const indexBatch = emptyValuePACT.batch();
     for (const c of collection) {
       indexBatch.put(c);
     }
@@ -87,10 +87,4 @@ function* resolve(constraints, ascendingVariables, bindings = new Map()) {
   return;
 }
 
-export {
-  CollectionConstraint,
-  ConstantConstraint,
-  IndexConstraint,
-  resolve,
-  TripleConstraint,
-};
+export { CollectionConstraint, resolve };

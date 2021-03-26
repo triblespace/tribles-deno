@@ -1,6 +1,10 @@
 const TRIBLE_SIZE = 64;
 const VALUE_SIZE = 32;
 
+const E_SIZE = 16;
+const A_SIZE = 16;
+const V_SIZE = 32;
+
 const E_START = 0;
 const E_END = 16;
 
@@ -131,8 +135,10 @@ const isValidTransaction = (trible, hash) => {
 
 export {
   A,
+  A_SIZE,
   contiguousTribles,
   E,
+  E_SIZE,
   equal,
   equalId,
   equalValue,
@@ -146,6 +152,7 @@ export {
   scrambleVEA,
   TRIBLE_SIZE,
   V,
+  V_SIZE,
   VALUE_SIZE,
   zero,
 };
