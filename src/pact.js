@@ -124,15 +124,18 @@ const makePACT = function (SEGMENTS) {
       if (this.valid) {
         const ascending = this.order;
         let depth = KEY_LENGTH - 1;
+        backtrack:
         for (; 0 <= depth; depth--) {
           let node;
+          const sought = this.path[depth];
+          if(sought === (ascending ? 255 : 0)) continue backtrack;
           [this.path[depth], node] = this.pathNodes[depth].seek(
             depth,
-            this.path[depth] + (ascending ? +1 : -1),
+            sought + (ascending ? +1 : -1),
             ascending,
           );
           this.pathNodes[depth + 1] = node;
-          if (node !== null) break;
+          if (node !== null) break backtrack;
         }
         if (depth < 0) {
           this.valid = false;
@@ -163,9 +166,11 @@ const makePACT = function (SEGMENTS) {
             backtrack:
             for (depth--; 0 <= depth; depth--) {
               let node;
+              const sought = this.path[depth];
+              if(sought === (ascending ? 255 : 0)) continue backtrack;
               [this.path[depth], node] = this.pathNodes[depth].seek(
                 depth,
-                this.path[depth] + (ascending ? +1 : -1),
+                sought + (ascending ? +1 : -1),
                 ascending,
               );
               this.pathNodes[depth + 1] = node;
@@ -231,15 +236,18 @@ const makePACT = function (SEGMENTS) {
         const prefixLen = SEGMENT_PREFIXES[this.depth];
         const searchDepth = SEGMENT_PREFIXES[this.depth + 1];
         let depth = searchDepth - 1;
+        backtrack:
         for (; prefixLen <= depth; depth--) {
           let node;
+          const sought = this.path[depth];
+          if(sought === (ascending ? 255 : 0)) continue backtrack;
           [this.path[depth], node] = this.pathNodes[depth].seek(
             depth,
-            this.path[depth] + (ascending ? +1 : -1),
+            sought + (ascending ? +1 : -1),
             ascending,
           );
           this.pathNodes[depth + 1] = node;
-          if (node !== null) break;
+          if (node !== null) break backtrack;
         }
         if (depth < prefixLen) {
           this.valid = false;
@@ -272,9 +280,11 @@ const makePACT = function (SEGMENTS) {
             backtrack:
             for (depth--; prefixLen <= depth; depth--) {
               let node;
+              const sought = this.path[depth];
+              if(sought === (ascending ? 255 : 0)) continue backtrack;
               [this.path[depth], node] = this.pathNodes[depth].seek(
                 depth,
-                this.path[depth] + (ascending ? +1 : -1),
+                sought + (ascending ? +1 : -1),
                 ascending,
               );
               this.pathNodes[depth + 1] = node;
@@ -744,7 +754,7 @@ const makePACT = function (SEGMENTS) {
       return node.value;
     }
 
-    cursor(ascending) {
+    cursor(ascending = true) {
       return new PACTCursor(this, ascending);
     }
 
