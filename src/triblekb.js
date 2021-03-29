@@ -1,13 +1,5 @@
-import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
-
 import { emptyValuePACT } from "./pact.js";
-import {
-  CollectionConstraint,
-  ConstantConstraint,
-  IndexConstraint,
-  TripleConstraint,
-  unsafeQuery,
-} from "./query.js";
+import { constantConstraint, indexConstraint, resolve } from "./query.js";
 import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
 
 const id = Symbol("id");
@@ -159,13 +151,13 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
     const aId = new Uint8Array(VALUE_SIZE);
     ctx.ns[id].encoder(attrId, aId);
 
-    const res = unsafeQuery(
+    const res = resolve(
       [
-        new ConstantConstraint(0, eId),
-        new ConstantConstraint(1, aId),
-        new TripleConstraint(kb.tribledb, isInverse ? [2, 1, 0] : [0, 1, 2]),
+        new constantConstraint(0, eId),
+        new constantConstraint(1, aId),
+        new kb.tribledb.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
       ],
-      3,
+      new Set([0, 1, 2]),
     );
 
     let result;
@@ -239,17 +231,17 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
         }
         const aId = new Uint8Array(VALUE_SIZE);
         ctx.ns[id].encoder(attrId, aId);
-        const { done } = unsafeQuery(
+        const { done } = resolve(
           [
-            new ConstantConstraint(0, eId),
-            new ConstantConstraint(1, aId),
-            new TripleConstraint(
-              kb.tribledb,
-              ctx.ns[attr].isInverse ? [2, 1, 0] : [0, 1, 2],
+            constantConstraint(0, eId),
+            constantConstraint(1, aId),
+            kb.tribledb.constraint(
+              ...(
+                ctx.ns[attr].isInverse ? [2, 1, 0] : [0, 1, 2]
+              ),
             ),
           ],
-          3,
-          2,
+          new Set([0, 1, 2]),
         ).next();
         return !done;
       },
@@ -299,27 +291,25 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
       ownKeys: function (_) {
         const attrs = [id];
         for (
-          const [e, a, v] of unsafeQuery(
+          const [e, a, v] of resolve(
             [
-              new ConstantConstraint(0, eId),
-              new IndexConstraint(1, attrsById),
-              new TripleConstraint(kb.tribledb, [0, 1, 2]),
+              constantConstraint(0, eId),
+              indexConstraint(1, attrsById),
+              kb.tribledb.constraint(0, 1, 2),
             ],
-            3,
-            2,
+            new Set([0, 1, 2]),
           )
         ) {
           attrs.push(...attrsById.get(a));
         }
         for (
-          const [e, a, v] of unsafeQuery(
+          const [e, a, v] of resolve(
             [
-              new ConstantConstraint(0, eId),
-              new TripleConstraint(kb.tribledb, [2, 1, 0]),
-              new IndexConstraint(1, inverseAttrsById),
+              constantConstraint(0, eId),
+              kb.tribledb.constraint(2, 1, 0),
+              indexConstraint(1, inverseAttrsById),
             ],
-            3,
-            2,
+            new Set([0, 1, 2]),
           )
         ) {
           attrs.push(...inverseAttrsById.get(a));
@@ -595,16 +585,14 @@ function* find(ctx, cfn, blobdb) {
   const constraints = constraintBuilders.flatMap((builder) => builder());
   constraints.push(
     ...[...vars.constantVariables.values()].map(
-      (v) => new ConstantConstraint(v.index, v.constant),
+      (v) => constantConstraint(v.index, v.constant),
     ),
   );
 
   for (
-    const r of unsafeQuery(
+    const r of resolve(
       constraints,
-      variableCount,
-      variableCount,
-      vars.variables.map((v) => v.ascending),
+      new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
     )
   ) {
     yield Object.fromEntries(
@@ -671,7 +659,7 @@ class TribleKB {
       return () => [
         ...triplesWithVars.map(
           ([{ index: e }, { index: a }, { index: v }]) =>
-            new TripleConstraint(this.tribledb, [e, a, v]),
+            this.tribledb.constraint(e, a, v),
         ),
       ];
     };

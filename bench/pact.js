@@ -266,4 +266,23 @@ benchAllPACT({
   func: setIntersecting,
 });
 
-runBenchmarks();
+function iterate(b, pactType, size) {
+  let pact = pactType.batch();
+  for (const t of generate_sample(size)) {
+    pact.put(t);
+  }
+  pact = pact.complete();
+  b.start();
+  let i = 0;
+  for (const cursor = pact.cursor(); cursor.valid; cursor.next()) {
+    i++;
+  }
+  b.stop();
+}
+
+benchAllPACT({
+  name: "Iterate",
+  func: iterate,
+});
+
+runBenchmarks({ only: /Iterate/ });

@@ -114,11 +114,18 @@ const makePACT = function (SEGMENTS) {
       }
       return this;
     }
+    isValid() {
+      return this.valid;
+    }
     peek() {
-      return this.path.slice();
+      if (this.valid) {
+        return this.path.slice();
+      }
     }
     value() {
-      return this.pathNodes[KEY_LENGTH].value;
+      if (this.valid) {
+        return this.pathNodes[KEY_LENGTH].value;
+      }
     }
     next() {
       if (this.valid) {
@@ -128,7 +135,7 @@ const makePACT = function (SEGMENTS) {
         for (; 0 <= depth; depth--) {
           let node;
           const sought = this.path[depth];
-          if(sought === (ascending ? 255 : 0)) continue backtrack;
+          if (sought === (ascending ? 255 : 0)) continue backtrack;
           [this.path[depth], node] = this.pathNodes[depth].seek(
             depth,
             sought + (ascending ? +1 : -1),
@@ -167,7 +174,7 @@ const makePACT = function (SEGMENTS) {
             for (depth--; 0 <= depth; depth--) {
               let node;
               const sought = this.path[depth];
-              if(sought === (ascending ? 255 : 0)) continue backtrack;
+              if (sought === (ascending ? 255 : 0)) continue backtrack;
               [this.path[depth], node] = this.pathNodes[depth].seek(
                 depth,
                 sought + (ascending ? +1 : -1),
@@ -201,18 +208,22 @@ const makePACT = function (SEGMENTS) {
     constructor(pact) {
       this.pact = pact;
       this.order = new Array(SEGMENTS.length + 1).fill(true);
+      this.valid = new Array(SEGMENTS.length + 1).fill(true);
       this.depth = 0;
-      this.valid = true;
       this.path = new Uint8Array(KEY_LENGTH);
       this.pathNodes = new Array(KEY_LENGTH + 1);
 
       if (pact.child === null) {
-        this.valid = false;
+        this.valid[this.depth] = false;
         return;
       }
       this.pathNodes[0] = pact.child;
     }
-    countSubsegment() {
+    isValid() {
+      return this.valid[this.depth];
+    }
+    segmentCount() {
+      if (!this.valid[this.depth]) return 0;
       const prefixLen = SEGMENT_PREFIXES[this.depth];
       const node = this.path[prefixLen];
       if (SEGMENT_LUT[prefixLen] === SEGMENT_LUT[node.branchDepth]) {
@@ -222,16 +233,20 @@ const makePACT = function (SEGMENTS) {
       }
     }
     peek() {
-      const start = SEGMENT_PREFIXES[this.depth];
-      const end = SEGMENT_PREFIXES[this.depth + 1];
-      return this.path.slice(start, end);
+      if (this.valid[this.depth]) {
+        const start = SEGMENT_PREFIXES[this.depth];
+        const end = SEGMENT_PREFIXES[this.depth + 1];
+        return this.path.slice(start, end);
+      }
     }
     value() {
-      const end = SEGMENT_PREFIXES[this.depth + 1];
-      return this.pathNodes[end].value;
+      if (this.valid[this.depth]) {
+        const end = SEGMENT_PREFIXES[this.depth + 1];
+        return this.pathNodes[end].value;
+      }
     }
     next() {
-      if (this.valid) {
+      if (this.valid[this.depth]) {
         const ascending = this.order[this.depth];
         const prefixLen = SEGMENT_PREFIXES[this.depth];
         const searchDepth = SEGMENT_PREFIXES[this.depth + 1];
@@ -240,7 +255,7 @@ const makePACT = function (SEGMENTS) {
         for (; prefixLen <= depth; depth--) {
           let node;
           const sought = this.path[depth];
-          if(sought === (ascending ? 255 : 0)) continue backtrack;
+          if (sought === (ascending ? 255 : 0)) continue backtrack;
           [this.path[depth], node] = this.pathNodes[depth].seek(
             depth,
             sought + (ascending ? +1 : -1),
@@ -250,7 +265,7 @@ const makePACT = function (SEGMENTS) {
           if (node !== null) break backtrack;
         }
         if (depth < prefixLen) {
-          this.valid = false;
+          this.valid[this.depth] = false;
           return;
         }
         for (depth++; depth < searchDepth; depth++) {
@@ -261,7 +276,7 @@ const makePACT = function (SEGMENTS) {
       }
     }
     seek(infix) {
-      if (this.valid) {
+      if (this.valid[this.depth]) {
         const ascending = this.order[this.depth];
         const prefixLen = SEGMENT_PREFIXES[this.depth];
         const searchDepth = SEGMENT_PREFIXES[this.depth + 1];
@@ -281,7 +296,7 @@ const makePACT = function (SEGMENTS) {
             for (depth--; prefixLen <= depth; depth--) {
               let node;
               const sought = this.path[depth];
-              if(sought === (ascending ? 255 : 0)) continue backtrack;
+              if (sought === (ascending ? 255 : 0)) continue backtrack;
               [this.path[depth], node] = this.pathNodes[depth].seek(
                 depth,
                 sought + (ascending ? +1 : -1),
@@ -291,7 +306,7 @@ const makePACT = function (SEGMENTS) {
               if (node !== null) break backtrack;
             }
             if (depth < prefixLen) {
-              this.valid = false;
+              this.valid[this.depth] = false;
               return false;
             }
             break search;
@@ -313,16 +328,24 @@ const makePACT = function (SEGMENTS) {
       if (this.depth === SEGMENTS.length) {
         throw Error("Can't push cursor beyond key length.");
       }
-      this.depth++;
-      const newPrefix = SEGMENT_PREFIXES[this.depth];
-      const searchDepth = SEGMENT_PREFIXES[this.depth + 1];
-      this.order[this.depth](ascending);
+      const newDepth = this.depth + 1;
+      this.valid[newDepth] = this.valid[this.depth];
+      if (this.valid[newDepth]) {
+        const newPrefix = SEGMENT_PREFIXES[this.depth];
+        const searchDepth = SEGMENT_PREFIXES[newDepth];
+        this.order[newDepth] = ascending;
 
-      for (let depth = newPrefix; depth < searchDepth; depth++) {
-        [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[
-          depth
-        ].seek(depth, ascending ? 0 : 255, ascending);
+        for (let depth = newPrefix; depth < searchDepth; depth++) {
+          [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[
+            depth
+          ].seek(depth, ascending ? 0 : 255, ascending);
+          if (this.pathNodes[depth + 1] === null) {
+            this.valid[newDepth] = false;
+            break;
+          }
+        }
       }
+      this.depth = newDepth;
       return this;
     }
     pop() {
@@ -330,7 +353,6 @@ const makePACT = function (SEGMENTS) {
         throw Error("Can't pop cursor beyond key start.");
       }
       this.depth--;
-      this.valid = true;
       return this;
     }
   };
@@ -851,13 +873,13 @@ const makePACT = function (SEGMENTS) {
     // These are only convenience functions for js interop and no API requirement.
     entries() {
       const cursor = this.cursor();
-      if (cursor.valid) cursor.push(KEY_LENGTH);
+      if (cursor.isValid()) cursor.push(KEY_LENGTH);
       return {
         [Symbol.iterator]() {
           return this;
         },
         next() {
-          if (!cursor.valid) return { done: true };
+          if (!cursor.isValid()) return { done: true };
           const key = cursor.peek();
           const value = cursor.value();
           cursor.next();
@@ -873,7 +895,7 @@ const makePACT = function (SEGMENTS) {
           return this;
         },
         next() {
-          if (!cursor.valid) return { done: true };
+          if (!cursor.isValid()) return { done: true };
           const key = cursor.peek();
           cursor.next();
           return { value: key };
@@ -888,7 +910,7 @@ const makePACT = function (SEGMENTS) {
           return this;
         },
         next() {
-          if (!cursor.valid) return { done: true };
+          if (!cursor.isValid()) return { done: true };
           const value = cursor.value();
           cursor.next();
           return { value };

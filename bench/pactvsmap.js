@@ -146,4 +146,37 @@ bench({
   },
 });
 
+/*
+function iterateSet(b, pactType, size) {
+  const set = new Set(generate_sample(size).map(t => t.map((b) => b.toString(16).padStart(2, "0")).join("")));
+  b.start();
+  let i = 0;
+  for(const e of set){
+    i++;
+  }
+  b.stop();
+}
+
+benchAllPACT({
+  name: "IterateSet",
+  func: iterateSet,
+});
+
+function iterateSetWithTransform(b, pactType, size) {
+  const sample = generate_sample(size);
+  b.start();
+  const set = new Set(sample.map(t => t.map((b) => b.toString(16).padStart(2, "0")).join("")));
+  let i = 0;
+  for(const e of set){
+    i++;
+  }
+  b.stop();
+}
+
+benchAllPACT({
+  name: "IterateSetWithTransform",
+  func: iterateSetWithTransform,
+});
+*/
+
 runBenchmarks();

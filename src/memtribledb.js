@@ -21,23 +21,26 @@ class MemTribleConstraint {
     this.variables = { e: variableE, a: variableA, v: variableV };
     this.pathStack = [[""]];
     this.cursors = cursors;
+    this.remainingVariables = 3;
   }
 
   propose() {
+    if (this.remainingVariables === 0) return { done: true };
     let count = Number.MAX_VALUE;
     let segment = null;
 
     const paths = this.pathStack[this.pathStack.length - 1];
     for (const [name, cursor] of Object.entries(this.cursors)) {
       if (paths.some((p) => name.startsWith(p))) {
-        const proposedCount = cursor.countSubsegment();
+        const proposedCount = cursor.segmentCount();
         if (proposedCount <= count) {
           count = proposedCount;
-          segment = name[this.path.length];
+          segment = name[this.pathStack.length - 1];
         }
       }
     }
     return {
+      done: false,
       variable: this.variables[segment],
       costs: count * inmemoryCosts,
     };
@@ -47,15 +50,16 @@ class MemTribleConstraint {
     const paths = new Set();
     for (const [s, v] of Object.entries(this.variables)) {
       if (v === variable) {
+        this.remainingVariables--;
         for (const path of this.pathStack[this.pathStack.length - 1]) {
-          paths.push(path + s);
+          paths.add(path + s);
         }
       }
     }
 
     const cursors = [];
     for (const [name, cursor] of Object.entries(this.cursors)) {
-      if (paths.some((p) => name.startsWith(p))) {
+      if ([...paths].some((p) => name.startsWith(p))) {
         cursors.push(cursor.push());
       }
     }
@@ -63,11 +67,20 @@ class MemTribleConstraint {
     return cursors;
   }
 
-  pop() {
-    for (const path of this.pathStack.pop()) {
-      for (const [name, cursor] of Object.entries(this.cursors)) {
-        if (name.startsWith(path)) {
-          cursor.pop();
+  pop(variable) {
+    let relevant = false;
+    for (const [s, v] of Object.entries(this.variables)) {
+      if (v === variable) {
+        this.remainingVariables++;
+        relevant = true;
+      }
+    }
+    if (relevant) {
+      for (const path of this.pathStack.pop()) {
+        for (const [name, cursor] of Object.entries(this.cursors)) {
+          if (name.startsWith(path)) {
+            cursor.pop();
+          }
         }
       }
     }
@@ -119,12 +132,12 @@ class MemTribleDB {
   constraint(e, a, v) {
     return new MemTribleConstraint(
       {
-        eav: this.EAV.cursor(),
-        eva: this.EVA.cursor(),
-        aev: this.AEV.cursor(),
-        ave: this.AVE.cursor(),
-        vea: this.VEA.cursor(),
-        vae: this.VAE.cursor(),
+        eav: this.EAV.segmentCursor(),
+        eva: this.EVA.segmentCursor(),
+        aev: this.AEV.segmentCursor(),
+        ave: this.AVE.segmentCursor(),
+        vea: this.VEA.segmentCursor(),
+        vae: this.VAE.segmentCursor(),
       },
       e,
       a,
