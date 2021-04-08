@@ -1,4 +1,8 @@
-import { emptyTriblePACT } from "./pact.js";
+import {
+  emptyIdIdValueTriblePACT,
+  emptyIdValueIdTriblePACT,
+  emptyValueIdIdTriblePACT,
+} from "./pact.js";
 import {
   A,
   E,
@@ -47,20 +51,23 @@ class MemTribleConstraint {
   }
 
   push(variable, ascending = true) {
-    const paths = new Set();
+    let paths = new Set();
+    let relevant = false;
     for (const [s, v] of Object.entries(this.variables)) {
       if (v === variable) {
+        relevant = true;
         this.remainingVariables--;
         for (const path of this.pathStack[this.pathStack.length - 1]) {
           paths.add(path + s);
         }
       }
     }
-
+    if (!relevant) return [];
+    paths = [...paths];
     const cursors = [];
     for (const [name, cursor] of Object.entries(this.cursors)) {
-      if ([...paths].some((p) => name.startsWith(p))) {
-        cursors.push(cursor.push());
+      if (paths.some((p) => name.startsWith(p))) {
+        cursors.push(cursor.push(ascending));
       }
     }
     this.pathStack.push(paths);
@@ -89,12 +96,12 @@ class MemTribleConstraint {
 
 class MemTribleDB {
   constructor(
-    EAV = emptyTriblePACT,
-    EVA = emptyTriblePACT,
-    AEV = emptyTriblePACT,
-    AVE = emptyTriblePACT,
-    VEA = emptyTriblePACT,
-    VAE = emptyTriblePACT,
+    EAV = emptyIdIdValueTriblePACT,
+    EVA = emptyIdValueIdTriblePACT,
+    AEV = emptyIdIdValueTriblePACT,
+    AVE = emptyIdValueIdTriblePACT,
+    VEA = emptyValueIdIdTriblePACT,
+    VAE = emptyValueIdIdTriblePACT,
   ) {
     this.EAV = EAV;
     this.EVA = EVA;

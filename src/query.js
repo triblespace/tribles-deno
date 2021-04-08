@@ -1,4 +1,5 @@
-import { emptyValuePACT } from "./pact.js";
+import { emptyValuePACT, nextKey } from "./pact.js";
+import { VALUE_SIZE } from "./trible.js";
 
 class IndexConstraint {
   constructor(variable, index) {
@@ -77,23 +78,21 @@ function* resolve(constraints, ascendingVariables, bindings = new Map()) {
       cursors.push(...c.push(candidateVariable, ascending));
     }
 
-    let candidateOrigin = 0;
-    let candidate = cursors[candidateOrigin].peek();
-    let i = candidateOrigin;
+    const candidate = new Uint8Array(VALUE_SIZE); //TODO Preallocate when bindings is created.
+    bindings.set(candidateVariable, candidate);
+    let i = 0;
+    let candidateOrigin = i;
     while (true) {
-      i = (candidateOrigin + 1) % cursors.length;
+      if (!cursors[i].peek(candidate)) break;
+      i = (i + 1) % cursors.length;
       if (i === candidateOrigin) {
-        bindings[candidateVariable] = candidate;
         yield* resolve(constraints, ascendingVariables, bindings);
-        cursors[candidateOrigin].next();
-        if (!cursors[candidateOrigin].isValid()) break;
-        candidate = cursors[candidateOrigin].peek();
+        if (!nextKey(candidate, ascending)) break;
+        cursors[i].seek(candidate);
       } else {
         const match = cursors[i].seek(candidate);
-        if (!cursors[i].isValid()) break;
         if (!match) {
           candidateOrigin = i;
-          candidate = cursors[i].peek();
         }
       }
     }

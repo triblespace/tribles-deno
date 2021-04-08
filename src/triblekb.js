@@ -374,12 +374,14 @@ const entitiesToTriples = (ctx, unknownFactory, root) => {
       for (const [attr, value] of Object.entries(w.value)) {
         if (!ctx.ns[attr]) {
           throw Error(
-            `Error at path [${w.path}]: No attribute named '${attr}' in ctx.`,
+            `Error at pathBytes [${w.path}]: No attribute named '${attr}' in ctx.`,
           );
         }
         const attr_id = ctx.ns[attr].id;
         if (!ctx.ids[attr_id]) {
-          throw Error(`Error at path [${w.path}]: No id '${attr_id}' in ctx.`);
+          throw Error(
+            `Error at pathBytes [${w.path}]: No id '${attr_id}' in ctx.`,
+          );
         }
         if (
           (!ctx.ns[attr].isInverse && !ctx.ids[attr_id].isUnique) ||
@@ -388,11 +390,11 @@ const entitiesToTriples = (ctx, unknownFactory, root) => {
           if (!(value instanceof Array)) {
             if (ctx.ns[attr].isInverse) {
               throw Error(
-                `Error at path [${w.path}]: '${attr}' is not unique inverse constrained and needs array.`,
+                `Error at pathBytes [${w.path}]: '${attr}' is not unique inverse constrained and needs array.`,
               );
             }
             throw Error(
-              `Error at path [${w.path}]: '${attr}' is not unique constrained and needs array.`,
+              `Error at pathBytes [${w.path}]: '${attr}' is not unique constrained and needs array.`,
             );
           }
           for (const [i, v] of value.entries()) {
@@ -454,21 +456,21 @@ const triplesToTribles = function (ctx, triples, tribles = [], blobs = []) {
       blob = encoder(value, encodedValue);
     } catch (err) {
       throw Error(
-        `Error at path [${path}]:Couldn't encode '${value}' as value for attribute '${attr}':\n${err}`,
+        `Error at pathBytes [${path}]:Couldn't encode '${value}' as value for attribute '${attr}':\n${err}`,
       );
     }
     try {
       ctx.ns[id].encoder(entity, E(trible));
     } catch (err) {
       throw Error(
-        `Error at path [${path}]:Couldn't encode '${entity}' as entity id:\n${err}`,
+        `Error at pathBytes [${path}]:Couldn't encode '${entity}' as entity id:\n${err}`,
       );
     }
     try {
       ctx.ns[id].encoder(attrId, A(trible));
     } catch (err) {
       throw Error(
-        `Error at path [${path}]:Couldn't encode id '${attrId}' of attr '${attr}' in ctx:\n${err}`,
+        `Error at pathBytes [${path}]:Couldn't encode id '${attrId}' of attr '${attr}' in ctx:\n${err}`,
       );
     }
 
@@ -597,7 +599,7 @@ function* find(ctx, cfn, blobdb) {
   ) {
     yield Object.fromEntries(
       namedVariables.map(({ index, walked, decoder, name }) => {
-        const encoded = r[index];
+        const encoded = r.get(index);
         const decoded = decoder(
           encoded.slice(0),
           async () => await blobdb.get(encoded),

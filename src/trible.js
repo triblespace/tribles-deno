@@ -1,9 +1,10 @@
 const TRIBLE_SIZE = 64;
 const VALUE_SIZE = 32;
+const ID_SIZE = 16;
 
-const E_SIZE = 16;
-const A_SIZE = 16;
-const V_SIZE = 32;
+const E_SIZE = ID_SIZE;
+const A_SIZE = ID_SIZE;
+const V_SIZE = VALUE_SIZE;
 
 const E_START = 0;
 const E_END = 16;
@@ -142,6 +143,7 @@ export {
   equal,
   equalId,
   equalValue,
+  ID_SIZE,
   isTransactionMarker,
   isValidTransaction,
   scrambleAEV,
