@@ -38,7 +38,7 @@ Deno.test({
         lovedBy: { id: lovesId, isInverse: true },
         titles: { id: titlesId, ...types.shortstring },
       },
-      ids: {
+      constraints: {
         [nameId]: { isUnique: true },
         [lovesId]: { isLink: true, isUnique: true },
         [titlesId]: {},
