@@ -402,17 +402,17 @@ const entitiesToTriples = (ctx, unknownFactory, root) => {
             `Error at pathBytes [${w.path}]: No attribute named '${attr}' in ctx.`,
           );
         }
-        const attr_id = ctx.constraints[attr].id;
-        if (!ctx.constraints[attr_id]) {
+        const attrId = ctx.constraints[attr].id;
+        if (!ctx.constraints[attrId]) {
           throw Error(
-            `Error at pathBytes [${w.path}]: No id '${attr_id}' in ctx.`,
+            `Error at pathBytes [${w.path}]: No id '${attrId}' in ctx.`,
           );
         }
         if (
           (!ctx.constraints[attr].isInverse &&
-            !ctx.constraints[attr_id].isUnique) ||
+            !ctx.constraints[attrId].isUnique) ||
           (ctx.constraints[attr].isInverse &&
-            !ctx.constraints[attr_id].isUniqueInverse)
+            !ctx.constraints[attrId].isUniqueInverse)
         ) {
           if (!(value instanceof Array)) {
             if (ctx.constraints[attr].isInverse) {
@@ -430,7 +430,7 @@ const entitiesToTriples = (ctx, unknownFactory, root) => {
               value: v,
               parent_id: entityId,
               parent_attr: attr,
-              parent_attr_id: attr_id,
+              parent_attr_id: attrId,
             });
           }
         } else {
@@ -439,7 +439,7 @@ const entitiesToTriples = (ctx, unknownFactory, root) => {
             value,
             parent_id: entityId,
             parent_attr: attr,
-            parent_attr_id: attr_id,
+            parent_attr_id: attrId,
           });
         }
       }
