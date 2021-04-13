@@ -47,6 +47,7 @@ Deno.test({
     // Add some data.
 
     const kb = new TribleKB(
+      knightsCtx,
       new MemTribleDB(),
       new S3BlobDB(
         {
@@ -60,7 +61,6 @@ Deno.test({
     );
 
     const knightskb = kb.with(
-      knightsCtx,
       (
         [romeo, juliet],
       ) => [
@@ -79,7 +79,6 @@ Deno.test({
       ],
     );
     const knightskb2 = knightskb.with(
-      knightsCtx,
       (
         [william],
       ) => [

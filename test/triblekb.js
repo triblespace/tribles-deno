@@ -27,7 +27,7 @@ Deno.test("KB Find", () => {
       lovedBy: { id: lovesId, isInverse: true },
       titles: { id: titlesId, ...types.shortstring },
     },
-    ids: {
+    constraints: {
       [nameId]: { isUnique: true },
       [lovesId]: { isLink: true, isUnique: true },
       [titlesId]: {},
@@ -35,10 +35,9 @@ Deno.test("KB Find", () => {
   });
 
   // Add some data.
-  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB());
 
   const knightskb = memkb.with(
-    knightsCtx,
     (
       [romeo, juliet],
     ) => [
@@ -59,7 +58,7 @@ Deno.test("KB Find", () => {
 
   // Query some data.
   const results = [
-    ...knightskb.find(knightsCtx, (
+    ...knightskb.find((
       { name, title },
     ) => [{ name: name.at(0).ascend(), titles: [title] }]),
   ];
@@ -83,7 +82,7 @@ Deno.test("Find Ascending", () => {
       lovedBy: { id: lovesId, isInverse: true },
       titles: { id: titlesId, ...types.shortstring },
     },
-    ids: {
+    constraints: {
       [nameId]: { isUnique: true },
       [lovesId]: { isLink: true, isUnique: true },
       [titlesId]: {},
@@ -91,10 +90,9 @@ Deno.test("Find Ascending", () => {
   });
 
   // Add some data.
-  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB());
 
   const knightskb = memkb.with(
-    knightsCtx,
     (
       [romeo, juliet],
     ) => [
@@ -143,7 +141,7 @@ Deno.test("Find Descending", () => {
       lovedBy: { id: lovesId, isInverse: true },
       titles: { id: titlesId, ...types.shortstring },
     },
-    ids: {
+    constraints: {
       [nameId]: { isUnique: true },
       [lovesId]: { isLink: true, isUnique: true },
       [titlesId]: {},
@@ -151,10 +149,9 @@ Deno.test("Find Descending", () => {
   });
 
   // Add some data.
-  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB());
 
   const knightskb = memkb.with(
-    knightsCtx,
     (
       [romeo, juliet],
     ) => [

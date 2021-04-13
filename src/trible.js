@@ -15,9 +15,17 @@ const A_END = 32;
 const V_START = 32;
 const V_END = 64;
 
+const V1_START = 32;
+const V1_END = 48;
+
+const V2_START = 48;
+const V2_END = 64;
+
 const E = (trible) => trible.subarray(E_START, E_END);
 const A = (trible) => trible.subarray(A_START, A_END);
 const V = (trible) => trible.subarray(V_START, V_END);
+const V1 = (trible) => trible.subarray(V1_START, V1_END);
+const V2 = (trible) => trible.subarray(V2_START, V2_END);
 
 function scrambleEAV(trible) {
   return trible;
@@ -154,6 +162,8 @@ export {
   scrambleVEA,
   TRIBLE_SIZE,
   V,
+  V1,
+  V2,
   V_SIZE,
   VALUE_SIZE,
   zero,

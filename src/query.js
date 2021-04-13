@@ -52,7 +52,7 @@ const constantConstraint = (variable, value) => {
 
 //TODO VariableOrderConstraint vs order on resolve, e.g. before map like {x: y}, when x is choosen from propose we use y.
 
-function* resolve(constraints, ascendingVariables, bindings = new Map()) {
+function* resolve(constraints, ascendingVariables, bindings) {
   //init
   let candidateVariable;
   let candidateCosts = Number.MAX_VALUE;
@@ -78,8 +78,7 @@ function* resolve(constraints, ascendingVariables, bindings = new Map()) {
       cursors.push(...c.push(candidateVariable, ascending));
     }
 
-    const candidate = new Uint8Array(VALUE_SIZE); //TODO Preallocate when bindings is created.
-    bindings.set(candidateVariable, candidate);
+    const candidate = bindings[candidateVariable].fill(0); //TODO: could we use this to replace the state in the cursors?
     let i = 0;
     let candidateOrigin = i;
     while (true) {
