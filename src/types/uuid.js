@@ -23,6 +23,7 @@ function uuidDecoder(b, blob) {
 const uuid = ({
   encoder: uuidEncoder,
   decoder: uuidDecoder,
+  factory: v4,
 });
 
 export { uuid };

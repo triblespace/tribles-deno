@@ -4,6 +4,7 @@ import { shortstring } from "./types/shortstring.js";
 import { longstring } from "./types/longstring.js";
 import { spacetimestamp } from "./types/spacetimestamp.js";
 import { biguint256 } from "./types/biguint256.js";
+import { hex } from "./types/hex.js";
 import { float64 } from "./types/float64.js";
 
 export const types = {
@@ -13,5 +14,6 @@ export const types = {
   longstring,
   spacetimestamp,
   biguint256,
+  hex,
   //float64, //TODO Fix to use lexicographical sorting.
 };

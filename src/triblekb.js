@@ -121,10 +121,10 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
   const attrsBatch = emptyValuePACT.batch();
   const inverseAttrsBatch = emptyValuePACT.batch();
   for (
-    const [attr, { id: attrId, isInverse }] of Object.entries(ctx.constraints)
+    const [attr, { id: attrId, isInverse }] of Object.entries(ctx.ns)
   ) {
     const aId = new Uint8Array(VALUE_SIZE);
-    ctx.constraints[id].encoder(attrId, aId);
+    ctx.ns[id].encoder(attrId, aId);
     let attrs;
     if (isInverse) {
       attrs = inverseAttrsBatch.get(aId);
@@ -145,13 +145,13 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
   const inverseAttrsById = inverseAttrsBatch.complete();
 
   const eId = new Uint8Array(VALUE_SIZE);
-  ctx.constraints[id].encoder(entityId, eId);
+  ctx.ns[id].encoder(entityId, eId);
 
   const lookup = (o, attr) => {
-    const { isInverse, id: attrId } = ctx.constraints[attr];
+    const { isInverse, id: attrId } = ctx.ns[attr];
 
     const aId = new Uint8Array(VALUE_SIZE);
-    ctx.constraints[id].encoder(attrId, aId);
+    ctx.ns[id].encoder(attrId, aId);
 
     const res = resolve(
       [
@@ -170,12 +170,12 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
     let result;
     let decoder;
     const { isLink, isUnique, isUniqueInverse } =
-      ctx.constraints[ctx.constraints[attr].id];
+      ctx.constraints[ctx.ns[attr].id];
     if (isLink) {
       decoder = (v, b) =>
-        entityProxy(kb, ctx, ctx.constraints[id].decoder(v, b));
+        entityProxy(kb, ctx, ctx.ns[id].decoder(v, b));
     } else {
-      decoder = ctx.constraints[attr].decoder;
+      decoder = ctx.ns[attr].decoder;
     }
 
     if ((!isInverse && isUnique) || (isInverse && isUniqueInverse)) {
@@ -200,7 +200,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
     { [id]: entityId },
     {
       get: function (o, attr) {
-        if (!(attr in ctx.constraints)) {
+        if (!(attr in ctx.ns)) {
           return undefined;
         }
 
@@ -226,28 +226,28 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
         );
       },
       has: function (o, attr) {
-        if (!(attr in ctx.constraints)) {
+        if (!(attr in ctx.ns)) {
           return false;
         }
 
-        const attrId = ctx.constraints[attr].id;
+        const attrId = ctx.ns[attr].id;
         if (
           attr in o ||
           !ctx.constraints[attrId].isUnique ||
-          (ctx.constraints[attr].isInverse &&
+          (ctx.ns[attr].isInverse &&
             !ctx.constraints[attrId].isUniqueInverse)
         ) {
           return true;
         }
         const aId = new Uint8Array(VALUE_SIZE);
-        ctx.constraints[id].encoder(attrId, aId);
+        ctx.ns[id].encoder(attrId, aId);
         const { done } = resolve(
           [
             constantConstraint(0, eId),
             constantConstraint(1, aId),
             kb.tribledb.constraint(
               ...(
-                ctx.constraints[attr].isInverse ? [2, 1, 0] : [0, 1, 2]
+                ctx.ns[attr].isInverse ? [2, 1, 0] : [0, 1, 2]
               ),
             ),
           ],
@@ -282,7 +282,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
         );
       },
       getOwnPropertyDescriptor: function (o, attr) {
-        if (!(attr in ctx.constraints)) {
+        if (!(attr in ctx.ns)) {
           return undefined;
         }
 
@@ -382,7 +382,7 @@ const entitiesToTriples = (ctx, unknownFactory, root) => {
     ) {
       const entityId = w.value[id] || unknownFactory();
       if (w.parent_id) {
-        if (ctx.constraints[w.parent_attr].isInverse) {
+        if (ctx.ns[w.parent_attr].isInverse) {
           triples.push({
             path: w.path,
             attr: w.parent_attr,
@@ -397,25 +397,25 @@ const entitiesToTriples = (ctx, unknownFactory, root) => {
         }
       }
       for (const [attr, value] of Object.entries(w.value)) {
-        if (!ctx.constraints[attr]) {
+        if (!ctx.ns[attr]) {
           throw Error(
             `Error at pathBytes [${w.path}]: No attribute named '${attr}' in ctx.`,
           );
         }
-        const attrId = ctx.constraints[attr].id;
+        const attrId = ctx.ns[attr].id;
         if (!ctx.constraints[attrId]) {
           throw Error(
             `Error at pathBytes [${w.path}]: No id '${attrId}' in ctx.`,
           );
         }
         if (
-          (!ctx.constraints[attr].isInverse &&
+          (!ctx.ns[attr].isInverse &&
             !ctx.constraints[attrId].isUnique) ||
-          (ctx.constraints[attr].isInverse &&
+          (ctx.ns[attr].isInverse &&
             !ctx.constraints[attrId].isUniqueInverse)
         ) {
           if (!(value instanceof Array)) {
-            if (ctx.constraints[attr].isInverse) {
+            if (ctx.ns[attr].isInverse) {
               throw Error(
                 `Error at pathBytes [${w.path}]: '${attr}' is not unique inverse constrained and needs array.`,
               );
@@ -444,7 +444,7 @@ const entitiesToTriples = (ctx, unknownFactory, root) => {
         }
       }
     } else {
-      if (ctx.constraints[w.parent_attr].isInverse) {
+      if (ctx.ns[w.parent_attr].isInverse) {
         triples.push({
           path: w.path,
           attr: w.parent_attr,
@@ -475,29 +475,29 @@ const triplesToTribles = function (ctx, triples, tribles = [], blobs = []) {
     let blob;
     try {
       const encoder = ctx.constraints[attrId].isLink
-        ? ctx.constraints[id].encoder
-        : ctx.constraints[attr].encoder;
+        ? ctx.ns[id].encoder
+        : ctx.ns[attr].encoder;
       if (!encoder) {
         throw Error("No encoder in context.");
       }
       blob = encoder(value, encodedValue);
     } catch (err) {
       throw Error(
-        `Error at pathBytes [${path}]:Couldn't encode '${value}' as value for attribute '${attr}':\n${err}`,
+        `Error at path [${path}]:Couldn't encode '${value}' as value for attribute '${attr}':\n${err}`,
       );
     }
     try {
-      ctx.constraints[id].encoder(entity, E(trible));
+      ctx.ns[id].encoder(entity, E(trible));
     } catch (err) {
       throw Error(
-        `Error at pathBytes [${path}]:Couldn't encode '${entity}' as entity id:\n${err}`,
+        `Error at path[${path}]:Couldn't encode '${entity}' as entity id:\n${err}`,
       );
     }
     try {
-      ctx.constraints[id].encoder(attrId, A(trible));
+      ctx.ns[id].encoder(attrId, A(trible));
     } catch (err) {
       throw Error(
-        `Error at pathBytes [${path}]:Couldn't encode id '${attrId}' of attr '${attr}' in ctx:\n${err}`,
+        `Error at path [${path}]:Couldn't encode id '${attrId}' of attr '${attr}' in ctx:\n${err}`,
       );
     }
 
@@ -525,7 +525,7 @@ const precompileTriples = (ctx, vars, triples) => {
     try {
       if (entity instanceof Variable) {
         if (entity.decoder) {
-          if (entity.decoder !== ctx.constraints[id].decoder) {
+          if (entity.decoder !== ctx.ns[id].decoder) {
             throw new Error(
               `Error at paths ${entity.paths} and [${
                 path.slice(
@@ -533,18 +533,18 @@ const precompileTriples = (ctx, vars, triples) => {
                   -1,
                 )
               }]:\n Variables at positions use incompatible decoders '${entity.decoder.name}' and '${
-                ctx[id].decoder.name
+                ctx.ns[id].decoder.name
               }'.`,
             );
           }
         } else {
-          entity.decoder = ctx.constraints[id].decoder;
+          entity.decoder = ctx.ns[id].decoder;
           entity.paths.push(path.slice(0, -1));
         }
         entityVar = entity;
       } else {
         const b = new Uint8Array(VALUE_SIZE);
-        ctx.constraints[id].encoder(entity, b);
+        ctx.ns[id].encoder(entity, b);
         entityVar = vars.constant(b);
       }
     } catch (error) {
@@ -554,7 +554,7 @@ const precompileTriples = (ctx, vars, triples) => {
     }
     try {
       const b = new Uint8Array(VALUE_SIZE);
-      ctx.constraints[id].encoder(attrId, b);
+      ctx.ns[id].encoder(attrId, b);
       attrVar = vars.constant(b);
     } catch (error) {
       throw Error(
@@ -564,8 +564,8 @@ const precompileTriples = (ctx, vars, triples) => {
     try {
       if (value instanceof Variable) {
         const decoder = ctx.constraints[attrId].isLink
-          ? ctx.constraints[id].decoder
-          : ctx.constraints[attr].decoder;
+          ? ctx.ns[id].decoder
+          : ctx.ns[attr].decoder;
         if (!decoder) {
           throw Error("No decoder in context.");
         }
@@ -582,8 +582,8 @@ const precompileTriples = (ctx, vars, triples) => {
         valueVar = value;
       } else {
         const encoder = ctx.constraints[attrId].isLink
-          ? ctx.constraints[id].encoder
-          : ctx.constraints[attr].encoder;
+          ? ctx.ns[id].encoder
+          : ctx.ns[attr].encoder;
         if (!encoder) {
           throw Error("No encoder in context.");
         }
@@ -667,7 +667,7 @@ class TribleKB {
   }
 
   with(efn) {
-    const idFactory = this.ctx.constraints[id].factory;
+    const idFactory = this.ctx.ns[id].factory;
     const entities = efn(new IDSequence(idFactory));
     const triples = entitiesToTriples(this.ctx, idFactory, entities);
     const { tribles, blobs } = triplesToTribles(this.ctx, triples);
@@ -794,9 +794,9 @@ const ctx = (...ctxs) => {
     }
   }
   for (const { ns, constraints } of ctxs) {
-    if (ns[id]) outCtx.constraints[id] = ns[id]; //TODO in tribles check consistency of encoder/decoder
+    if (ns[id]) outCtx.ns[id] = ns[id]; //TODO in tribles check consistency of encoder/decoder
     for (const [name, novel] of Object.entries(ns)) {
-      const existing = outCtx.constraints[name];
+      const existing = outCtx.ns[name];
       if (existing) {
         if (existing.id !== novel.id) {
           throw Error(
@@ -835,20 +835,20 @@ const ctx = (...ctxs) => {
         if (!(novel.encoder || outCtx.constraints[novel.id].isLink)) {
           throw Error(`Invalid ctx attr: No encoder in context for ${name}.`);
         }
-        outCtx.constraints[name] = novel;
+        outCtx.ns[name] = novel;
       }
     }
   }
-  if (!outCtx.constraints[id]) {
+  if (!outCtx.ns[id]) {
     throw Error(`Incomplete ctx: Missing [id] field in ns.`);
   }
-  if (!outCtx.constraints[id].decoder) {
+  if (!outCtx.ns[id].decoder) {
     throw Error(`Incomplete ctx: Missing [id] decoder in ns.`);
   }
-  if (!outCtx.constraints[id].encoder) {
+  if (!outCtx.ns[id].encoder) {
     throw Error(`Incomplete ctx: Missing [id] encoder in ns.`);
   }
-  if (!outCtx.constraints[id].factory) {
+  if (!outCtx.ns[id].factory) {
     throw Error(`Incomplete ctx: Missing [id] factory in ns.`);
   }
   return outCtx;

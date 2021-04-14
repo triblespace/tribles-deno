@@ -1,9 +1,22 @@
 import {
+  assert,
   assertArrayIncludes,
   assertEquals,
 } from "https://deno.land/std@0.78.0/testing/asserts.ts";
-import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
+import fc from "https://cdn.skypack.dev/fast-check";
+fc.configureGlobal(
+  {
+    numRuns: Number.MAX_SAFE_INTEGER,
+    interruptAfterTimeLimit: (1000 * 5),
+  },
+);
 
+import {
+  decode,
+  encode,
+} from "https://deno.land/std@0.78.0/encoding/base64.ts";
+
+import { equal, equalValue } from "../src/trible.js";
 import {
   ctx,
   find,
@@ -60,7 +73,7 @@ Deno.test("KB Find", () => {
   const results = [
     ...knightskb.find((
       { name, title },
-    ) => [{ name: name.at(0).ascend(), titles: [title] }]),
+    ) => [{ name: name.ascend(), titles: [title] }]),
   ];
   assertEquals(results, [
     { name: "Juliet", title: "princess" },
@@ -68,6 +81,53 @@ Deno.test("KB Find", () => {
     { name: "Romeo", title: "fool" },
     { name: "Romeo", title: "prince" },
   ]);
+});
+
+Deno.test("KB Find Single", () => {
+  const arbitraryIdHex = fc.hexaString({ minLength: 32, maxLength: 32 }).map(
+    (hex) => hex.padStart(64, "0"),
+  );
+  const arbitraryValueHex = fc.hexaString({ minLength: 64, maxLength: 64 });
+  const arbitraryTitles = fc.array(arbitraryValueHex, {
+    minLength: 1,
+    maxLength: 1,
+  });
+  const arbitraryPerson = fc.record({
+    id: arbitraryIdHex,
+    name: arbitraryValueHex,
+    titles: arbitraryTitles,
+  });
+
+
+  fc.assert(
+    fc.property(arbitraryIdHex, arbitraryIdHex, arbitraryPerson, (nameId, titlesId, person) => {
+      const knightsCtx = ctx({
+        ns: {
+          [id]: { ...types.hex },
+          name: { id: nameId, ...types.hex },
+          titles: { id: titlesId, ...types.hex },
+        },
+        constraints: {
+          [nameId]: { isUnique: true },
+          [titlesId]: {},
+        },
+      });
+
+      const knightskb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB()).with(
+        () => [{[id]: person.id,
+                name: person.name,
+                titles: person.titles}],
+      );
+
+      /// Query some data.
+      const results = [
+        ...knightskb.find((
+          { name, title },
+        ) => [{ name, titles: [title] }]),
+      ];
+      assertEquals(results, [{name: person.name, title: person.titles[0]}]);
+    }),
+  );
 });
 
 Deno.test("Find Ascending", () => {
@@ -117,7 +177,7 @@ Deno.test("Find Ascending", () => {
       knightsCtx,
       (
         { name, title },
-      ) => [knightskb.where({ name, titles: [title.at(0).ascend()] })],
+      ) => [knightskb.where({ name, titles: [title.ascend()] })],
       knightskb.blobdb,
     ),
   ];
@@ -175,7 +235,7 @@ Deno.test("Find Descending", () => {
       knightsCtx,
       (
         { name, title },
-      ) => [knightskb.where({ name, titles: [title.at(0).descend()] })],
+      ) => [knightskb.where({ name, titles: [title.descend()] })],
       knightskb.blobdb,
     ),
   ];
