@@ -1,35 +1,36 @@
 import { emptyValuePACT } from "./pact.js";
-import { constantConstraint, indexConstraint, resolve } from "./query.js";
+import {
+  constantConstraint,
+  indexConstraint,
+  OrderByMinCost,
+  OrderByMinCostAndBlockage,
+  resolve,
+} from "./query.js";
 import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
 
 const id = Symbol("id");
 
 class Variable {
-  constructor(provider, name = null) {
+  constructor(provider, index, name = null) {
     this.provider = provider;
+    this.index = index;
     this.name = name;
-    this.index = null;
     this.ascending = true;
     this.walked = null;
+    this.isOmit = false;
     this.paths = [];
     this.decoder = null;
   }
 
-  at(index) {
-    this.index = index;
-    if (
-      this.provider.variables[index] &&
-      this.provider.variables[index] !== this
-    ) {
-      throw Error(
-        `Same variable position occupied by ${this} and ${
-          this.provider.variables[index]
-        }`,
-      );
+  groupBy(otherVariable) {
+    let potentialCycle = otherVariable;
+    while (potentialCycle !== undefined) {
+      if (potentialCycle === this) {
+        throw Error("Couldn't group variable, ordering would by cyclic.");
+      }
+      potentialCycle = this.provider.blockedBy.get(potentialCycle);
     }
-
-    this.provider.variables[index] = this;
-
+    this.provider.blockedBy.set(this, otherVariable);
     return this;
   }
 
@@ -40,6 +41,11 @@ class Variable {
 
   descend() {
     this.ascending = false;
+    return this;
+  }
+
+  omit() {
+    this.isOmit = true;
     return this;
   }
 
@@ -58,10 +64,12 @@ class Variable {
 
 class VariableProvider {
   constructor() {
+    this.nextVariableIndex = 0;
     this.variables = [];
     this.unnamedVariables = [];
     this.namedVariables = new Map();
     this.constantVariables = emptyValuePACT;
+    this.blockedBy = new Map();
   }
 
   namedCache() {
@@ -69,51 +77,35 @@ class VariableProvider {
       {},
       {
         get: (_, name) => {
-          let v = this.namedVariables.get(name);
-          if (v) {
-            return v;
+          let variable = this.namedVariables.get(name);
+          if (variable) {
+            return variable;
           }
-          v = new Variable(this, name);
-          this.namedVariables.set(name, v);
-          return v;
+          variable = new Variable(this, this.nextVariableIndex++, name);
+          this.namedVariables.set(name, variable);
+          this.variables.push(variable);
+          return variable;
         },
       },
     );
   }
 
   unnamed() {
-    const variable = new Variable(this);
+    const variable = new Variable(this, this.nextVariableIndex++);
     this.unnamedVariables.push(variable);
+    this.variables.push(variable);
     return variable;
   }
 
   constant(c) {
-    let v = this.constantVariables.get(c);
-    if (!v) {
-      v = new Variable(this);
-      v.constant = c;
-      this.constantVariables = this.constantVariables.put(c, v);
+    let variable = this.constantVariables.get(c);
+    if (!variable) {
+      variable = new Variable(this, this.nextVariableIndex++);
+      variable.constant = c;
+      this.constantVariables = this.constantVariables.put(c, variable);
+      this.variables.push(variable);
     }
-    return v;
-  }
-
-  arrange() {
-    let vProbe = 0;
-    for (
-      const v of [
-        ...this.constantVariables.values(),
-        ...this.unnamedVariables,
-        ...this.namedVariables.values(),
-      ]
-    ) {
-      if (v.index === null) {
-        while (this.variables[vProbe]) {
-          vProbe++;
-        }
-        v.index = vProbe;
-        this.variables[vProbe] = v;
-      }
-    }
+    return variable;
   }
 }
 
@@ -159,6 +151,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
         new constantConstraint(1, aId),
         new kb.tribledb.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
       ],
+      new OrderByMinCost(),
       new Set([0, 1, 2]),
       [
         new Uint8Array(VALUE_SIZE),
@@ -167,13 +160,11 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
       ],
     );
 
-    let result;
     let decoder;
     const { isLink, isUnique, isUniqueInverse } =
       ctx.constraints[ctx.ns[attr].id];
     if (isLink) {
-      decoder = (v, b) =>
-        entityProxy(kb, ctx, ctx.ns[id].decoder(v, b));
+      decoder = (v, b) => entityProxy(kb, ctx, ctx.ns[id].decoder(v, b));
     } else {
       decoder = ctx.ns[attr].decoder;
     }
@@ -251,6 +242,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
               ),
             ),
           ],
+          new OrderByMinCost(),
           new Set([0, 1, 2]),
           [
             new Uint8Array(VALUE_SIZE),
@@ -312,6 +304,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
               indexConstraint(1, attrsById),
               kb.tribledb.constraint(0, 1, 2),
             ],
+            new OrderByMinCost(),
             new Set([0, 1, 2]),
             [
               new Uint8Array(VALUE_SIZE),
@@ -329,6 +322,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
               kb.tribledb.constraint(2, 1, 0),
               indexConstraint(1, inverseAttrsById),
             ],
+            new OrderByMinCost(),
             new Set([0, 1, 2]),
             [
               new Uint8Array(VALUE_SIZE),
@@ -606,9 +600,7 @@ function* find(ctx, cfn, blobdb) {
   const constraintBuilders = constraintBuilderPrepares.map((prepare) =>
     prepare(ctx, vars)
   );
-  vars.arrange();
 
-  const variableCount = vars.variables.length;
   const namedVariables = [...vars.namedVariables.values()];
 
   const constraints = constraintBuilders.flatMap((builder) => builder());
@@ -621,20 +613,22 @@ function* find(ctx, cfn, blobdb) {
   for (
     const r of resolve(
       constraints,
+      new OrderByMinCostAndBlockage(vars.blockedBy),
       new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
       vars.variables.map((v) => new Uint8Array(VALUE_SIZE)),
     )
   ) {
-    yield Object.fromEntries(
-      namedVariables.map(({ index, walked, decoder, name }) => {
+    const result = {};
+    for(const { index, walked, decoder, name, isOmit } of namedVariables) {
+      if(!isOmit) {
         const encoded = r[index];
         const decoded = decoder(
           encoded.slice(0),
           async () => await blobdb.get(encoded),
         );
-        return [name, walked ? walked.walk(ctx, decoded) : decoded];
-      }),
-    );
+        result[name] = walked ? walked.walk(ctx, decoded) : decoded;
+      }}
+    yield result;
   }
 }
 

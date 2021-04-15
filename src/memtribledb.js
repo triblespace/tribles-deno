@@ -30,42 +30,24 @@ class MemTribleConstraint {
   propose() {
     const lastExplored =
       this.explorationStack[this.explorationStack.length - 1];
-    if (
-      lastExplored.children === undefined
-    ) {
-      return { done: true };
-    }
-    let minimalCount = Number.MAX_VALUE;
-    let minimalVariable = null;
-
-    for (const child of lastExplored.children) {
-      for (const cursor of child.cursors) {
-        const proposedCount = cursor.segmentCount();
-        if (proposedCount <= minimalCount) {
-          minimalCount = proposedCount;
-          minimalVariable = child.variable;
-        }
-      }
-    }
-    return {
-      done: false,
-      variable: minimalVariable,
-      costs: minimalCount * inmemoryCosts,
-    };
+    return lastExplored.children.map((child) => ({
+      variable: child.variable,
+      costs: child.cursors.map((cursor) =>
+        cursor.segmentCount() * inmemoryCosts
+      ),
+    }));
   }
 
   push(variable, ascending = true) {
     const lastExplored =
       this.explorationStack[this.explorationStack.length - 1];
-    if (!lastExplored.children) return [];
-
-    let nextExplored;
+    let nextExplored = null;
     for (const child of lastExplored.children) {
       if (child.variable === variable) {
         nextExplored = child;
       }
     }
-    if (!nextExplored) return [];
+    if (nextExplored === null) return [];
     this.explorationStack.push(nextExplored);
     for (const cursor of nextExplored.cursors) {
       cursor.push(ascending);
@@ -182,12 +164,16 @@ class MemTribleDB {
             {
               variable: e,
               cursors: [EVACursor, EisACursor],
-              children: [{ variable: v, cursors: [EVACursor] }],
+              children: [{ variable: v, cursors: [EVACursor], children: [] }],
             },
             {
               variable: v,
               cursors: [VEACursor],
-              children: [{ variable: e, cursors: [VEACursor, EisACursor] }],
+              children: [{
+                variable: e,
+                cursors: [VEACursor, EisACursor],
+                children: [],
+              }],
             },
           ],
         },
@@ -200,12 +186,16 @@ class MemTribleDB {
             {
               variable: e,
               cursors: [EAVCursor, EisVCursor],
-              children: [{ variable: a, cursors: [EAVCursor] }],
+              children: [{ variable: a, cursors: [EAVCursor], children: [] }],
             },
             {
               variable: a,
               cursors: [AEVCursor],
-              children: [{ variable: e, cursors: [AEVCursor, EisVCursor] }],
+              children: [{
+                variable: e,
+                cursors: [AEVCursor, EisVCursor],
+                children: [],
+              }],
             },
           ],
         },
@@ -218,12 +208,16 @@ class MemTribleDB {
             {
               variable: e,
               cursors: [EAVCursor],
-              children: [{ variable: a, cursors: [EAVCursor, AisVCursor] }],
+              children: [{
+                variable: a,
+                cursors: [EAVCursor, AisVCursor],
+                children: [],
+              }],
             },
             {
               variable: a,
               cursors: [AEVCursor, AisVCursor],
-              children: [{ variable: e, cursors: [AEVCursor] }],
+              children: [{ variable: e, cursors: [AEVCursor], children: [] }],
             },
           ],
         },
@@ -239,12 +233,12 @@ class MemTribleDB {
               {
                 variable: a,
                 cursors: [EAVCursor],
-                children: [{ variable: v, cursors: [EAVCursor] }],
+                children: [{ variable: v, cursors: [EAVCursor], children: [] }],
               },
               {
                 variable: v,
                 cursors: [EVACursor],
-                children: [{ variable: a, cursors: [EVACursor] }],
+                children: [{ variable: a, cursors: [EVACursor], children: [] }],
               },
             ],
           },
@@ -255,12 +249,12 @@ class MemTribleDB {
               {
                 variable: e,
                 cursors: [AEVCursor],
-                children: [{ variable: v, cursors: [AEVCursor] }],
+                children: [{ variable: v, cursors: [AEVCursor], children: [] }],
               },
               {
                 variable: v,
                 cursors: [AVECursor],
-                children: [{ variable: e, cursors: [AVECursor] }],
+                children: [{ variable: e, cursors: [AVECursor], children: [] }],
               },
             ],
           },
@@ -271,12 +265,12 @@ class MemTribleDB {
               {
                 variable: e,
                 cursors: [VEACursor],
-                children: [{ variable: a, cursors: [VEACursor] }],
+                children: [{ variable: a, cursors: [VEACursor], children: [] }],
               },
               {
                 variable: a,
                 cursors: [VAECursor],
-                children: [{ variable: e, cursors: [VAECursor] }],
+                children: [{ variable: e, cursors: [VAECursor], children: [] }],
               },
             ],
           },

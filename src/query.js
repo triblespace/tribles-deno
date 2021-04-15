@@ -5,21 +5,20 @@ class IndexConstraint {
   constructor(variable, index) {
     this.cursor = index.segmentCursor();
     this.variable = variable;
-    this.remainingVariables = 1;
+    this.done = false;
   }
 
   propose() {
-    if (this.remainingVariables === 0) return { done: true };
-    return {
-      done: false,
+    if (this.done) return [];
+    return [{
       variable: this.variable,
-      costs: this.cursor.segmentCount(),
-    };
+      costs: [this.cursor.segmentCount()],
+    }];
   }
 
   push(variable, ascending) {
     if (variable === this.variable) {
-      this.remainingVariables--;
+      this.done = true;
       return [this.cursor.push(ascending)];
     }
     return [];
@@ -27,7 +26,7 @@ class IndexConstraint {
 
   pop(variable) {
     if (variable === this.variable) {
-      this.remainingVariables++;
+      this.done = false;
       return this.cursor.pop();
     }
   }
@@ -50,42 +49,93 @@ const constantConstraint = (variable, value) => {
   return new IndexConstraint(variable, emptyValuePACT.put(value));
 };
 
-//TODO VariableOrderConstraint vs order on resolve, e.g. before map like {x: y}, when x is choosen from propose we use y.
-
-function* resolve(constraints, ascendingVariables, bindings) {
-  //init
-  let candidateVariable;
-  let candidateCosts = Number.MAX_VALUE;
-  let allDone = true;
-  for (const c of constraints) {
-    const proposal = c.propose();
-    if (proposal.done === false) {
-      allDone = false;
-      if (proposal.costs <= candidateCosts) {
-        candidateVariable = proposal.variable;
-        candidateCosts = proposal.costs;
-      }
-    }
+class OrderByMinCostAndBlockage {
+  constructor(blockedBy) {
+    this.blockedBy = blockedBy;
+    this.exploredVariables = new Set();
   }
 
-  if (allDone) {
+  propose(constraints) {
+    let candidateVariable = null;
+    let candidateCosts = Number.MAX_VALUE;
+    for (const c of constraints) {
+      for (const proposal of c.propose()) {
+        const minCosts = Math.min(...proposal.costs);
+        const variable = proposal.variable;
+        const blocker = this.blockedBy.get(variable);
+        if (
+          minCosts <= candidateCosts &&
+          (blocker === undefined || this.exploredVariables.has(blocker))
+        ) {
+          candidateVariable = variable;
+          candidateCosts = minCosts;
+        }
+      }
+    }
+    return candidateVariable;
+  }
+
+  push(variable) {
+    this.exploredVariables.add(variable);
+  }
+
+  pop(variable) {
+    this.exploredVariables.delete(variable);
+  }
+}
+
+class OrderByMinCost {
+  constructor() {
+  }
+
+  propose(constraints) {
+    let candidateVariable = null;
+    let candidateCosts = Number.MAX_VALUE;
+    for (const c of constraints) {
+      for (const proposal of c.propose()) {
+        const minCosts = Math.min(...proposal.costs);
+        const variable = proposal.variable;
+        if (
+          minCosts <= candidateCosts
+        ) {
+          candidateVariable = variable;
+          candidateCosts = minCosts;
+        }
+      }
+    }
+    return candidateVariable;
+  }
+
+  push(variable) {
+  }
+
+  pop(variable) {
+  }
+}
+
+function* resolve(constraints, ordering, ascendingVariables, bindings) {
+  //init
+  const variable = ordering.propose(constraints);
+  if (variable === null) {
     yield bindings;
   } else {
-    const ascending = ascendingVariables.has(candidateVariable);
+    const ascending = ascendingVariables.has(variable);
+
+    ordering.push(variable);
 
     const cursors = [];
     for (const c of constraints) {
-      cursors.push(...c.push(candidateVariable, ascending));
+      cursors.push(...c.push(variable, ascending));
     }
 
-    const candidate = bindings[candidateVariable].fill(0); //TODO: could we use this to replace the state in the cursors?
+    const candidate = bindings[variable].fill(0); //TODO: could we use this to replace the state in the cursors?
     let i = 0;
     let candidateOrigin = i;
     while (true) {
       if (!cursors[i].peek(candidate)) break;
       i = (i + 1) % cursors.length;
       if (i === candidateOrigin) {
-        yield* resolve(constraints, ascendingVariables, bindings);
+        yield* resolve(constraints, ordering, ascendingVariables, bindings);
         if (!nextKey(candidate, ascending)) break;
         cursors[i].seek(candidate);
       } else {
@@ -96,9 +146,17 @@ function* resolve(constraints, ascendingVariables, bindings) {
       }
     }
 
-    constraints.forEach((c) => c.pop(candidateVariable));
+    constraints.forEach((c) => c.pop(variable));
+    ordering.pop(variable);
   }
   return;
 }
 
-export { collectionConstraint, constantConstraint, indexConstraint, resolve };
+export {
+  collectionConstraint,
+  constantConstraint,
+  indexConstraint,
+  OrderByMinCost,
+  OrderByMinCostAndBlockage,
+  resolve,
+};

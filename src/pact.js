@@ -73,17 +73,16 @@ const prevBit = (bitmap, bitPosition) => {
   return -1;
 };
 
-const noBit = (bitmap) =>
-  (
-    bitmap[0] === 0 &&
-    bitmap[1] === 0 &&
-    bitmap[2] === 0 &&
-    bitmap[3] === 0 &&
-    bitmap[4] === 0 &&
-    bitmap[5] === 0 &&
-    bitmap[6] === 0 &&
-    bitmap[7] === 0
-  );
+const noBit = (bitmap) => (
+  bitmap[0] === 0 &&
+  bitmap[1] === 0 &&
+  bitmap[2] === 0 &&
+  bitmap[3] === 0 &&
+  bitmap[4] === 0 &&
+  bitmap[5] === 0 &&
+  bitmap[6] === 0 &&
+  bitmap[7] === 0
+);
 
 const makePACT = function (SEGMENTS) {
   const KEY_LENGTH = SEGMENTS.reduce((a, n) => a + n, 0);
@@ -148,12 +147,17 @@ const makePACT = function (SEGMENTS) {
         search:
         for (; depth < KEY_LENGTH; depth++) {
           const sought = infix[depth];
-          [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[depth].seek(
-            depth,
-            sought,
-            this.ascending,
-          );
-          if (this.pathNodes[depth + 1] === null || this.path[depth] !== sought) break search;
+          [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[depth]
+            .seek(
+              depth,
+              sought,
+              this.ascending,
+            );
+          if (
+            this.pathNodes[depth + 1] === null || this.path[depth] !== sought
+          ) {
+            break search;
+          }
         }
         if (depth === KEY_LENGTH) {
           return true;
@@ -262,13 +266,15 @@ const makePACT = function (SEGMENTS) {
         search:
         for (; depth < searchDepth; depth++) {
           const soughtByte = soughtInfix[(depth - prefixLen) + infixZeroed];
-          [this.pathBytes[depth], this.pathNodes[depth + 1]] = this.pathNodes[depth].seek(
-            depth,
-            soughtByte,
-            ascending,
-          );
+          [this.pathBytes[depth], this.pathNodes[depth + 1]] = this
+            .pathNodes[depth].seek(
+              depth,
+              soughtByte,
+              ascending,
+            );
           if (
-            this.pathNodes[depth + 1] === null || this.pathBytes[depth] !== soughtByte
+            this.pathNodes[depth + 1] === null ||
+            this.pathBytes[depth] !== soughtByte
           ) {
             break search;
           }

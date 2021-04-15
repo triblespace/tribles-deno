@@ -98,35 +98,41 @@ Deno.test("KB Find Single", () => {
     titles: arbitraryTitles,
   });
 
-
   fc.assert(
-    fc.property(arbitraryIdHex, arbitraryIdHex, arbitraryPerson, (nameId, titlesId, person) => {
-      const knightsCtx = ctx({
-        ns: {
-          [id]: { ...types.hex },
-          name: { id: nameId, ...types.hex },
-          titles: { id: titlesId, ...types.hex },
-        },
-        constraints: {
-          [nameId]: { isUnique: true },
-          [titlesId]: {},
-        },
-      });
+    fc.property(
+      arbitraryIdHex,
+      arbitraryIdHex,
+      arbitraryPerson,
+      (nameId, titlesId, person) => {
+        const knightsCtx = ctx({
+          ns: {
+            [id]: { ...types.hex },
+            name: { id: nameId, ...types.hex },
+            titles: { id: titlesId, ...types.hex },
+          },
+          constraints: {
+            [nameId]: { isUnique: true },
+            [titlesId]: {},
+          },
+        });
 
-      const knightskb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB()).with(
-        () => [{[id]: person.id,
-                name: person.name,
-                titles: person.titles}],
-      );
+        const knightskb = new TribleKB(
+          knightsCtx,
+          new MemTribleDB(),
+          new MemBlobDB(),
+        ).with(
+          () => [{ [id]: person.id, name: person.name, titles: person.titles }],
+        );
 
-      /// Query some data.
-      const results = [
-        ...knightskb.find((
-          { name, title },
-        ) => [{ name, titles: [title] }]),
-      ];
-      assertEquals(results, [{name: person.name, title: person.titles[0]}]);
-    }),
+        /// Query some data.
+        const results = [
+          ...knightskb.find((
+            { name, title },
+          ) => [{ name, titles: [title] }]),
+        ];
+        assertEquals(results, [{ name: person.name, title: person.titles[0] }]);
+      },
+    ),
   );
 });
 
@@ -176,16 +182,16 @@ Deno.test("Find Ascending", () => {
     ...find(
       knightsCtx,
       (
-        { name, title },
-      ) => [knightskb.where({ name, titles: [title.ascend()] })],
+        { person, name, title },
+      ) => [knightskb.where({[id]: person.groupBy(name.ascend()).omit(), name, titles: [title] })],
       knightskb.blobdb,
     ),
   ];
   assertEquals(results, [
-    { name: "Romeo", title: "fool" },
-    { name: "Romeo", title: "prince" },
     { name: "Juliet", title: "princess" },
     { name: "Juliet", title: "the lady" },
+    { name: "Romeo", title: "fool" },
+    { name: "Romeo", title: "prince" },
   ]);
 });
 
@@ -234,15 +240,15 @@ Deno.test("Find Descending", () => {
     ...find(
       knightsCtx,
       (
-        { name, title },
-      ) => [knightskb.where({ name, titles: [title.descend()] })],
+        { person, name, title },
+      ) => [knightskb.where({[id]: person.groupBy(name.descend()).omit(), name, titles: [title] })],
       knightskb.blobdb,
     ),
   ];
   assertEquals(results, [
-    { name: "Juliet", title: "the lady" },
-    { name: "Juliet", title: "princess" },
-    { name: "Romeo", title: "prince" },
     { name: "Romeo", title: "fool" },
+    { name: "Romeo", title: "prince" },
+    { name: "Juliet", title: "princess" },
+    { name: "Juliet", title: "the lady" },
   ]);
 });
