@@ -183,7 +183,13 @@ Deno.test("Find Ascending", () => {
       knightsCtx,
       (
         { person, name, title },
-      ) => [knightskb.where({[id]: person.groupBy(name.ascend()).omit(), name, titles: [title] })],
+      ) => [
+        knightskb.where({
+          [id]: person.groupBy(name.ascend()).omit(),
+          name,
+          titles: [title],
+        }),
+      ],
       knightskb.blobdb,
     ),
   ];
@@ -241,7 +247,13 @@ Deno.test("Find Descending", () => {
       knightsCtx,
       (
         { person, name, title },
-      ) => [knightskb.where({[id]: person.groupBy(name.descend()).omit(), name, titles: [title] })],
+      ) => [
+        knightskb.where({
+          [id]: person.groupBy(name.descend()).omit(),
+          name,
+          titles: [title],
+        }),
+      ],
       knightskb.blobdb,
     ),
   ];

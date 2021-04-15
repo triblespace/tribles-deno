@@ -619,15 +619,16 @@ function* find(ctx, cfn, blobdb) {
     )
   ) {
     const result = {};
-    for(const { index, walked, decoder, name, isOmit } of namedVariables) {
-      if(!isOmit) {
+    for (const { index, walked, decoder, name, isOmit } of namedVariables) {
+      if (!isOmit) {
         const encoded = r[index];
         const decoded = decoder(
           encoded.slice(0),
           async () => await blobdb.get(encoded),
         );
         result[name] = walked ? walked.walk(ctx, decoded) : decoded;
-      }}
+      }
+    }
     yield result;
   }
 }
