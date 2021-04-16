@@ -354,7 +354,6 @@ Deno.test("unique inverse constraint", () => {
       },
     ],
   );
-  debugger;
   assertThrows(
     () => {
       knightskb.with(
