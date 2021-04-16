@@ -96,7 +96,7 @@ class MemTribleDB {
     const AEV = this.AEV.batch();
     const AVE = this.AVE.batch();
     const VEA = this.VEA.batch();
-    const VAE = this.VEA.batch();
+    const VAE = this.VAE.batch();
     const EisA = this.EisA.batch();
     const EisV = this.EisV.batch();
     const AisV = this.AisV.batch();

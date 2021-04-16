@@ -2,6 +2,7 @@ import {
   assert,
   assertArrayIncludes,
   assertEquals,
+  assertThrows
 } from "https://deno.land/std@0.78.0/testing/asserts.ts";
 import fc from "https://cdn.skypack.dev/fast-check";
 fc.configureGlobal(
@@ -263,4 +264,109 @@ Deno.test("Find Descending", () => {
     { name: "Juliet", title: "princess" },
     { name: "Juliet", title: "the lady" },
   ]);
+});
+
+Deno.test("unique constraint", () => {
+  // Define a context, mapping between js data and tribles.
+  const { nameId, lovesId, titlesId, romeoId } = UFOID.namedCache();
+
+  const knightsCtx = ctx({
+    ns: {
+      [id]: { ...types.ufoid },
+      name: { id: nameId, ...types.shortstring },
+      loves: { id: lovesId },
+      lovedBy: { id: lovesId, isInverse: true },
+      titles: { id: titlesId, ...types.shortstring },
+    },
+    constraints: {
+      [nameId]: { isUnique: true },
+      [lovesId]: { isLink: true, isUnique: true },
+      [titlesId]: {},
+    },
+  });
+
+  // Add some data.
+  const memkb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB());
+
+  const knightskb = memkb.with(
+    (
+      [juliet],
+    ) => [
+      {
+        [id]: romeoId,
+        name: "Romeo",
+        titles: ["fool", "prince"],
+        loves: juliet,
+      },
+      {
+        [id]: juliet,
+        name: "Juliet",
+        titles: ["the lady", "princess"],
+        loves: romeoId,
+      },
+    ],
+  );
+  assertThrows(
+    () => {
+      knightskb.with(
+    () => [
+      {
+        [id]: romeoId,
+        name: "Bob",
+      },
+    ],
+  )
+    },
+    Error,
+    "",
+  );
+});
+
+
+Deno.test("unique inverse constraint", () => {
+  // Define a context, mapping between js data and tribles.
+  const { nameId, motherOfId, romeoId } = UFOID.namedCache();
+
+  const knightsCtx = ctx({
+    ns: {
+      [id]: { ...types.ufoid },
+      name: { id: nameId, ...types.shortstring },
+      motherOf: { id: motherOfId },
+    },
+    constraints: {
+      [nameId]: { isUnique: true },
+      [motherOfId]: { isLink: true, isUniqueInverse: true },
+    },
+  });
+
+  // Add some data.
+  const memkb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB());
+
+  const knightskb = memkb.with(
+    () => [
+      {
+        [id]: romeoId,
+        name: "Romeo",
+      },
+      {
+        name: "Lady Montague",
+        motherOf: [romeoId],
+      },
+    ],
+  );
+  debugger;
+  assertThrows(
+    () => {
+      knightskb.with(
+    () => [
+      {
+        name: "Lady Impostor",
+        motherOf: [romeoId],
+      },
+    ],
+  )
+    },
+    Error,
+    "",
+  );
 });

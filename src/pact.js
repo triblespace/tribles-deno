@@ -1085,10 +1085,12 @@ const emptyIdValueIdTriblePACT = makePACT([ID_SIZE, VALUE_SIZE, ID_SIZE]);
 const emptyValueIdIdTriblePACT = makePACT([VALUE_SIZE, ID_SIZE, ID_SIZE]);
 const emptyTriblePACT = emptyIdIdValueTriblePACT;
 
+const emptyIdPACT = makePACT([ID_SIZE]);
 const emptyValuePACT = makePACT([VALUE_SIZE]);
 
 export {
   emptyIdIdValueTriblePACT,
+  emptyIdPACT,
   emptyIdValueIdTriblePACT,
   emptyTriblePACT,
   emptyValueIdIdTriblePACT,

@@ -1,4 +1,4 @@
-import { emptyValuePACT } from "./pact.js";
+import { emptyIdPACT, emptyValuePACT } from "./pact.js";
 import {
   constantConstraint,
   indexConstraint,
@@ -6,7 +6,7 @@ import {
   OrderByMinCostAndBlockage,
   resolve,
 } from "./query.js";
-import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
+import { A, E, equalValue, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
 
 const id = Symbol("id");
 
@@ -23,14 +23,18 @@ class Variable {
   }
 
   groupBy(otherVariable) {
-    let potentialCycle = otherVariable;
-    while (potentialCycle !== undefined) {
-      if (potentialCycle === this) {
+    let potentialCycles = new Set([otherVariable.index]);
+    while (potentialCycles.size !== 0) {
+      if (potentialCycles.has(this)) {
         throw Error("Couldn't group variable, ordering would by cyclic.");
       }
-      potentialCycle = this.provider.blockedBy.get(potentialCycle);
+      potentialCycles = new Set(
+        this.provider.blockedBy.filter(([a, b]) => potentialCycles.has(a)).map((
+          [a, b],
+        ) => b),
+      );
     }
-    this.provider.blockedBy.set(this, otherVariable);
+    this.provider.blockedBy.push([this.index, otherVariable.index]);
     return this;
   }
 
@@ -69,7 +73,7 @@ class VariableProvider {
     this.unnamedVariables = [];
     this.namedVariables = new Map();
     this.constantVariables = emptyValuePACT;
-    this.blockedBy = new Map();
+    this.blockedBy = [];
   }
 
   namedCache() {
@@ -666,24 +670,91 @@ class TribleKB {
     const entities = efn(new IDSequence(idFactory));
     const triples = entitiesToTriples(this.ctx, idFactory, entities);
     const { tribles, blobs } = triplesToTribles(this.ctx, triples);
-    //const touchedEntities = tribles.map((t) => E(t));
     const newTribleDB = this.tribledb.with(tribles);
     if (newTribleDB !== this.tribledb) {
-      /* TODO finish up constraint checking
+      let touchedEntities = emptyIdPACT.batch();
+      for (const trible of tribles) {
+        touchedEntities.put(E(trible));
+      }
+      touchedEntities = touchedEntities.complete();
+      let touchedAttributes = emptyIdPACT.batch();
+      for (const trible of tribles) {
+        touchedAttributes.put(A(trible));
+      }
+      touchedAttributes = touchedAttributes.complete();
+      let touchedValues = emptyValuePACT.batch();
+      for (const trible of tribles) {
+        touchedValues.put(V(trible));
+      }
+      touchedValues = touchedValues.complete();
+
+      let prevE = null;
+      let prevA = null;
+      for (
+        const [e, a] of resolve(
+          [
+            indexConstraint(0, touchedEntities),
+            indexConstraint(1, touchedAttributes),
+            indexConstraint(1, this.ctx.uniqueAttributeIndex),
+            newTribleDB.constraint(0, 1, 2),
+          ],
+          new OrderByMinCostAndBlockage([[2, 0], [2, 1]]),
+          new Set([0, 1, 2]),
+          [
+            new Uint8Array(VALUE_SIZE),
+            new Uint8Array(VALUE_SIZE),
+            new Uint8Array(VALUE_SIZE),
+          ],
+        )
+      ) {
+        if (
+          prevE !== null && prevA !== null &&
+          equalValue(prevE, e) &&
+          equalValue(prevA, a)
+        ) {
+          throw Error(
+            `Constraint violation: Unique attribute '${
+              this.ctx.ns[id].decoder(a)
+            }' has multiple values on '${this.ctx.ns[id].decoder(e)}'.`,
+          );
+        }
+        prevE = e.slice();
+        prevA = a.slice();
+      }
+
+      prevA = null;
+      let prevV = null;
       for (
         const [e, a, v] of resolve(
           [
-            indexConstraint(0, touchedEntities),
-            indexConstraint(1, this.ctx.uniqueAttributes),
+            indexConstraint(2, touchedValues),
+            indexConstraint(1, touchedAttributes),
+            indexConstraint(1, this.ctx.uniqueInverseAttributeIndex),
             newTribleDB.constraint(0, 1, 2),
           ],
+          new OrderByMinCostAndBlockage([[0, 1], [0, 2]]),
           new Set([0, 1, 2]),
-          [new Uint8Array(VALUE_SIZE), new Uint8Array(VALUE_SIZE), new Uint8Array(VALUE_SIZE)]
+          [
+            new Uint8Array(VALUE_SIZE),
+            new Uint8Array(VALUE_SIZE),
+            new Uint8Array(VALUE_SIZE),
+          ],
         )
       ) {
-        attrs.push(...attrsById.get(a));
+        if (
+          prevA !== null && prevV !== null &&
+          equalValue(prevA, a) &&
+          equalValue(prevV, v)
+        ) { //TODO make errors pretty.
+          throw Error(
+            `Constraint violation: Unique inverse attribute '${
+              this.ctx.ns[id].decoder(a)
+            }' has multiple entities for '${v}'.`,
+          );
+        }
+        prevA = a.slice();
+        prevV = v.slice();
       }
-      */
 
       const newBlobDB = this.blobdb.put(blobs);
       return new TribleKB(this.ctx, newTribleDB, newBlobDB);
@@ -784,12 +855,24 @@ const ctx = (...ctxs) => {
           );
         }
       } else {
+        if (novel.isUniqueInverse && !novel.isLink) {
+          throw Error(
+            `Inconsistent ctx id "${id}": Only links can be inverse unique.`,
+          );
+        }
         outCtx.constraints[id] = novel;
       }
     }
   }
   for (const { ns, constraints } of ctxs) {
-    if (ns[id]) outCtx.ns[id] = ns[id]; //TODO in tribles check consistency of encoder/decoder
+    if (ns[id] && !outCtx.ns[id]) {
+      outCtx.ns[id] = ns[id];
+    }
+    if (ns[id] && outCtx.ns[id] && (ns[id] !== outCtx.ns[id])) {
+      throw Error(
+        `Inconsistent id types in ctx.`,
+      );
+    }
     for (const [name, novel] of Object.entries(ns)) {
       const existing = outCtx.ns[name];
       if (existing) {
@@ -816,7 +899,7 @@ const ctx = (...ctxs) => {
       } else {
         if (!outCtx.constraints[novel.id]) {
           throw Error(
-            `Inconsistent ctx: No id ${novel.id} in context for ${name}.`,
+            `Inconsistent ctx: No constraints ${novel.id} in context for ${name}.`,
           );
         }
         if (novel.isInverse && !outCtx.constraints[novel.id].isLink) {
@@ -846,6 +929,27 @@ const ctx = (...ctxs) => {
   if (!outCtx.ns[id].factory) {
     throw Error(`Incomplete ctx: Missing [id] factory in ns.`);
   }
+
+  const uniqueAttributeIndex = emptyIdPACT.batch();
+  const uniqueInverseAttributeIndex = emptyIdPACT.batch();
+
+  const idEncoder = outCtx.ns[id].encoder;
+  for (const [attrId, constraint] of Object.entries(outCtx.constraints)) {
+    if (constraint.isUnique) {
+      const encodedId = new Uint8Array(16);
+      idEncoder(attrId, encodedId);
+      uniqueAttributeIndex.put(encodedId);
+    }
+    if (constraint.isUniqueInverse) {
+      const encodedId = new Uint8Array(16);
+      idEncoder(attrId, encodedId);
+      uniqueInverseAttributeIndex.put(encodedId);
+    }
+  }
+
+  outCtx.uniqueAttributeIndex = uniqueAttributeIndex.complete();
+  outCtx.uniqueInverseAttributeIndex = uniqueInverseAttributeIndex.complete();
+
   return outCtx;
 };
 

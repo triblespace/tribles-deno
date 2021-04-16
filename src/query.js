@@ -62,10 +62,11 @@ class OrderByMinCostAndBlockage {
       for (const proposal of c.propose()) {
         const minCosts = Math.min(...proposal.costs);
         const variable = proposal.variable;
-        const blocker = this.blockedBy.get(variable);
         if (
           minCosts <= candidateCosts &&
-          (blocker === undefined || this.exploredVariables.has(blocker))
+          this.blockedBy.every(([blocked, blocker]) =>
+            variable !== blocked || this.exploredVariables.has(blocker)
+          )
         ) {
           candidateVariable = variable;
           candidateCosts = minCosts;
