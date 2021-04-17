@@ -114,32 +114,6 @@ class VariableProvider {
 }
 
 const entityProxy = function entityProxy(kb, ctx, entityId) {
-  const attrsBatch = emptyValuePACT.batch();
-  const inverseAttrsBatch = emptyValuePACT.batch();
-  for (
-    const [attr, { id: attrId, isInverse }] of Object.entries(ctx.ns)
-  ) {
-    const aId = new Uint8Array(VALUE_SIZE);
-    ctx.ns[id].encoder(attrId, aId);
-    let attrs;
-    if (isInverse) {
-      attrs = inverseAttrsBatch.get(aId);
-      if (!attrs) {
-        attrs = [];
-        inverseAttrsBatch.put(aId, attrs);
-      }
-    } else {
-      attrs = attrsBatch.get(aId);
-      if (!attrs) {
-        attrs = [];
-        attrsBatch.put(aId, attrs);
-      }
-    }
-    attrs.push(attr);
-  }
-  const attrsById = attrsBatch.complete();
-  const inverseAttrsById = inverseAttrsBatch.complete();
-
   const eId = new Uint8Array(VALUE_SIZE);
   ctx.ns[id].encoder(entityId, eId);
 
@@ -151,9 +125,9 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
 
     const res = resolve(
       [
-        new constantConstraint(0, eId),
-        new constantConstraint(1, aId),
-        new kb.tribledb.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
+        constantConstraint(0, eId),
+        constantConstraint(1, aId),
+        kb.tribledb.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
       ],
       new OrderByMinCost(),
       new Set([0, 1, 2]),
@@ -305,7 +279,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
           const [e, a, v] of resolve(
             [
               constantConstraint(0, eId),
-              indexConstraint(1, attrsById),
+              indexConstraint(1, ctx.attrsIndex),
               kb.tribledb.constraint(0, 1, 2),
             ],
             new OrderByMinCost(),
@@ -317,14 +291,14 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
             ],
           )
         ) {
-          attrs.push(...attrsById.get(a));
+          attrs.push(...ctx.attrsIndex.get(a));
         }
         for (
           const [e, a, v] of resolve(
             [
               constantConstraint(0, eId),
               kb.tribledb.constraint(2, 1, 0),
-              indexConstraint(1, inverseAttrsById),
+              indexConstraint(1, ctx.inverseAttrsIndex),
             ],
             new OrderByMinCost(),
             new Set([0, 1, 2]),
@@ -335,7 +309,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
             ],
           )
         ) {
-          attrs.push(...inverseAttrsById.get(a));
+          attrs.push(...ctx.inverseAttrsIndex.get(a));
         }
         return attrs;
       },
@@ -630,7 +604,7 @@ function* find(ctx, cfn, blobdb) {
           encoded.slice(0),
           async () => await blobdb.get(encoded),
         );
-        result[name] = walked ? walked.walk(ctx, decoded) : decoded;
+        result[name] = walked ? walked.walk(decoded, ctx) : decoded;
       }
     }
     yield result;
@@ -779,8 +753,8 @@ class TribleKB {
     };
   }
 
-  walk(entityId) {
-    return entityProxy(this, this.ctx, entityId);
+  walk(entityId, ctx = this.ctx) {
+    return entityProxy(this, ctx, entityId);
   }
 
   empty() {
@@ -947,8 +921,34 @@ const ctx = (...ctxs) => {
     }
   }
 
+  let attrsIndex = emptyValuePACT;
+  let inverseAttrsIndex = emptyValuePACT;
+  for (
+    const [attr, { id: attrId, isInverse }] of Object.entries(outCtx.ns)
+  ) {
+    const aId = new Uint8Array(VALUE_SIZE);
+    outCtx.ns[id].encoder(attrId, aId);
+    let attrs;
+    if (isInverse) {
+      attrs = inverseAttrsIndex.get(aId);
+      if (!attrs) {
+        attrs = [];
+        inverseAttrsIndex = inverseAttrsIndex.put(aId, attrs);
+      }
+    } else {
+      attrs = attrsIndex.get(aId);
+      if (!attrs) {
+        attrs = [];
+        attrsIndex = attrsIndex.put(aId, attrs);
+      }
+    }
+    attrs.push(attr);
+  }
+
   outCtx.uniqueAttributeIndex = uniqueAttributeIndex.complete();
   outCtx.uniqueInverseAttributeIndex = uniqueInverseAttributeIndex.complete();
+  outCtx.attrsIndex = attrsIndex;
+  outCtx.inverseAttrsIndex = inverseAttrsIndex;
 
   return outCtx;
 };

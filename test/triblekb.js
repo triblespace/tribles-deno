@@ -369,3 +369,54 @@ Deno.test("unique inverse constraint", () => {
     "",
   );
 });
+
+
+
+Deno.test("KB Walk", () => {
+  // Define a context, mapping between js data and tribles.
+  const { nameId, lovesId, titlesId } = UFOID.namedCache();
+
+  const knightsCtx = ctx({
+    ns: {
+      [id]: { ...types.ufoid },
+      name: { id: nameId, ...types.shortstring },
+      loves: { id: lovesId },
+      lovedBy: { id: lovesId, isInverse: true },
+      titles: { id: titlesId, ...types.shortstring },
+    },
+    constraints: {
+      [nameId]: { isUnique: true },
+      [lovesId]: { isLink: true, isUnique: true },
+      [titlesId]: {},
+    },
+  });
+
+  // Add some data.
+  const memkb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB());
+
+  const knightskb = memkb.with(
+    (
+      [romeo, juliet],
+    ) => [
+      {
+        [id]: romeo,
+        name: "Romeo",
+        titles: ["fool", "prince"],
+        loves: juliet,
+      },
+      {
+        [id]: juliet,
+        name: "Juliet",
+        titles: ["the lady", "princess"],
+        loves: romeo,
+      },
+    ],
+  );
+  // Query some data.
+  const [{romeo}] = [
+    ...knightskb.find((
+      { romeo },
+    ) => [{ [id]: romeo.walk(knightskb), name: "Romeo" }]),
+  ];
+  assertEquals(romeo.loves.name, "Juliet");
+});
