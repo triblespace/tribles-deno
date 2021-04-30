@@ -1,5 +1,6 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
-import { emptyTriblePACT as baseline } from "../src/pact.js";
+import { emptyTriblePACT as baseline, nextKey } from "../src/pact.js";
+import { TRIBLE_SIZE, E, A, V1, V2 } from "../src/trible.js";
 
 const variants = [
   {
@@ -37,13 +38,13 @@ const benchAllPACT = ({ name, func }) => {
 };
 
 function generate_sample(size, sharing_prob = 0.1) {
-  const facts = [];
-  const fact = new Uint8Array(64);
-  const e = fact.subarray(0, 16);
-  const a = fact.subarray(16, 32);
-  const v1 = fact.subarray(32, 48);
-  const v2 = fact.subarray(48, 64);
-  crypto.getRandomValues(fact);
+  const tribles = [];
+  const trible = new Uint8Array(TRIBLE_SIZE);
+  const e = E(trible);
+  const a = A(trible);
+  const v1 = V1(trible);
+  const v2 = V2(trible);
+  crypto.getRandomValues(trible);
   for (let i = 0; i < size; i++) {
     if (sharing_prob < Math.random()) {
       crypto.getRandomValues(e);
@@ -57,9 +58,9 @@ function generate_sample(size, sharing_prob = 0.1) {
     if (sharing_prob < Math.random()) {
       crypto.getRandomValues(v2);
     }
-    facts.push(Uint8Array.from(fact));
+    tribles.push(Uint8Array.from(trible));
   }
-  return facts;
+  return tribles;
 }
 function persistentPut(b, pactType, size) {
   const sample = generate_sample(size);
@@ -274,8 +275,13 @@ function iterate(b, pactType, size) {
   pact = pact.complete();
   b.start();
   let i = 0;
-  for (const cursor = pact.cursor(); cursor.valid; cursor.next()) {
+  const cursor = pact.cursor();
+  const key = new Uint8Array(TRIBLE_SIZE);
+  while (true) {
+    cursor.seek(key);
+    if (!cursor.peek(key)) break;
     i++;
+    if (!nextKey(key)) break;
   }
   b.stop();
 }
@@ -285,4 +291,4 @@ benchAllPACT({
   func: iterate,
 });
 
-runBenchmarks({ only: /Iterate/ });
+runBenchmarks();
