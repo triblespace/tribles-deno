@@ -71,7 +71,7 @@ provides tree interfaces for data insertion, and tree based query capabilites, a
 all operating over familiar plain old javascript objects (and proxies *cough*).
 
 ## Contexts, Types and Ontologies
-The thing that JSON-LD realy got right, is their decoupling of the underlying data representation (in their case RDF)
+The thing that JSON-LD really got right, is their decoupling of the underlying data representation (in their case RDF)
 and the user facing representation.
 If different systems are to exchange information, or if a single system is upgraded, there needs to be some form of neutral representation, in our case bytes.
 By giving the user the ability to provide contexts in which the underlying tribles can be interpreted as needed, we can:
