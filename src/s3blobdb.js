@@ -1,6 +1,5 @@
 const { S3 } = require("aws-sdk");
 
-const { emptyValuePART } = require("./part.js");
 
 class S3BlobDB {
   constructor(

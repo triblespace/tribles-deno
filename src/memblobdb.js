@@ -1,8 +1,10 @@
-const { emptyValuePART } = require("./part.js");
+const { emptyValuePACT } = require("./pact.js");
+const { VALUE_SIZE } = require("./trible.js");
+
 
 class MemBlobDB {
   constructor(
-    blobs = emptyValuePART,
+    blobs = emptyValuePACT,
   ) {
     this.blobs = blobs;
   }
@@ -11,7 +13,7 @@ class MemBlobDB {
     let nblobs = this.blobs.batch();
     for (let b = 0; b < blobs.length; b++) {
       const [key, blob] = blobs[b];
-      nblobs = nblobs.put(key, (old) => old || blob);
+      nblobs = nblobs.put(key, blob);
     }
 
     return new MemBlobDB(nblobs.complete());
@@ -43,10 +45,28 @@ class MemBlobDB {
   }
 
   shrink(tribledb) {
-    console.warn(
-      "MemBlobDB does not implement shrinking yet, so performing non-monotonic KB set operations will potentially leak memory.",
-    );
-    return this;
+    const blobs = emptyValuePACT.batch();
+    const blobCursor = this.blobs.cursor();
+    const valueCursor = tribledb.VEA.cursor();
+    if (blobCursor.valid && valueCursor.valid) {
+      blobCursor.push(VALUE_SIZE);
+      valueCursor.push(VALUE_SIZE);
+      search:
+      while (true) {
+        const match = blobCursor.seek(valueCursor.peek());
+        if (!blobCursor.valid) break search;
+        if (match) {
+          blobs.put(blobCursor.peek(), blobCursor.value());
+        }
+        blobCursor.next();
+        if (!blobCursor.valid) break search;
+        valueCursor.seek(blobCursor.peek());
+        if (!valueCursor.valid) break search;
+
+        continue search;
+      }
+    }
+    return MemBlobDB(blobs.complete());
   }
 }
 
