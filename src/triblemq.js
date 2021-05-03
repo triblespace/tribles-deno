@@ -151,8 +151,6 @@ class TribleBox {
   }
 
   set kb(newKB) {
-    //TODO add size to PACT, so this can be done lazily.
-    //TODO move this to set operations on tribledb
     const difKB = newKB.subtract(this._kb);
     if (!difKB.isEmpty()) {
       const oldKB = this._kb;
