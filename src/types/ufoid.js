@@ -5,7 +5,7 @@ function ufoidEncoder(v, b) {
     throw Error("Can't encode NIL UFOID.");
   }
   if (!UFOID.validate(v)) {
-    throw Error("Provided value is not an encodable uuid.");
+    throw Error(`Provided value is not an encodable uuid:${v.toString()}`);
   }
   b.fill(0, 0, b.length - 16);
   const bytes = new Uint8Array(
