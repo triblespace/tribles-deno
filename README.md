@@ -10,10 +10,12 @@ It is still in early development.
 
 So far the following components have been implemented.
 
-- PART js implementation.
+- PACT js implementation.
 - TribleDB js immutable trible database.
 - TribleKB js immutable trible knowledge-base.
+- TribleMQ js middleware communications libary.
 - Core types:
+  - UFOID
   - UUID
   - Shortstring
   - Longstring
@@ -22,9 +24,8 @@ So far the following components have been implemented.
 
 Currently to be done and missing is:
 
-- PART rust implementation.
+- PACT rust implementation.
 - TribleDB rust implementation.
-- TribleMQ js middleware communications libary.
 - JS Ontology tools to dynamically load TribleKB contexts and documentation from Trible based ontologies.
 - Core number types.
 - More types...
