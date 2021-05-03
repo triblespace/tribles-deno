@@ -65,7 +65,7 @@ class MemBlobDB {
         continue search;
       }
     }
-    return MemBlobDB(blobs.complete());
+    return new MemBlobDB(blobs.complete());
   }
 }
 
