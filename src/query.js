@@ -1,7 +1,6 @@
 const { emptyValuePACT, nextKey } = require("./pact.js");
 const { VALUE_SIZE } = require("./trible.js");
 
-
 class IndexConstraint {
   constructor(variable, index) {
     this.cursor = index.segmentCursor();
@@ -11,10 +10,12 @@ class IndexConstraint {
 
   propose() {
     if (this.done) return [];
-    return [{
-      variable: this.variable,
-      costs: [this.cursor.segmentCount()],
-    }];
+    return [
+      {
+        variable: this.variable,
+        costs: [this.cursor.segmentCount()],
+      },
+    ];
   }
 
   push(variable, ascending) {
@@ -65,8 +66,9 @@ class OrderByMinCostAndBlockage {
         const variable = proposal.variable;
         if (
           minCosts <= candidateCosts &&
-          this.blockedBy.every(([blocked, blocker]) =>
-            variable !== blocked || this.exploredVariables.has(blocker)
+          this.blockedBy.every(
+            ([blocked, blocker]) =>
+              variable !== blocked || this.exploredVariables.has(blocker)
           )
         ) {
           candidateVariable = variable;
@@ -87,8 +89,7 @@ class OrderByMinCostAndBlockage {
 }
 
 class OrderByMinCost {
-  constructor() {
-  }
+  constructor() {}
 
   propose(constraints) {
     let candidateVariable = null;
@@ -97,9 +98,7 @@ class OrderByMinCost {
       for (const proposal of c.propose()) {
         const minCosts = Math.min(...proposal.costs);
         const variable = proposal.variable;
-        if (
-          minCosts <= candidateCosts
-        ) {
+        if (minCosts <= candidateCosts) {
           candidateVariable = variable;
           candidateCosts = minCosts;
         }
@@ -108,11 +107,9 @@ class OrderByMinCost {
     return candidateVariable;
   }
 
-  push(variable) {
-  }
+  push(variable) {}
 
-  pop(variable) {
-  }
+  pop(variable) {}
 }
 
 function* resolve(constraints, ordering, ascendingVariables, bindings) {
@@ -153,7 +150,6 @@ function* resolve(constraints, ordering, ascendingVariables, bindings) {
   }
   return;
 }
-
 
 module.exports = {
   collectionConstraint,

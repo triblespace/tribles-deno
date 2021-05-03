@@ -114,7 +114,7 @@ const contiguousTribles = (tribles) => ({
       return {
         value: this.tribles.subarray(
           this.t++ * TRIBLE_SIZE,
-          this.t * TRIBLE_SIZE,
+          this.t * TRIBLE_SIZE
         ),
       };
     }
@@ -166,5 +166,5 @@ module.exports = {
   V2,
   V_SIZE,
   VALUE_SIZE,
-  zero
+  zero,
 };

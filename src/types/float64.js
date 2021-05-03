@@ -9,7 +9,7 @@ function float64Encoder(v, b) {
 function float64Decoder(b, blob) {
   return new DataView(b.buffer, b.byteOffset, b.byteLength).getFloat64(
     0,
-    false,
+    false
   );
 }
 

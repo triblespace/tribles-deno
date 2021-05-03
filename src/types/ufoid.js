@@ -9,16 +9,16 @@ function ufoidEncoder(v, b) {
   }
   b.fill(0, 0, b.length - 16);
   const bytes = new Uint8Array(
-    v.match(/.{2}/g).map((hex) => parseInt(hex, 16)),
+    v.match(/.{2}/g).map((hex) => parseInt(hex, 16))
   );
   b.set(bytes, b.length - 16);
   return null;
 }
 
 function ufoidDecoder(b, blob) {
-  return [...b.subarray(b.length - 16)].map((byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
+  return [...b.subarray(b.length - 16)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 const ufoidType = {

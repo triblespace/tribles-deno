@@ -1,22 +1,28 @@
-const webpack = require('webpack');
+const webpack = require("webpack");
 
-module.exports = [{
+module.exports = [
+  {
     mode: "development",
-    entry: './src/index.js',
+    entry: "./src/index.js",
     output: {
-        filename: 'tribles.js',
-        libraryTarget: 'umd',
-        library: 'tribles'
+      filename: "tribles.js",
+      libraryTarget: "umd",
+      library: "tribles",
     },
     resolve: {
-        fallback: { "util": require.resolve("util/")}}},
-{
+      fallback: { util: require.resolve("util/") },
+    },
+  },
+  {
     mode: "production",
-    entry: './src/index.js',
+    entry: "./src/index.js",
     output: {
-        filename: 'tribles.min.js',
-        libraryTarget: 'umd',
-        library: 'tribles'
+      filename: "tribles.min.js",
+      libraryTarget: "umd",
+      library: "tribles",
     },
     resolve: {
-        fallback: { "util": require.resolve("util/")}}}];
+      fallback: { util: require.resolve("util/") },
+    },
+  },
+];

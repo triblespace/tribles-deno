@@ -10,9 +10,9 @@ async function longstringDecoder(b, blob) {
   return new TextDecoder("utf-8").decode(await blob());
 }
 
-const longstringType = ({
+const longstringType = {
   encoder: longstringEncoder,
   decoder: longstringDecoder,
-});
+};
 
 module.exports = { longstringType };

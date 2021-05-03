@@ -1,19 +1,23 @@
-const {   emptyIdIdValueTriblePACT,
+const {
+  emptyIdIdValueTriblePACT,
   emptyIdValueIdTriblePACT,
-  emptyValueIdIdTriblePACT } = require("./pact.js");
-const {  A,
-    E,
-    equalId,
-    scrambleAEV,
-    scrambleAVE,
-    scrambleEAV,
-    scrambleEVA,
-    scrambleVAE,
-    scrambleVEA,
-    V,
-    V1,
-    V2,
-    zero,} = require("./trible.js");
+  emptyValueIdIdTriblePACT,
+} = require("./pact.js");
+const {
+  A,
+  E,
+  equalId,
+  scrambleAEV,
+  scrambleAVE,
+  scrambleEAV,
+  scrambleEVA,
+  scrambleVAE,
+  scrambleVEA,
+  V,
+  V1,
+  V2,
+  zero,
+} = require("./trible.js");
 
 const inmemoryCosts = 1; //TODO estimate and change to microseconds.
 // TODO return both count and latency. Cost = min count * max latency;
@@ -24,19 +28,21 @@ class MemTribleConstraint {
   }
 
   propose() {
-    const lastExplored =
-      this.explorationStack[this.explorationStack.length - 1];
+    const lastExplored = this.explorationStack[
+      this.explorationStack.length - 1
+    ];
     return lastExplored.children.map((child) => ({
       variable: child.variable,
-      costs: child.cursors.map((cursor) =>
-        cursor.segmentCount() * inmemoryCosts
+      costs: child.cursors.map(
+        (cursor) => cursor.segmentCount() * inmemoryCosts
       ),
     }));
   }
 
   push(variable, ascending = true) {
-    const lastExplored =
-      this.explorationStack[this.explorationStack.length - 1];
+    const lastExplored = this.explorationStack[
+      this.explorationStack.length - 1
+    ];
     let nextExplored = null;
     for (const child of lastExplored.children) {
       if (child.variable === variable) {
@@ -52,8 +58,9 @@ class MemTribleConstraint {
   }
 
   pop(variable) {
-    const lastExplored =
-      this.explorationStack[this.explorationStack.length - 1];
+    const lastExplored = this.explorationStack[
+      this.explorationStack.length - 1
+    ];
     if (lastExplored.variable === variable) {
       for (const cursor of lastExplored.cursors) {
         cursor.pop();
@@ -73,7 +80,7 @@ class MemTribleDB {
     VAE = emptyValueIdIdTriblePACT,
     EisA = emptyIdIdValueTriblePACT, // Same order as EAV
     EisV = emptyIdIdValueTriblePACT, // Same order as EAV
-    AisV = emptyIdIdValueTriblePACT, // Same order as AEV
+    AisV = emptyIdIdValueTriblePACT // Same order as AEV
   ) {
     this.EAV = EAV;
     this.EVA = EVA;
@@ -133,7 +140,7 @@ class MemTribleDB {
       VAE.complete(),
       EisA.complete(),
       EisV.complete(),
-      AisV.complete(),
+      AisV.complete()
     );
   }
 
@@ -149,130 +156,128 @@ class MemTribleDB {
     const AisVCursor = this.AisV.segmentCursor();
 
     if (e === a && e === v) {
-      return new MemTribleConstraint(
-        { children: [{ variable: e, cursors: [EisACursor, EisVCursor] }] },
-      );
+      return new MemTribleConstraint({
+        children: [{ variable: e, cursors: [EisACursor, EisVCursor] }],
+      });
     }
     if (e === a) {
-      return new MemTribleConstraint(
-        {
-          children: [
-            {
-              variable: e,
-              cursors: [EVACursor, EisACursor],
-              children: [{ variable: v, cursors: [EVACursor], children: [] }],
-            },
-            {
-              variable: v,
-              cursors: [VEACursor],
-              children: [{
-                variable: e,
-                cursors: [VEACursor, EisACursor],
-                children: [],
-              }],
-            },
-          ],
-        },
-      );
-    }
-    if (e === v) {
-      return new MemTribleConstraint(
-        {
-          children: [
-            {
-              variable: e,
-              cursors: [EAVCursor, EisVCursor],
-              children: [{ variable: a, cursors: [EAVCursor], children: [] }],
-            },
-            {
-              variable: a,
-              cursors: [AEVCursor],
-              children: [{
-                variable: e,
-                cursors: [AEVCursor, EisVCursor],
-                children: [],
-              }],
-            },
-          ],
-        },
-      );
-    }
-    if (a === v) {
-      return new MemTribleConstraint(
-        {
-          children: [
-            {
-              variable: e,
-              cursors: [EAVCursor],
-              children: [{
-                variable: a,
-                cursors: [EAVCursor, AisVCursor],
-                children: [],
-              }],
-            },
-            {
-              variable: a,
-              cursors: [AEVCursor, AisVCursor],
-              children: [{ variable: e, cursors: [AEVCursor], children: [] }],
-            },
-          ],
-        },
-      );
-    }
-    return new MemTribleConstraint(
-      {
+      return new MemTribleConstraint({
         children: [
           {
             variable: e,
-            cursors: [EAVCursor, EVACursor],
+            cursors: [EVACursor, EisACursor],
+            children: [{ variable: v, cursors: [EVACursor], children: [] }],
+          },
+          {
+            variable: v,
+            cursors: [VEACursor],
+            children: [
+              {
+                variable: e,
+                cursors: [VEACursor, EisACursor],
+                children: [],
+              },
+            ],
+          },
+        ],
+      });
+    }
+    if (e === v) {
+      return new MemTribleConstraint({
+        children: [
+          {
+            variable: e,
+            cursors: [EAVCursor, EisVCursor],
+            children: [{ variable: a, cursors: [EAVCursor], children: [] }],
+          },
+          {
+            variable: a,
+            cursors: [AEVCursor],
+            children: [
+              {
+                variable: e,
+                cursors: [AEVCursor, EisVCursor],
+                children: [],
+              },
+            ],
+          },
+        ],
+      });
+    }
+    if (a === v) {
+      return new MemTribleConstraint({
+        children: [
+          {
+            variable: e,
+            cursors: [EAVCursor],
             children: [
               {
                 variable: a,
-                cursors: [EAVCursor],
-                children: [{ variable: v, cursors: [EAVCursor], children: [] }],
-              },
-              {
-                variable: v,
-                cursors: [EVACursor],
-                children: [{ variable: a, cursors: [EVACursor], children: [] }],
+                cursors: [EAVCursor, AisVCursor],
+                children: [],
               },
             ],
           },
           {
             variable: a,
-            cursors: [AEVCursor, AVECursor],
-            children: [
-              {
-                variable: e,
-                cursors: [AEVCursor],
-                children: [{ variable: v, cursors: [AEVCursor], children: [] }],
-              },
-              {
-                variable: v,
-                cursors: [AVECursor],
-                children: [{ variable: e, cursors: [AVECursor], children: [] }],
-              },
-            ],
-          },
-          {
-            variable: v,
-            cursors: [VEACursor, VAECursor],
-            children: [
-              {
-                variable: e,
-                cursors: [VEACursor],
-                children: [{ variable: a, cursors: [VEACursor], children: [] }],
-              },
-              {
-                variable: a,
-                cursors: [VAECursor],
-                children: [{ variable: e, cursors: [VAECursor], children: [] }],
-              },
-            ],
+            cursors: [AEVCursor, AisVCursor],
+            children: [{ variable: e, cursors: [AEVCursor], children: [] }],
           },
         ],
-      },
-    );
+      });
+    }
+    return new MemTribleConstraint({
+      children: [
+        {
+          variable: e,
+          cursors: [EAVCursor, EVACursor],
+          children: [
+            {
+              variable: a,
+              cursors: [EAVCursor],
+              children: [{ variable: v, cursors: [EAVCursor], children: [] }],
+            },
+            {
+              variable: v,
+              cursors: [EVACursor],
+              children: [{ variable: a, cursors: [EVACursor], children: [] }],
+            },
+          ],
+        },
+        {
+          variable: a,
+          cursors: [AEVCursor, AVECursor],
+          children: [
+            {
+              variable: e,
+              cursors: [AEVCursor],
+              children: [{ variable: v, cursors: [AEVCursor], children: [] }],
+            },
+            {
+              variable: v,
+              cursors: [AVECursor],
+              children: [{ variable: e, cursors: [AVECursor], children: [] }],
+            },
+          ],
+        },
+        {
+          variable: v,
+          cursors: [VEACursor, VAECursor],
+          children: [
+            {
+              variable: e,
+              cursors: [VEACursor],
+              children: [{ variable: a, cursors: [VEACursor], children: [] }],
+            },
+            {
+              variable: a,
+              cursors: [VAECursor],
+              children: [{ variable: e, cursors: [VAECursor], children: [] }],
+            },
+          ],
+        },
+      ],
+    });
   }
 
   empty() {
@@ -305,7 +310,7 @@ class MemTribleDB {
       this.VAE.union(other.VAE),
       this.EisA.union(other.EisA),
       this.EisV.union(other.EisV),
-      this.AisV.union(other.AisV),
+      this.AisV.union(other.AisV)
     );
   }
 
@@ -319,7 +324,7 @@ class MemTribleDB {
       this.VAE.subtract(other.VAE),
       this.EisA.subtract(other.EisA),
       this.EisV.subtract(other.EisV),
-      this.AisV.subtract(other.AisV),
+      this.AisV.subtract(other.AisV)
     );
   }
 
@@ -333,7 +338,7 @@ class MemTribleDB {
       this.VAE.difference(other.VAE),
       this.EisA.difference(other.EisA),
       this.EisV.difference(other.EisV),
-      this.AisV.difference(other.AisV),
+      this.AisV.difference(other.AisV)
     );
   }
 
@@ -347,7 +352,7 @@ class MemTribleDB {
       this.VAE.intersect(other.VAE),
       this.EisA.intersect(other.EisA),
       this.EisV.intersect(other.EisV),
-      this.AisV.intersect(other.AisV),
+      this.AisV.intersect(other.AisV)
     );
   }
 }

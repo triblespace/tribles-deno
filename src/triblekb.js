@@ -1,11 +1,12 @@
 const { emptyIdPACT, emptyValuePACT } = require("./pact.js");
-const {   constantConstraint,
+const {
+  constantConstraint,
   indexConstraint,
   OrderByMinCost,
   OrderByMinCostAndBlockage,
-  resolve, } = require("./query.js");
+  resolve,
+} = require("./query.js");
 const { A, E, equalValue, TRIBLE_SIZE, V, VALUE_SIZE } = require("./trible.js");
-
 
 const id = Symbol("id");
 
@@ -28,9 +29,9 @@ class Variable {
         throw Error("Couldn't group variable, ordering would by cyclic.");
       }
       potentialCycles = new Set(
-        this.provider.blockedBy.filter(([a, b]) => potentialCycles.has(a)).map((
-          [a, b],
-        ) => b),
+        this.provider.blockedBy
+          .filter(([a, b]) => potentialCycles.has(a))
+          .map(([a, b]) => b)
       );
     }
     this.provider.blockedBy.push([this.index, otherVariable.index]);
@@ -89,7 +90,7 @@ class VariableProvider {
           this.variables.push(variable);
           return variable;
         },
-      },
+      }
     );
   }
 
@@ -134,12 +135,13 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
         new Uint8Array(VALUE_SIZE),
         new Uint8Array(VALUE_SIZE),
         new Uint8Array(VALUE_SIZE),
-      ],
+      ]
     );
 
     let decoder;
-    const { isLink, isUnique, isUniqueInverse } =
-      ctx.constraints[ctx.ns[attr].id];
+    const { isLink, isUnique, isUniqueInverse } = ctx.constraints[
+      ctx.ns[attr].id
+    ];
     if (isLink) {
       decoder = (v, b) => entityProxy(kb, ctx, ctx.ns[id].decoder(v, b));
     } else {
@@ -190,7 +192,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
       },
       set: function (_, attr) {
         throw TypeError(
-          "Error: Entities are not writable, please use 'with' on the walked KB.",
+          "Error: Entities are not writable, please use 'with' on the walked KB."
         );
       },
       has: function (o, attr) {
@@ -202,8 +204,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
         if (
           attr in o ||
           !ctx.constraints[attrId].isUnique ||
-          (ctx.ns[attr].isInverse &&
-            !ctx.constraints[attrId].isUniqueInverse)
+          (ctx.ns[attr].isInverse && !ctx.constraints[attrId].isUniqueInverse)
         ) {
           return true;
         }
@@ -214,9 +215,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
             constantConstraint(0, eId),
             constantConstraint(1, aId),
             kb.tribledb.constraint(
-              ...(
-                ctx.ns[attr].isInverse ? [2, 1, 0] : [0, 1, 2]
-              ),
+              ...(ctx.ns[attr].isInverse ? [2, 1, 0] : [0, 1, 2])
             ),
           ],
           new OrderByMinCost(),
@@ -225,18 +224,18 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
             new Uint8Array(VALUE_SIZE),
             new Uint8Array(VALUE_SIZE),
             new Uint8Array(VALUE_SIZE),
-          ],
+          ]
         ).next();
         return !done;
       },
       deleteProperty: function (_, attr) {
         throw TypeError(
-          "Error: Entities are not writable, furthermore KBs are append only.",
+          "Error: Entities are not writable, furthermore KBs are append only."
         );
       },
       setPrototypeOf: function (_) {
         throw TypeError(
-          "Error: Entities are not writable and can only be POJOs.",
+          "Error: Entities are not writable and can only be POJOs."
         );
       },
       isExtensible: function (_) {
@@ -247,7 +246,7 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
       },
       defineProperty: function (_, attr) {
         throw TypeError(
-          "Error: Entities are not writable, please use 'with' on the walked KB.",
+          "Error: Entities are not writable, please use 'with' on the walked KB."
         );
       },
       getOwnPropertyDescriptor: function (o, attr) {
@@ -274,45 +273,41 @@ const entityProxy = function entityProxy(kb, ctx, entityId) {
       },
       ownKeys: function (_) {
         const attrs = [id];
-        for (
-          const [e, a, v] of resolve(
-            [
-              constantConstraint(0, eId),
-              indexConstraint(1, ctx.attrsIndex),
-              kb.tribledb.constraint(0, 1, 2),
-            ],
-            new OrderByMinCost(),
-            new Set([0, 1, 2]),
-            [
-              new Uint8Array(VALUE_SIZE),
-              new Uint8Array(VALUE_SIZE),
-              new Uint8Array(VALUE_SIZE),
-            ],
-          )
-        ) {
+        for (const [e, a, v] of resolve(
+          [
+            constantConstraint(0, eId),
+            indexConstraint(1, ctx.attrsIndex),
+            kb.tribledb.constraint(0, 1, 2),
+          ],
+          new OrderByMinCost(),
+          new Set([0, 1, 2]),
+          [
+            new Uint8Array(VALUE_SIZE),
+            new Uint8Array(VALUE_SIZE),
+            new Uint8Array(VALUE_SIZE),
+          ]
+        )) {
           attrs.push(...ctx.attrsIndex.get(a));
         }
-        for (
-          const [e, a, v] of resolve(
-            [
-              constantConstraint(0, eId),
-              kb.tribledb.constraint(2, 1, 0),
-              indexConstraint(1, ctx.inverseAttrsIndex),
-            ],
-            new OrderByMinCost(),
-            new Set([0, 1, 2]),
-            [
-              new Uint8Array(VALUE_SIZE),
-              new Uint8Array(VALUE_SIZE),
-              new Uint8Array(VALUE_SIZE),
-            ],
-          )
-        ) {
+        for (const [e, a, v] of resolve(
+          [
+            constantConstraint(0, eId),
+            kb.tribledb.constraint(2, 1, 0),
+            indexConstraint(1, ctx.inverseAttrsIndex),
+          ],
+          new OrderByMinCost(),
+          new Set([0, 1, 2]),
+          [
+            new Uint8Array(VALUE_SIZE),
+            new Uint8Array(VALUE_SIZE),
+            new Uint8Array(VALUE_SIZE),
+          ]
+        )) {
           attrs.push(...ctx.inverseAttrsIndex.get(a));
         }
         return attrs;
       },
-    },
+    }
   );
 };
 
@@ -370,29 +365,27 @@ const entitiesToTriples = (ctx, unknownFactory, root) => {
       for (const [attr, value] of Object.entries(w.value)) {
         if (!ctx.ns[attr]) {
           throw Error(
-            `Error at pathBytes [${w.path}]: No attribute named '${attr}' in ctx.`,
+            `Error at pathBytes [${w.path}]: No attribute named '${attr}' in ctx.`
           );
         }
         const attrId = ctx.ns[attr].id;
         if (!ctx.constraints[attrId]) {
           throw Error(
-            `Error at pathBytes [${w.path}]: No id '${attrId}' in ctx.`,
+            `Error at pathBytes [${w.path}]: No id '${attrId}' in ctx.`
           );
         }
         if (
-          (!ctx.ns[attr].isInverse &&
-            !ctx.constraints[attrId].isUnique) ||
-          (ctx.ns[attr].isInverse &&
-            !ctx.constraints[attrId].isUniqueInverse)
+          (!ctx.ns[attr].isInverse && !ctx.constraints[attrId].isUnique) ||
+          (ctx.ns[attr].isInverse && !ctx.constraints[attrId].isUniqueInverse)
         ) {
           if (!(value instanceof Array)) {
             if (ctx.ns[attr].isInverse) {
               throw Error(
-                `Error at pathBytes [${w.path}]: '${attr}' is not unique inverse constrained and needs array.`,
+                `Error at pathBytes [${w.path}]: '${attr}' is not unique inverse constrained and needs array.`
               );
             }
             throw Error(
-              `Error at pathBytes [${w.path}]: '${attr}' is not unique constrained and needs array.`,
+              `Error at pathBytes [${w.path}]: '${attr}' is not unique constrained and needs array.`
             );
           }
           for (const [i, v] of value.entries()) {
@@ -434,13 +427,11 @@ const entitiesToTriples = (ctx, unknownFactory, root) => {
 };
 
 const triplesToTribles = function (ctx, triples, tribles = [], blobs = []) {
-  for (
-    const {
-      path,
-      attr,
-      triple: [entity, attrId, value],
-    } of triples
-  ) {
+  for (const {
+    path,
+    attr,
+    triple: [entity, attrId, value],
+  } of triples) {
     const trible = new Uint8Array(TRIBLE_SIZE);
     const encodedValue = V(trible);
     let blob;
@@ -454,21 +445,21 @@ const triplesToTribles = function (ctx, triples, tribles = [], blobs = []) {
       blob = encoder(value, encodedValue);
     } catch (err) {
       throw Error(
-        `Error at path [${path}]:Couldn't encode '${value}' as value for attribute '${attr}':\n${err}`,
+        `Error at path [${path}]:Couldn't encode '${value}' as value for attribute '${attr}':\n${err}`
       );
     }
     try {
       ctx.ns[id].encoder(entity, E(trible));
     } catch (err) {
       throw Error(
-        `Error at path[${path}]:Couldn't encode '${entity}' as entity id:\n${err}`,
+        `Error at path[${path}]:Couldn't encode '${entity}' as entity id:\n${err}`
       );
     }
     try {
       ctx.ns[id].encoder(attrId, A(trible));
     } catch (err) {
       throw Error(
-        `Error at path [${path}]:Couldn't encode id '${attrId}' of attr '${attr}' in ctx:\n${err}`,
+        `Error at path [${path}]:Couldn't encode id '${attrId}' of attr '${attr}' in ctx:\n${err}`
       );
     }
 
@@ -482,13 +473,11 @@ const triplesToTribles = function (ctx, triples, tribles = [], blobs = []) {
 
 const precompileTriples = (ctx, vars, triples) => {
   const precompiledTriples = [];
-  for (
-    const {
-      path,
-      attr,
-      triple: [entity, attrId, value],
-    } of triples
-  ) {
+  for (const {
+    path,
+    attr,
+    triple: [entity, attrId, value],
+  } of triples) {
     let entityVar;
     let attrVar;
     let valueVar;
@@ -498,14 +487,12 @@ const precompileTriples = (ctx, vars, triples) => {
         if (entity.decoder) {
           if (entity.decoder !== ctx.ns[id].decoder) {
             throw new Error(
-              `Error at paths ${entity.paths} and [${
-                path.slice(
-                  0,
-                  -1,
-                )
-              }]:\n Variables at positions use incompatible decoders '${entity.decoder.name}' and '${
-                ctx.ns[id].decoder.name
-              }'.`,
+              `Error at paths ${entity.paths} and [${path.slice(
+                0,
+                -1
+              )}]:\n Variables at positions use incompatible decoders '${
+                entity.decoder.name
+              }' and '${ctx.ns[id].decoder.name}'.`
             );
           }
         } else {
@@ -520,7 +507,7 @@ const precompileTriples = (ctx, vars, triples) => {
       }
     } catch (error) {
       throw Error(
-        `Error encoding entity at [${path.slice(0, -1)}]: ${error.message}`,
+        `Error encoding entity at [${path.slice(0, -1)}]: ${error.message}`
       );
     }
     try {
@@ -529,7 +516,7 @@ const precompileTriples = (ctx, vars, triples) => {
       attrVar = vars.constant(b);
     } catch (error) {
       throw Error(
-        `Error encoding attribute at [${path.slice}]: ${error.message}`,
+        `Error encoding attribute at [${path.slice}]: ${error.message}`
       );
     }
     try {
@@ -543,7 +530,7 @@ const precompileTriples = (ctx, vars, triples) => {
         if (value.decoder) {
           if (value.decoder !== decoder) {
             throw new Error(
-              `Error at paths ${value.paths} and [${path}]:\n Variables at positions use incompatible decoders '${value.decoder.name}' and '${decoder.name}'.`,
+              `Error at paths ${value.paths} and [${path}]:\n Variables at positions use incompatible decoders '${value.decoder.name}' and '${decoder.name}'.`
             );
           }
         } else {
@@ -582,26 +569,24 @@ function* find(ctx, cfn, blobdb) {
 
   const constraints = constraintBuilders.flatMap((builder) => builder());
   constraints.push(
-    ...[...vars.constantVariables.values()].map(
-      (v) => constantConstraint(v.index, v.constant),
-    ),
+    ...[...vars.constantVariables.values()].map((v) =>
+      constantConstraint(v.index, v.constant)
+    )
   );
 
-  for (
-    const r of resolve(
-      constraints,
-      new OrderByMinCostAndBlockage(vars.blockedBy),
-      new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
-      vars.variables.map((v) => new Uint8Array(VALUE_SIZE)),
-    )
-  ) {
+  for (const r of resolve(
+    constraints,
+    new OrderByMinCostAndBlockage(vars.blockedBy),
+    new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
+    vars.variables.map((v) => new Uint8Array(VALUE_SIZE))
+  )) {
     const result = {};
     for (const { index, walked, decoder, name, isOmit } of namedVariables) {
       if (!isOmit) {
         const encoded = r[index];
         const decoded = decoder(
           encoded.slice(0),
-          async () => await blobdb.get(encoded),
+          async () => await blobdb.get(encoded)
         );
         result[name] = walked ? walked.walk(decoded, ctx) : decoded;
       }
@@ -663,32 +648,34 @@ class TribleKB {
 
       let prevE = null;
       let prevA = null;
-      for (
-        const [e, a] of resolve(
-          [
-            indexConstraint(0, touchedEntities),
-            indexConstraint(1, touchedAttributes),
-            indexConstraint(1, this.ctx.uniqueAttributeIndex),
-            newTribleDB.constraint(0, 1, 2),
-          ],
-          new OrderByMinCostAndBlockage([[2, 0], [2, 1]]),
-          new Set([0, 1, 2]),
-          [
-            new Uint8Array(VALUE_SIZE),
-            new Uint8Array(VALUE_SIZE),
-            new Uint8Array(VALUE_SIZE),
-          ],
-        )
-      ) {
+      for (const [e, a] of resolve(
+        [
+          indexConstraint(0, touchedEntities),
+          indexConstraint(1, touchedAttributes),
+          indexConstraint(1, this.ctx.uniqueAttributeIndex),
+          newTribleDB.constraint(0, 1, 2),
+        ],
+        new OrderByMinCostAndBlockage([
+          [2, 0],
+          [2, 1],
+        ]),
+        new Set([0, 1, 2]),
+        [
+          new Uint8Array(VALUE_SIZE),
+          new Uint8Array(VALUE_SIZE),
+          new Uint8Array(VALUE_SIZE),
+        ]
+      )) {
         if (
-          prevE !== null && prevA !== null &&
+          prevE !== null &&
+          prevA !== null &&
           equalValue(prevE, e) &&
           equalValue(prevA, a)
         ) {
           throw Error(
-            `Constraint violation: Unique attribute '${
-              this.ctx.ns[id].decoder(a)
-            }' has multiple values on '${this.ctx.ns[id].decoder(e)}'.`,
+            `Constraint violation: Unique attribute '${this.ctx.ns[id].decoder(
+              a
+            )}' has multiple values on '${this.ctx.ns[id].decoder(e)}'.`
           );
         }
         prevE = e.slice();
@@ -697,32 +684,35 @@ class TribleKB {
 
       prevA = null;
       let prevV = null;
-      for (
-        const [e, a, v] of resolve(
-          [
-            indexConstraint(2, touchedValues),
-            indexConstraint(1, touchedAttributes),
-            indexConstraint(1, this.ctx.uniqueInverseAttributeIndex),
-            newTribleDB.constraint(0, 1, 2),
-          ],
-          new OrderByMinCostAndBlockage([[0, 1], [0, 2]]),
-          new Set([0, 1, 2]),
-          [
-            new Uint8Array(VALUE_SIZE),
-            new Uint8Array(VALUE_SIZE),
-            new Uint8Array(VALUE_SIZE),
-          ],
-        )
-      ) {
+      for (const [e, a, v] of resolve(
+        [
+          indexConstraint(2, touchedValues),
+          indexConstraint(1, touchedAttributes),
+          indexConstraint(1, this.ctx.uniqueInverseAttributeIndex),
+          newTribleDB.constraint(0, 1, 2),
+        ],
+        new OrderByMinCostAndBlockage([
+          [0, 1],
+          [0, 2],
+        ]),
+        new Set([0, 1, 2]),
+        [
+          new Uint8Array(VALUE_SIZE),
+          new Uint8Array(VALUE_SIZE),
+          new Uint8Array(VALUE_SIZE),
+        ]
+      )) {
         if (
-          prevA !== null && prevV !== null &&
+          prevA !== null &&
+          prevV !== null &&
           equalValue(prevA, a) &&
           equalValue(prevV, v)
-        ) { //TODO make errors pretty.
+        ) {
+          //TODO make errors pretty.
           throw Error(
-            `Constraint violation: Unique inverse attribute '${
-              this.ctx.ns[id].decoder(a)
-            }' has multiple entities for '${v}'.`,
+            `Constraint violation: Unique inverse attribute '${this.ctx.ns[
+              id
+            ].decoder(a)}' has multiple entities for '${v}'.`
           );
         }
         prevA = a.slice();
@@ -744,9 +734,8 @@ class TribleKB {
       const triples = entitiesToTriples(ctx, () => vars.unnamed(), entities);
       const triplesWithVars = precompileTriples(ctx, vars, triples);
       return () => [
-        ...triplesWithVars.map(
-          ([{ index: e }, { index: a }, { index: v }]) =>
-            this.tribledb.constraint(e, a, v),
+        ...triplesWithVars.map(([{ index: e }, { index: a }, { index: v }]) =>
+          this.tribledb.constraint(e, a, v)
         ),
       ];
     };
@@ -812,25 +801,25 @@ const ctx = (...ctxs) => {
       if (existing) {
         if (Boolean(existing.isLink) !== Boolean(novel.isLink)) {
           throw Error(
-            `Inconsistent ctx id "${id}": isLink:${existing.isLink} !== isLink:${novel.isLink}`,
+            `Inconsistent ctx id "${id}": isLink:${existing.isLink} !== isLink:${novel.isLink}`
           );
         }
         if (Boolean(existing.isUnique) !== Boolean(novel.isUnique)) {
           throw Error(
-            `Inconsistent ctx id "${id}": isUnique:${existing.isUnique} !== isUnique:${novel.isUnique}`,
+            `Inconsistent ctx id "${id}": isUnique:${existing.isUnique} !== isUnique:${novel.isUnique}`
           );
         }
         if (
           Boolean(existing.isUniqueInverse) !== Boolean(novel.isUniqueInverse)
         ) {
           throw Error(
-            `Inconsistent ctx id "${id}": isUniqueInverse:${existing.isUniqueInverse} !== isUniqueInverse:${novel.isUniqueInverse}`,
+            `Inconsistent ctx id "${id}": isUniqueInverse:${existing.isUniqueInverse} !== isUniqueInverse:${novel.isUniqueInverse}`
           );
         }
       } else {
         if (novel.isUniqueInverse && !novel.isLink) {
           throw Error(
-            `Inconsistent ctx id "${id}": Only links can be inverse unique.`,
+            `Inconsistent ctx id "${id}": Only links can be inverse unique.`
           );
         }
         outCtx.constraints[id] = novel;
@@ -841,43 +830,41 @@ const ctx = (...ctxs) => {
     if (ns[id] && !outCtx.ns[id]) {
       outCtx.ns[id] = ns[id];
     }
-    if (ns[id] && outCtx.ns[id] && (ns[id] !== outCtx.ns[id])) {
-      throw Error(
-        `Inconsistent id types in ctx.`,
-      );
+    if (ns[id] && outCtx.ns[id] && ns[id] !== outCtx.ns[id]) {
+      throw Error(`Inconsistent id types in ctx.`);
     }
     for (const [name, novel] of Object.entries(ns)) {
       const existing = outCtx.ns[name];
       if (existing) {
         if (existing.id !== novel.id) {
           throw Error(
-            `Inconsistent ctx attr "${name}": id:${existing.id} !== id:${novel.id}`,
+            `Inconsistent ctx attr "${name}": id:${existing.id} !== id:${novel.id}`
           );
         }
         if (Boolean(existing.isInverse) !== Boolean(novel.isInverse)) {
           throw Error(
-            `Inconsistent ctx attr "${name}": isInverse:${existing.isInverse} !== isInverse:${novel.isInverse}`,
+            `Inconsistent ctx attr "${name}": isInverse:${existing.isInverse} !== isInverse:${novel.isInverse}`
           );
         }
         if (existing.decoder !== novel.decoder) {
           throw Error(
-            `Inconsistent ctx attr "${name}": decoder:${existing.decoder} !== decoder:${novel.decoder}`,
+            `Inconsistent ctx attr "${name}": decoder:${existing.decoder} !== decoder:${novel.decoder}`
           );
         }
         if (existing.encoder !== novel.encoder) {
           throw Error(
-            `Inconsistent ctx attr "${name}": encoder:${existing.decoder} !== encoder:${novel.decoder}`,
+            `Inconsistent ctx attr "${name}": encoder:${existing.decoder} !== encoder:${novel.decoder}`
           );
         }
       } else {
         if (!outCtx.constraints[novel.id]) {
           throw Error(
-            `Inconsistent ctx: No constraints ${novel.id} in context for ${name}.`,
+            `Inconsistent ctx: No constraints ${novel.id} in context for ${name}.`
           );
         }
         if (novel.isInverse && !outCtx.constraints[novel.id].isLink) {
           throw Error(
-            `Inconsistent ctx attr "${name}": Only links can be inverse.`,
+            `Inconsistent ctx attr "${name}": Only links can be inverse.`
           );
         }
         if (!(novel.decoder || outCtx.constraints[novel.id].isLink)) {
@@ -922,9 +909,7 @@ const ctx = (...ctxs) => {
 
   let attrsIndex = emptyValuePACT;
   let inverseAttrsIndex = emptyValuePACT;
-  for (
-    const [attr, { id: attrId, isInverse }] of Object.entries(outCtx.ns)
-  ) {
+  for (const [attr, { id: attrId, isInverse }] of Object.entries(outCtx.ns)) {
     const aId = new Uint8Array(VALUE_SIZE);
     outCtx.ns[id].encoder(attrId, aId);
     let attrs;

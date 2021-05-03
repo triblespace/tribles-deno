@@ -20,6 +20,7 @@
     "prepack": "webpack"
   },
   "devDependencies": {
+    "prettier": "2.2.1",
     "webpack": "^5.11.1",
     "webpack-cli": "^4.3.1"
   }

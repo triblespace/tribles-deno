@@ -17,7 +17,7 @@ class S3BlobDB {
       },
     }),
     pendingWrites = [],
-    localBlobCache = new Map(),
+    localBlobCache = new Map()
   ) {
     this.config = config;
     this.bucket = bucket;
@@ -40,10 +40,13 @@ class S3BlobDB {
         promise: null,
         resolved: false,
       };
-      pendingWrite.promise = this.bucket.putObject({
-        Key: blobName,
-        Body: blob,
-      }).promise().then(() => pendingWrite.resolved = true);
+      pendingWrite.promise = this.bucket
+        .putObject({
+          Key: blobName,
+          Body: blob,
+        })
+        .promise()
+        .then(() => (pendingWrite.resolved = true));
       pendingWrites.push(pendingWrite);
       if (!this.localBlobCache.get(blobName)) {
         this.localBlobCache.set(blobName, blob);
@@ -54,7 +57,7 @@ class S3BlobDB {
       this.config,
       this.bucket,
       pendingWrites,
-      this.localBlobCache,
+      this.localBlobCache
     );
   }
 
@@ -66,19 +69,23 @@ class S3BlobDB {
     if (cachedValue) {
       return cachedValue;
     }
-    const pulledValue =
-      (await this.bucket.getObject({ key: blobName }).promise()).Body;
+    const pulledValue = (
+      await this.bucket.getObject({ key: blobName }).promise()
+    ).Body;
     this.localBlobCache.set(blobName, pulledValue);
     return pulledValue;
   }
 
   async flush() {
-    const reasons =
-      (await Promise.allSettled(this.pendingWrites.map((pw) => pw.promise)))
-        .filter((r) => r.status === "rejected")
-        .map((r) => r.reason);
+    const reasons = (
+      await Promise.allSettled(this.pendingWrites.map((pw) => pw.promise))
+    )
+      .filter((r) => r.status === "rejected")
+      .map((r) => r.reason);
     if (reasons.length !== 0) {
-      const e = Error("Couldn't flush S3BlobDB, some puts returned errors. See error.reasons for more info.");
+      const e = Error(
+        "Couldn't flush S3BlobDB, some puts returned errors. See error.reasons for more info."
+      );
       e.reasons = reasons;
       throw e;
     }
@@ -89,13 +96,13 @@ class S3BlobDB {
   }
 
   isEqual(other) {
-    return (other instanceof S3BlobDB) && (this.bucket === other.bucket);
+    return other instanceof S3BlobDB && this.bucket === other.bucket;
   }
 
   merge(other) {
     if (this.bucket !== other.bucket) {
       throw Error(
-        "Can't merge S3BlobDBs with different buckets through this client, use the 'trible' cmd-line tool instead.",
+        "Can't merge S3BlobDBs with different buckets through this client, use the 'trible' cmd-line tool instead."
       );
     }
     return this;

@@ -16,7 +16,7 @@ function buildTransaction(kb) {
   // or by adding a total size to pacts.
   const novelTriblesEager = [...kb.tribledb.EAV.keys()];
   const transaction = new Uint8Array(
-    TRIBLE_SIZE * (novelTriblesEager.length + 1),
+    TRIBLE_SIZE * (novelTriblesEager.length + 1)
   );
   let i = 1;
   for (const trible of novelTriblesEager) {
@@ -25,7 +25,7 @@ function buildTransaction(kb) {
   //TODO make hash configurable and use transaction trible attr for type
   blake2s32(
     transaction.subarray(TRIBLE_SIZE),
-    transaction.subarray((TRIBLE_SIZE - VALUE_SIZE), TRIBLE_SIZE),
+    transaction.subarray(TRIBLE_SIZE - VALUE_SIZE, TRIBLE_SIZE)
   );
   return transaction;
 }
@@ -95,15 +95,13 @@ class WSConnector {
     }
     if (txn.length % TRIBLE_SIZE !== 0) {
       console.warn(
-        `Bad transaction, ${txn.length} is not a multiple of ${TRIBLE_SIZE}.`,
+        `Bad transaction, ${txn.length} is not a multiple of ${TRIBLE_SIZE}.`
       );
       return;
     }
     const txnTrible = txn.subarray(0, TRIBLE_SIZE);
     if (!isTransactionMarker(txnTrible)) {
-      console.warn(
-        `Bad transaction, doesn't begin with transaction marker.`,
-      );
+      console.warn(`Bad transaction, doesn't begin with transaction marker.`);
       return;
     }
 
@@ -115,7 +113,7 @@ class WSConnector {
     }
 
     this.inbox.kb = this.inbox.kb.withTribles(
-      contiguousTribles(txnTriblePayload),
+      contiguousTribles(txnTriblePayload)
     );
   }
 
@@ -127,9 +125,7 @@ class WSConnector {
 }
 
 class TribleBox {
-  constructor(
-    kb,
-  ) {
+  constructor(kb) {
     this._kb = kb;
 
     const initChanges = {
@@ -139,7 +135,7 @@ class TribleBox {
     };
 
     let resolveNext;
-    const nextPromise = new Promise((resolve) => resolveNext = resolve);
+    const nextPromise = new Promise((resolve) => (resolveNext = resolve));
     this._resolveNext = resolveNext;
     this._changeNext = nextPromise;
     this._changeHead = Promise.resolve({
@@ -167,7 +163,7 @@ class TribleBox {
       this._changeHead = this._changeNext;
 
       let resolveNext;
-      const nextPromise = new Promise((resolve) => resolveNext = resolve);
+      const nextPromise = new Promise((resolve) => (resolveNext = resolve));
 
       this._resolveNext({
         next: nextPromise,
@@ -196,14 +192,8 @@ class TribleBox {
   }
 
   async *subscribe(ctx, query) {
-    for await (
-      const change of this.changes()
-    ) {
-      yield* find(
-        ctx,
-        (vars) => query(change, vars),
-        change.newKB.blobdb,
-      );
+    for await (const change of this.changes()) {
+      yield* find(ctx, (vars) => query(change, vars), change.newKB.blobdb);
     }
   }
 }

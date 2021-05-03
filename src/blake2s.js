@@ -30,14 +30,14 @@ function ROTR32(x, y) {
 
 // Initialization Vector.
 var BLAKE2S_IV = new Uint32Array([
-  0x6A09E667,
-  0xBB67AE85,
-  0x3C6EF372,
-  0xA54FF53A,
-  0x510E527F,
-  0x9B05688C,
-  0x1F83D9AB,
-  0x5BE0CD19,
+  0x6a09e667,
+  0xbb67ae85,
+  0x3c6ef372,
+  0xa54ff53a,
+  0x510e527f,
+  0x9b05688c,
+  0x1f83d9ab,
+  0x5be0cd19,
 ]);
 
 var SIGMA = new Uint8Array([
@@ -304,7 +304,7 @@ function blake2sFinal(ctx, output) {
 
   // little endian convert and store
   for (let i = 0; i < ctx.outlen; i++) {
-    output[i] = (ctx.h[i >> 2] >> (8 * (i & 3))) & 0xFF;
+    output[i] = (ctx.h[i >> 2] >> (8 * (i & 3))) & 0xff;
   }
   return output;
 }
