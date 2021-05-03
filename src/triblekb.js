@@ -795,7 +795,10 @@ class TribleKB {
 const ctx = (...ctxs) => {
   //TODO simply return first context if all contexts are equal.
   const outCtx = { ns: {}, constraints: {} };
-  for (const { ns, constraints } of ctxs) {
+  for (const { constraints } of ctxs) {
+    if(constraints == undefined) {
+      throw Error(`Context is missing it's 'constraints' attribute.`);
+    }
     for (const [id, novel] of Object.entries(constraints)) {
       const existing = outCtx.constraints[id];
       if (existing) {
@@ -826,7 +829,10 @@ const ctx = (...ctxs) => {
       }
     }
   }
-  for (const { ns, constraints } of ctxs) {
+  for (const { ns } of ctxs) {
+    if(ns == undefined) {
+      throw Error(`Context is missing it's 'ns' attribute.`);
+    }
     if (ns[id] && !outCtx.ns[id]) {
       outCtx.ns[id] = ns[id];
     }
