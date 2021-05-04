@@ -1,4 +1,4 @@
-const { emptyValuePACT } = require("./pact.js");
+const { emptyValuePACT, nextKey } = require("./pact.js");
 const { VALUE_SIZE } = require("./trible.js");
 
 class MemBlobDB {
@@ -42,23 +42,21 @@ class MemBlobDB {
 
   shrink(tribledb) {
     const blobs = emptyValuePACT.batch();
-    const blobCursor = this.blobs.cursor();
-    const valueCursor = tribledb.VEA.cursor();
-    if (blobCursor.valid && valueCursor.valid) {
-      blobCursor.push(VALUE_SIZE);
-      valueCursor.push(VALUE_SIZE);
+    const blobCursor = this.blobs.segmentCursor();
+    const valueCursor = tribledb.VEA.segmentCursor();
+    blobCursor.push();
+    valueCursor.push();
+    const key = new Uint8Array(VALUE_SIZE);
+    if (blobCursor.isValid() && valueCursor.isValid()) {
       search: while (true) {
-        const match = blobCursor.seek(valueCursor.peek());
-        if (!blobCursor.valid) break search;
+        if (!valueCursor.peek(key)) break search;
+        const match = blobCursor.seek(key);
+        if (!blobCursor.peek(key)) break search;
         if (match) {
-          blobs.put(blobCursor.peek(), blobCursor.value());
+          blobs.put(key.slice(), blobCursor.value());
         }
-        blobCursor.next();
-        if (!blobCursor.valid) break search;
-        valueCursor.seek(blobCursor.peek());
-        if (!valueCursor.valid) break search;
-
-        continue search;
+        if (!nextKey(key)) break search;
+        valueCursor.seek(key);
       }
     }
     return new MemBlobDB(blobs.complete());
