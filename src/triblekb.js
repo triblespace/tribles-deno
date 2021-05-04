@@ -796,7 +796,7 @@ const ctx = (...ctxs) => {
   //TODO simply return first context if all contexts are equal.
   const outCtx = { ns: {}, constraints: {} };
   for (const { constraints } of ctxs) {
-    if(constraints == undefined) {
+    if (constraints == undefined) {
       throw Error(`Context is missing it's 'constraints' attribute.`);
     }
     for (const [id, novel] of Object.entries(constraints)) {
@@ -830,7 +830,7 @@ const ctx = (...ctxs) => {
     }
   }
   for (const { ns } of ctxs) {
-    if(ns == undefined) {
+    if (ns == undefined) {
       throw Error(`Context is missing it's 'ns' attribute.`);
     }
     if (ns[id] && !outCtx.ns[id]) {

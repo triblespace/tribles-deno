@@ -1,6 +1,5 @@
 const { S3 } = require("aws-sdk");
 
-
 class S3BlobDB {
   constructor(
     config,
