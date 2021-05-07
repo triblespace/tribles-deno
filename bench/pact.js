@@ -1,6 +1,6 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
 import { emptyTriblePACT as baseline, nextKey } from "../src/pact.js";
-import { TRIBLE_SIZE, E, A, V1, V2 } from "../src/trible.js";
+import { A, E, TRIBLE_SIZE, V1, V2 } from "../src/trible.js";
 
 const variants = [
   {

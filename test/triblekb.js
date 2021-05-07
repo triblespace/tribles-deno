@@ -2,7 +2,7 @@ import {
   assert,
   assertArrayIncludes,
   assertEquals,
-  assertThrows
+  assertThrows,
 } from "https://deno.land/std@0.78.0/testing/asserts.ts";
 import fc from "https://cdn.skypack.dev/fast-check";
 fc.configureGlobal(
@@ -309,19 +309,18 @@ Deno.test("unique constraint", () => {
   assertThrows(
     () => {
       knightskb.with(
-    () => [
-      {
-        [id]: romeoId,
-        name: "Bob",
-      },
-    ],
-  )
+        () => [
+          {
+            [id]: romeoId,
+            name: "Bob",
+          },
+        ],
+      );
     },
     Error,
     "",
   );
 });
-
 
 Deno.test("unique inverse constraint", () => {
   // Define a context, mapping between js data and tribles.
@@ -357,20 +356,18 @@ Deno.test("unique inverse constraint", () => {
   assertThrows(
     () => {
       knightskb.with(
-    () => [
-      {
-        name: "Lady Impostor",
-        motherOf: [romeoId],
-      },
-    ],
-  )
+        () => [
+          {
+            name: "Lady Impostor",
+            motherOf: [romeoId],
+          },
+        ],
+      );
     },
     Error,
     "",
   );
 });
-
-
 
 Deno.test("KB Walk", () => {
   // Define a context, mapping between js data and tribles.
@@ -413,7 +410,7 @@ Deno.test("KB Walk", () => {
     ],
   );
   // Query some data.
-  const [{romeo}] = [
+  const [{ romeo }] = [
     ...knightskb.find((
       { romeo },
     ) => [{ [id]: romeo.walk(knightskb), name: "Romeo" }]),
