@@ -779,6 +779,7 @@ class TribleKB {
     return this.tribledb.isIntersecting(other.tribledb);
   }
 
+  //TODO check constraints!
   union(other) {
     const tribledb = this.tribledb.union(other.tribledb);
     const blobdb = this.blobdb.merge(other.blobdb);
