@@ -8,10 +8,11 @@ import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 import { encode } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
 import {
-  ctx,
+  globalInvariants,
   id,
   MemBlobDB,
   MemTribleDB,
+  namespace,
   S3BlobDB,
   TribleBox,
   TribleKB,
@@ -24,30 +25,33 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const { nameId, lovesId, titlesId, nameId, motherOfId } = UFOID
+  .namedCache();
+
+globalInvariants({
+  [nameId]: { isUnique: true },
+  [lovesId]: { isLink: true, isUnique: true },
+  [titlesId]: {},
+});
+
+globalInvariants({
+  [nameId]: { isUnique: true },
+  [motherOfId]: { isLink: true, isUniqueInverse: true },
+});
+
 Deno.test({
   name: "Check loopback.",
   fn: async () => {
-    // Define a context, mapping between js data and tribles.
-    const { nameId, lovesId, titlesId } = UFOID.namedCache();
-
-    const knightsCtx = ctx({
-      ns: {
-        [id]: { ...types.ufoid },
-        name: { id: nameId, ...types.shortstring },
-        loves: { id: lovesId },
-        lovedBy: { id: lovesId, isInverse: true },
-        titles: { id: titlesId, ...types.shortstring },
-      },
-      constraints: {
-        [nameId]: { isUnique: true },
-        [lovesId]: { isLink: true, isUnique: true },
-        [titlesId]: {},
-      },
+    const knightsNS = namespace({
+      [id]: { ...types.ufoid },
+      name: { id: nameId, ...types.shortstring },
+      loves: { id: lovesId },
+      lovedBy: { id: lovesId, isInverse: true },
+      titles: { id: titlesId, ...types.shortstring },
     });
     // Add some data.
 
     const kb = new TribleKB(
-      knightsCtx,
       new MemTribleDB(),
       new S3BlobDB(
         {
@@ -60,35 +64,31 @@ Deno.test({
       ),
     );
 
-    const knightskb = kb.with(
-      (
-        [romeo, juliet],
-      ) => [
-        {
-          [id]: romeo,
-          name: "Romeo",
-          titles: ["fool", "prince"],
-          loves: juliet,
-        },
-        {
-          [id]: juliet,
-          name: "Juliet",
-          titles: ["the lady", "princess"],
-          loves: romeo,
-        },
-      ],
-    );
-    const knightskb2 = knightskb.with(
-      (
-        [william],
-      ) => [
-        {
-          [id]: william,
-          name: "William",
-          titles: ["author"],
-        },
-      ],
-    );
+    const knightskb = kb.with(knightsNS, (
+      [romeo, juliet],
+    ) => [
+      {
+        [id]: romeo,
+        name: "Romeo",
+        titles: ["fool", "prince"],
+        loves: juliet,
+      },
+      {
+        [id]: juliet,
+        name: "Juliet",
+        titles: ["the lady", "princess"],
+        loves: romeo,
+      },
+    ]);
+    const knightskb2 = knightskb.with(knightsNS, (
+      [william],
+    ) => [
+      {
+        [id]: william,
+        name: "William",
+        titles: ["author"],
+      },
+    ]);
 
     const inbox = new TribleBox(kb);
     const outbox = new TribleBox(kb);

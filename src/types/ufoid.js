@@ -5,7 +5,7 @@ function ufoidEncoder(v, b) {
     throw Error("Can't encode NIL UFOID.");
   }
   if (!UFOID.validate(v)) {
-    throw Error(`Provided value is not an encodable uuid:${v.toString()}`);
+    throw Error(`Provided value is not an encodable ufoid:${v.toString()}`);
   }
   b.fill(0, 0, b.length - 16);
   const bytes = new Uint8Array(
@@ -16,9 +16,9 @@ function ufoidEncoder(v, b) {
 }
 
 function ufoidDecoder(b, blob) {
-  return [...b.subarray(b.length - 16)].map((byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
+  return [...b.subarray(b.length - 16)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 export const ufoid = {

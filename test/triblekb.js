@@ -19,60 +19,63 @@ import {
 
 import { equal, equalValue } from "../src/trible.js";
 import {
-  ctx,
   find,
+  globalInvariants,
   id,
   MemBlobDB,
   MemTribleDB,
+  namespace,
   TribleKB,
   types,
   UFOID,
 } from "../mod.js";
 
-Deno.test("KB Find", () => {
-  // Define a context, mapping between js data and tribles.
-  const { nameId, lovesId, titlesId } = UFOID.namedCache();
+const { nameId, lovesId, titlesId, motherOfId, romeoId } = UFOID
+  .namedCache();
 
-  const knightsCtx = ctx({
-    ns: {
-      [id]: { ...types.ufoid },
-      name: { id: nameId, ...types.shortstring },
-      loves: { id: lovesId },
-      lovedBy: { id: lovesId, isInverse: true },
-      titles: { id: titlesId, ...types.shortstring },
-    },
-    constraints: {
-      [nameId]: { isUnique: true },
-      [lovesId]: { isLink: true, isUnique: true },
-      [titlesId]: {},
-    },
+globalInvariants({
+  [nameId]: { isUnique: true },
+  [lovesId]: { isLink: true, isUnique: true },
+  [titlesId]: {},
+});
+
+globalInvariants({
+  [nameId]: { isUnique: true },
+  [motherOfId]: { isLink: true, isUniqueInverse: true },
+});
+
+Deno.test("KB Find", () => {
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    loves: { id: lovesId },
+    lovedBy: { id: lovesId, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring },
   });
 
   // Add some data.
-  const memkb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB());
+  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
 
-  const knightskb = memkb.with(
-    (
-      [romeo, juliet],
-    ) => [
-      {
-        [id]: romeo,
-        name: "Romeo",
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: "Juliet",
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ],
-  );
+  const knightskb = memkb.with(knightsNS, (
+    [romeo, juliet],
+  ) => [
+    {
+      [id]: romeo,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeo,
+    },
+  ]);
 
   // Query some data.
   const results = [
-    ...knightskb.find((
+    ...knightskb.find(knightsNS, (
       { name, title },
     ) => [{ name: name.ascend(), titles: [title] }]),
   ];
@@ -105,29 +108,23 @@ Deno.test("KB Find Single", () => {
       arbitraryIdHex,
       arbitraryPerson,
       (nameId, titlesId, person) => {
-        const knightsCtx = ctx({
-          ns: {
-            [id]: { ...types.hex },
-            name: { id: nameId, ...types.hex },
-            titles: { id: titlesId, ...types.hex },
-          },
-          constraints: {
-            [nameId]: { isUnique: true },
-            [titlesId]: {},
-          },
+        const knightsNS = namespace({
+          [id]: { ...types.hex },
+          name: { id: nameId, ...types.hex },
+          titles: { id: titlesId, ...types.hex },
         });
 
         const knightskb = new TribleKB(
-          knightsCtx,
           new MemTribleDB(),
           new MemBlobDB(),
         ).with(
+          knightsNS,
           () => [{ [id]: person.id, name: person.name, titles: person.titles }],
         );
 
         /// Query some data.
         const results = [
-          ...knightskb.find((
+          ...knightskb.find(knightsNS, (
             { name, title },
           ) => [{ name, titles: [title] }]),
         ];
@@ -138,50 +135,38 @@ Deno.test("KB Find Single", () => {
 });
 
 Deno.test("Find Ascending", () => {
-  // Define a context, mapping between js data and tribles.
-  const { nameId, lovesId, titlesId } = UFOID.namedCache();
-
-  const knightsCtx = ctx({
-    ns: {
-      [id]: { ...types.ufoid },
-      name: { id: nameId, ...types.shortstring },
-      loves: { id: lovesId },
-      lovedBy: { id: lovesId, isInverse: true },
-      titles: { id: titlesId, ...types.shortstring },
-    },
-    constraints: {
-      [nameId]: { isUnique: true },
-      [lovesId]: { isLink: true, isUnique: true },
-      [titlesId]: {},
-    },
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    loves: { id: lovesId },
+    lovedBy: { id: lovesId, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring },
   });
 
   // Add some data.
-  const memkb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB());
+  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
 
-  const knightskb = memkb.with(
-    (
-      [romeo, juliet],
-    ) => [
-      {
-        [id]: romeo,
-        name: "Romeo",
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: "Juliet",
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ],
-  );
+  const knightskb = memkb.with(knightsNS, (
+    [romeo, juliet],
+  ) => [
+    {
+      [id]: romeo,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeo,
+    },
+  ]);
 
   // Query some data.
   const results = [
     ...find(
-      knightsCtx,
+      knightsNS,
       (
         { person, name, title },
       ) => [
@@ -204,48 +189,37 @@ Deno.test("Find Ascending", () => {
 
 Deno.test("Find Descending", () => {
   // Define a context, mapping between js data and tribles.
-  const { nameId, lovesId, titlesId } = UFOID.namedCache();
-
-  const knightsCtx = ctx({
-    ns: {
-      [id]: { ...types.ufoid },
-      name: { id: nameId, ...types.shortstring },
-      loves: { id: lovesId },
-      lovedBy: { id: lovesId, isInverse: true },
-      titles: { id: titlesId, ...types.shortstring },
-    },
-    constraints: {
-      [nameId]: { isUnique: true },
-      [lovesId]: { isLink: true, isUnique: true },
-      [titlesId]: {},
-    },
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    loves: { id: lovesId },
+    lovedBy: { id: lovesId, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring },
   });
 
   // Add some data.
-  const memkb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB());
+  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
 
-  const knightskb = memkb.with(
-    (
-      [romeo, juliet],
-    ) => [
-      {
-        [id]: romeo,
-        name: "Romeo",
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: "Juliet",
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ],
-  );
+  const knightskb = memkb.with(knightsNS, (
+    [romeo, juliet],
+  ) => [
+    {
+      [id]: romeo,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeo,
+    },
+  ]);
   // Query some data.
   const results = [
     ...find(
-      knightsCtx,
+      knightsNS,
       (
         { person, name, title },
       ) => [
@@ -267,55 +241,41 @@ Deno.test("Find Descending", () => {
 });
 
 Deno.test("unique constraint", () => {
-  // Define a context, mapping between js data and tribles.
-  const { nameId, lovesId, titlesId, romeoId } = UFOID.namedCache();
-
-  const knightsCtx = ctx({
-    ns: {
-      [id]: { ...types.ufoid },
-      name: { id: nameId, ...types.shortstring },
-      loves: { id: lovesId },
-      lovedBy: { id: lovesId, isInverse: true },
-      titles: { id: titlesId, ...types.shortstring },
-    },
-    constraints: {
-      [nameId]: { isUnique: true },
-      [lovesId]: { isLink: true, isUnique: true },
-      [titlesId]: {},
-    },
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    loves: { id: lovesId },
+    lovedBy: { id: lovesId, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring },
   });
 
   // Add some data.
-  const memkb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB());
+  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
 
-  const knightskb = memkb.with(
-    (
-      [juliet],
-    ) => [
-      {
-        [id]: romeoId,
-        name: "Romeo",
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: "Juliet",
-        titles: ["the lady", "princess"],
-        loves: romeoId,
-      },
-    ],
-  );
+  const knightskb = memkb.with(knightsNS, (
+    [juliet],
+  ) => [
+    {
+      [id]: romeoId,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeoId,
+    },
+  ]);
   assertThrows(
     () => {
-      knightskb.with(
-        () => [
-          {
-            [id]: romeoId,
-            name: "Bob",
-          },
-        ],
-      );
+      knightskb.with(knightsNS, () => [
+        {
+          [id]: romeoId,
+          name: "Bob",
+        },
+      ]);
     },
     Error,
     "",
@@ -323,46 +283,33 @@ Deno.test("unique constraint", () => {
 });
 
 Deno.test("unique inverse constraint", () => {
-  // Define a context, mapping between js data and tribles.
-  const { nameId, motherOfId, romeoId } = UFOID.namedCache();
-
-  const knightsCtx = ctx({
-    ns: {
-      [id]: { ...types.ufoid },
-      name: { id: nameId, ...types.shortstring },
-      motherOf: { id: motherOfId },
-    },
-    constraints: {
-      [nameId]: { isUnique: true },
-      [motherOfId]: { isLink: true, isUniqueInverse: true },
-    },
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    motherOf: { id: motherOfId },
   });
 
   // Add some data.
-  const memkb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB());
+  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
 
-  const knightskb = memkb.with(
-    () => [
-      {
-        [id]: romeoId,
-        name: "Romeo",
-      },
-      {
-        name: "Lady Montague",
-        motherOf: [romeoId],
-      },
-    ],
-  );
+  const knightskb = memkb.with(knightsNS, () => [
+    {
+      [id]: romeoId,
+      name: "Romeo",
+    },
+    {
+      name: "Lady Montague",
+      motherOf: [romeoId],
+    },
+  ]);
   assertThrows(
     () => {
-      knightskb.with(
-        () => [
-          {
-            name: "Lady Impostor",
-            motherOf: [romeoId],
-          },
-        ],
-      );
+      knightskb.with(knightsNS, () => [
+        {
+          name: "Lady Impostor",
+          motherOf: [romeoId],
+        },
+      ]);
     },
     Error,
     "",
@@ -370,48 +317,36 @@ Deno.test("unique inverse constraint", () => {
 });
 
 Deno.test("KB Walk", () => {
-  // Define a context, mapping between js data and tribles.
-  const { nameId, lovesId, titlesId } = UFOID.namedCache();
-
-  const knightsCtx = ctx({
-    ns: {
-      [id]: { ...types.ufoid },
-      name: { id: nameId, ...types.shortstring },
-      loves: { id: lovesId },
-      lovedBy: { id: lovesId, isInverse: true },
-      titles: { id: titlesId, ...types.shortstring },
-    },
-    constraints: {
-      [nameId]: { isUnique: true },
-      [lovesId]: { isLink: true, isUnique: true },
-      [titlesId]: {},
-    },
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    loves: { id: lovesId },
+    lovedBy: { id: lovesId, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring },
   });
 
   // Add some data.
-  const memkb = new TribleKB(knightsCtx, new MemTribleDB(), new MemBlobDB());
+  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
 
-  const knightskb = memkb.with(
-    (
-      [romeo, juliet],
-    ) => [
-      {
-        [id]: romeo,
-        name: "Romeo",
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: "Juliet",
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ],
-  );
+  const knightskb = memkb.with(knightsNS, (
+    [romeo, juliet],
+  ) => [
+    {
+      [id]: romeo,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeo,
+    },
+  ]);
   // Query some data.
   const [{ romeo }] = [
-    ...knightskb.find((
+    ...knightskb.find(knightsNS, (
       { romeo },
     ) => [{ [id]: romeo.walk(knightskb), name: "Romeo" }]),
   ];
