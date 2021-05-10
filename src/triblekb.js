@@ -174,53 +174,53 @@ class VariableProvider {
   }
 }
 
+const lookup = (ns, kb, eId, attr) => {
+  const { isInverse, id: aId } = ns[attr];
+
+  const res = resolve(
+    [
+      constantConstraint(0, eId),
+      constantConstraint(1, aId),
+      kb.tribledb.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
+    ],
+    new OrderByMinCost(),
+    new Set([0, 1, 2]),
+    [
+      new Uint8Array(VALUE_SIZE),
+      new Uint8Array(VALUE_SIZE),
+      new Uint8Array(VALUE_SIZE),
+    ],
+  );
+
+  let decoder;
+  const { isLink, isUnique, isUniqueInverse } = invariantIndex.get(
+    ns[attr].id,
+  );
+  if (isLink) {
+    decoder = (v, b) => entityProxy(ns, kb, v);
+  } else {
+    decoder = ns[attr].decoder;
+  }
+
+  if ((!isInverse && isUnique) || (isInverse && isUniqueInverse)) {
+    const { done, value } = res.next();
+    if (done) return { found: false };
+    const [, , v] = value;
+    return {
+      found: true,
+      result: decoder(v.slice(0), async () => await kb.blobdb.get(v)),
+    };
+  } else {
+    return {
+      found: true,
+      result: [...res].map(([, , v]) =>
+        decoder(v.slice(0), async () => await kb.blobdb.get(v))
+      ),
+    };
+  }
+};
+
 const entityProxy = function entityProxy(ns, kb, eId) {
-  const lookup = (attr) => {
-    const { isInverse, id: aId } = ns[attr];
-
-    const res = resolve(
-      [
-        constantConstraint(0, eId),
-        constantConstraint(1, aId),
-        kb.tribledb.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
-      ],
-      new OrderByMinCost(),
-      new Set([0, 1, 2]),
-      [
-        new Uint8Array(VALUE_SIZE),
-        new Uint8Array(VALUE_SIZE),
-        new Uint8Array(VALUE_SIZE),
-      ],
-    );
-
-    let decoder;
-    const { isLink, isUnique, isUniqueInverse } = invariantIndex.get(
-      ns[attr].id,
-    );
-    if (isLink) {
-      decoder = (v, b) => entityProxy(ns, kb, v);
-    } else {
-      decoder = ns[attr].decoder;
-    }
-
-    if ((!isInverse && isUnique) || (isInverse && isUniqueInverse)) {
-      const { done, value } = res.next();
-      if (done) return { found: false };
-      const [, , v] = value;
-      return {
-        found: true,
-        result: decoder(v.slice(0), async () => await kb.blobdb.get(v)),
-      };
-    } else {
-      return {
-        found: true,
-        result: [...res].map(([, , v]) =>
-          decoder(v.slice(0), async () => await kb.blobdb.get(v))
-        ),
-      };
-    }
-  };
-
   return new Proxy(
     { [id]: ns[id].decoder(eId) },
     {
@@ -233,7 +233,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           return o[attr];
         }
 
-        const { found, result } = lookup(attr);
+        const { found, result } = lookup(ns, kb, eId, attr);
         if (found) {
           Object.defineProperty(o, attr, {
             value: result,
@@ -314,7 +314,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           return Object.getOwnPropertyDescriptor(o, attr);
         }
 
-        const { found, result } = lookup(o, attr);
+        const { found, result } = lookup(ns, kb, eId, attr);
         if (found) {
           const property = {
             value: result,
@@ -652,7 +652,7 @@ function* find(ns, cfn, blobdb) {
       constraints,
       new OrderByMinCostAndBlockage(vars.blockedBy),
       new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
-      vars.variables.map((v) => new Uint8Array(VALUE_SIZE)),
+      vars.variables.map((_) => new Uint8Array(VALUE_SIZE)),
     )
   ) {
     const result = {};
@@ -826,7 +826,9 @@ class TribleKB {
   }
 
   walk(ns, entityId) {
-    return entityProxy(ns, this, entityId);
+    const eId = new Uint8Array(VALUE_SIZE);
+    ns[id].encoder(entityId, eId);
+    return entityProxy(ns, this, eId);
   }
 
   empty() {
