@@ -1,5 +1,6 @@
 const { TribleBox, WSConnector } = require("./triblemq.js");
 const {
+  getInvariant,
   globalInvariants,
   namespace,
   find,
@@ -21,6 +22,7 @@ const { UFOID } = require("./ufoid.js");
 module.exports = {
   emptyTriblePACT,
   emptyValuePACT,
+  getInvariant,
   globalInvariants,
   namespace,
   find,
