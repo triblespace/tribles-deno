@@ -1,5 +1,5 @@
 import { emptyValuePACT, nextKey } from "./pact.js";
-import { VALUE_SIZE } from "./trible.js";
+import { ID_SIZE, VALUE_SIZE } from "./trible.js";
 
 class IndexConstraint {
   constructor(variable, index) {
@@ -45,7 +45,14 @@ const collectionConstraint = (variable, collection) => {
   return new IndexConstraint(variable, index);
 };
 
-const constantConstraint = (variable, value) => {
+const constantConstraint = (variable, constant) => {
+  let value;
+  if(constant.length === ID_SIZE) {
+    value = new Uint8Array(VALUE_SIZE);
+    value.set(constant, 16);
+  } else {
+    value = constant;
+  }
   return new IndexConstraint(variable, emptyValuePACT.put(value));
 };
 

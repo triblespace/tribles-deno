@@ -88,9 +88,7 @@ Deno.test("KB Find", () => {
 });
 
 Deno.test("KB Find Single", () => {
-  const arbitraryIdHex = fc.hexaString({ minLength: 32, maxLength: 32 }).map(
-    (hex) => hex.padStart(64, "0"),
-  );
+  const arbitraryIdHex = fc.hexaString({ minLength: 32, maxLength: 32 });
   const arbitraryValueHex = fc.hexaString({ minLength: 64, maxLength: 64 });
   const arbitraryTitles = fc.array(arbitraryValueHex, {
     minLength: 1,
@@ -108,8 +106,12 @@ Deno.test("KB Find Single", () => {
       arbitraryIdHex,
       arbitraryPerson,
       (nameId, titlesId, person) => {
+        globalInvariants({
+          [nameId]: { isUnique: true },
+          [titlesId]: {},
+        });
         const knightsNS = namespace({
-          [id]: { ...types.hex },
+          [id]: { ...types.ufoid },
           name: { id: nameId, ...types.hex },
           titles: { id: titlesId, ...types.hex },
         });
@@ -345,6 +347,7 @@ Deno.test("KB Walk", () => {
     },
   ]);
   // Query some data.
+  debugger;
   const [{ romeo }] = [
     ...knightskb.find(knightsNS, (
       { romeo },
