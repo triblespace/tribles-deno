@@ -189,9 +189,9 @@ class TribleBox {
     };
   }
 
-  async *subscribe(ctx, query) {
+  async *subscribe(ns, query) {
     for await (const change of this.changes()) {
-      yield* find(ctx, (vars) => query(change, vars), change.newKB.blobdb);
+      yield* find(ns, (vars) => query(change, vars), change.newKB.blobdb);
     }
   }
 }
