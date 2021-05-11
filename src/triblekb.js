@@ -967,6 +967,7 @@ module.exports = {
   namespace,
   getInvariant,
   globalInvariants,
+  entitiesToTriples,
   find,
   id,
   TribleKB,

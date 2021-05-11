@@ -2,6 +2,7 @@ const { TribleBox, WSConnector } = require("./triblemq.js");
 const {
   getInvariant,
   globalInvariants,
+  entitiesToTriples,
   namespace,
   find,
   id,
@@ -24,6 +25,7 @@ module.exports = {
   emptyValuePACT,
   getInvariant,
   globalInvariants,
+  entitiesToTriples,
   namespace,
   find,
   id,
