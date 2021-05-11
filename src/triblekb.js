@@ -17,7 +17,6 @@ const {
 } = require("./trible.js");
 const { ufoid } = require("./types/ufoid.js");
 
-
 const assert = (test, message) => {
   if (!test) {
     throw Error(message);
