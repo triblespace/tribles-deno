@@ -47,7 +47,7 @@ const collectionConstraint = (variable, collection) => {
 
 const constantConstraint = (variable, constant) => {
   let value;
-  if(constant.length === ID_SIZE) {
+  if (constant.length === ID_SIZE) {
     value = new Uint8Array(VALUE_SIZE);
     value.set(constant, 16);
   } else {
