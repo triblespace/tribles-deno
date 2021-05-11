@@ -1,5 +1,11 @@
 const { TribleBox, WSConnector } = require("./triblemq.js");
-const { ctx, find, id, TribleKB } = require("./triblekb.js");
+const {
+  globalInvariants,
+  namespace,
+  find,
+  id,
+  TribleKB,
+} = require("./triblekb.js");
 const { types } = require("./types.js");
 const { MemTribleDB } = require("./memtribledb.js");
 const { S3BlobDB } = require("./s3blobdb.js");
@@ -15,7 +21,8 @@ const { UFOID } = require("./ufoid.js");
 module.exports = {
   emptyTriblePACT,
   emptyValuePACT,
-  ctx,
+  globalInvariants,
+  namespace,
   find,
   id,
   makePACT,

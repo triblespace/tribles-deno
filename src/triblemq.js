@@ -53,12 +53,11 @@ class WSConnector {
       console.error(`Error on connection to ${this.addr}: ${e.message}`);
     });
     const openPromise = new Promise((resolve, reject) => {
-      this.ws.addEventListener("open", resolve, { once: true });
-      this.ws.addEventListener("close", reject, { once: true });
+      this.ws.addEventListener("open", resolve);
+      this.ws.addEventListener("close", reject);
     });
     const closePromise = new Promise((resolve, reject) => {
-      this.ws.addEventListener("close", resolve, { once: true });
-      this.ws.addEventListener("close", reject, { once: true });
+      this.ws.addEventListener("close", resolve);
     });
     this.ws.openPromise = openPromise;
     this.ws.closePromise = closePromise;
@@ -70,11 +69,10 @@ class WSConnector {
 
   async transfer() {
     const changeIterator = this.outbox.changes();
-    const closePromise = this.ws.closePromise.then(() => ({ close: true }));
     while (true) {
       const { change, close } = await Promise.race([
         changeIterator.next().then(({ value }) => ({ change: value })),
-        closePromise,
+        this.ws.closePromise.then(() => ({ close: true })),
       ]);
       if (close) {
         return;
@@ -191,9 +189,9 @@ class TribleBox {
     };
   }
 
-  async *subscribe(ctx, query) {
+  async *subscribe(ns, query) {
     for await (const change of this.changes()) {
-      yield* find(ctx, (vars) => query(change, vars), change.newKB.blobdb);
+      yield* find(ns, (vars) => query(change, vars), change.newKB.blobdb);
     }
   }
 }
