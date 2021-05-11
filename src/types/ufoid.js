@@ -21,10 +21,10 @@ function ufoidDecoder(b, blob) {
     .join("");
 }
 
-const ufoidType = {
+const ufoid = {
   encoder: ufoidEncoder,
   decoder: ufoidDecoder,
   factory: UFOID.now,
 };
 
-module.exports = { ufoidType };
+module.exports = { ufoid };

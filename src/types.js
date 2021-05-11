@@ -1,19 +1,19 @@
-const { ufoidType } = require("./types/ufoid.js");
-const { uuidType } = require("./types/uuid.js");
-const { shortstringType } = require("./types/shortstring.js");
-const { longstringType } = require("./types/longstring.js");
-const { spacetimestampType } = require("./types/spacetimestamp.js");
-const { biguint256Type } = require("./types/biguint256.js");
-const { float64Type } = require("./types/float64.js");
+const { ufoid } = require("./types/ufoid.js");
+const { uuid } = require("./types/uuid.js");
+const { shortstring } = require("./types/shortstring.js");
+const { longstring } = require("./types/longstring.js");
+const { spacetimestamp } = require("./types/spacetimestamp.js");
+const { biguint256 } = require("./types/biguint256.js");
+const { float64 } = require("./types/float64.js");
 
 const types = {
-  ufoid: ufoidType,
-  uuid: uuidType,
-  shortstring: shortstringType,
-  longstring: longstringType,
-  spacetimestamp: spacetimestampType,
-  biguint256: biguint256Type,
-  //float64: float64Type, //TODO Fix to use lexicographical sorting.
+  ufoid,
+  uuid,
+  shortstring,
+  longstring,
+  spacetimestamp,
+  biguint256,
+  //float64, //TODO Fix to use lexicographical sorting.
 };
 
 module.exports = { types };

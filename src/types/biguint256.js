@@ -18,9 +18,9 @@ function biguint256Decoder(b, blob) {
   return bytesToBigInt(b, 0, 32);
 }
 
-const biguint256Type = {
+const biguint256 = {
   encoder: biguint256Encoder,
   decoder: biguint256Decoder,
 };
 
-module.exports = { biguint256Type };
+module.exports = { biguint256 };
