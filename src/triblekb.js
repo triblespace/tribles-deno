@@ -29,6 +29,13 @@ let invariantIndex = emptyIdPACT;
 let uniqueAttributeIndex = emptyIdPACT;
 let uniqueInverseAttributeIndex = emptyIdPACT;
 
+function getInvariant(attributeId) {
+  const encodedId = new Uint8Array(16);
+  ufoid.encoder(attributeId, encodedId);
+
+  return invariantIndex.get(encodedId);
+}
+
 function globalInvariants(invariants) {
   let newInvariantIndex = invariantIndex;
   const newUniqueAttributeIndex = uniqueAttributeIndex.batch();
@@ -982,4 +989,12 @@ const namespace = (...namespaces) => {
   return { attributes, forwardAttributeIndex, inverseAttributeIndex };
 };
 
-export { find, globalInvariants, id, namespace, TribleKB };
+export {
+  entitiesToTriples,
+  find,
+  getInvariant,
+  globalInvariants,
+  id,
+  namespace,
+  TribleKB,
+};

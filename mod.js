@@ -1,6 +1,8 @@
 import { TribleBox, WSConnector } from "./src/triblemq.js";
 import {
+  entitiesToTriples,
   find,
+  getInvariant,
   globalInvariants,
   id,
   namespace,
@@ -16,7 +18,9 @@ import { UFOID } from "./src/ufoid.js";
 export {
   emptyTriblePACT as TRIBLE_PACT,
   emptyValuePACT,
+  entitiesToTriples,
   find,
+  getInvariant,
   globalInvariants,
   id,
   makePACT,
