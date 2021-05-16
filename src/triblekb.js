@@ -368,7 +368,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           ]
         )) {
           attrs.push(
-            ...ns.forwardAttributeIndex.get(a.subArray(16)).map((attr) => attr.name)
+            ...ns.forwardAttributeIndex.get(a.subarray(16)).map((attr) => attr.name)
           );
         }
         for (const [_e, a, _v] of resolve(
@@ -386,7 +386,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           ]
         )) {
           attrs.push(
-            ...ns.inverseAttributeIndex.get(a.subArray(16)).map((attr) => attr.name)
+            ...ns.inverseAttributeIndex.get(a.subarray(16)).map((attr) => attr.name)
           );
         }
         return attrs;
