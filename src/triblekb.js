@@ -2,7 +2,6 @@ import { emptyIdPACT, emptyValuePACT } from "./pact.js";
 import {
   constantConstraint,
   indexConstraint,
-  OrderByMinCost,
   OrderByMinCostAndBlockage,
   resolve,
 } from "./query.js";
@@ -110,6 +109,7 @@ class Variable {
       if (potentialCycles.has(this)) {
         throw Error("Couldn't group variable, ordering would by cyclic.");
       }
+      //TODO add omit sanity check.
       potentialCycles = new Set(
         this.provider.blockedBy
           .filter(([a, b]) => potentialCycles.has(a))
@@ -132,6 +132,7 @@ class Variable {
 
   omit() {
     this.isOmit = true;
+    this.provider.projected.delete(this.index);
     return this;
   }
 
@@ -158,6 +159,7 @@ class VariableProvider {
     this.namedVariables = new Map();
     this.constantVariables = emptyValuePACT;
     this.blockedBy = [];
+    this.projected = new Set();
   }
 
   namedCache() {
@@ -169,9 +171,11 @@ class VariableProvider {
           if (variable) {
             return variable;
           }
-          variable = new Variable(this, this.nextVariableIndex++, name);
+          variable = new Variable(this, this.nextVariableIndex, name);
           this.namedVariables.set(name, variable);
           this.variables.push(variable);
+          this.projected.add(this.nextVariableIndex);
+          this.nextVariableIndex++;
           return variable;
         },
       },
@@ -179,19 +183,23 @@ class VariableProvider {
   }
 
   unnamed() {
-    const variable = new Variable(this, this.nextVariableIndex++);
+    const variable = new Variable(this, this.nextVariableIndex);
     this.unnamedVariables.push(variable);
     this.variables.push(variable);
+    this.projected.add(this.nextVariableIndex);
+    this.nextVariableIndex++;
     return variable;
   }
 
   constant(c) {
     let variable = this.constantVariables.get(c);
     if (!variable) {
-      variable = new Variable(this, this.nextVariableIndex++);
+      variable = new Variable(this, this.nextVariableIndex);
       variable.constant = c;
       this.constantVariables = this.constantVariables.put(c, variable);
       this.variables.push(variable);
+      this.projected.add(this.nextVariableIndex);
+      this.nextVariableIndex++;
     }
     return variable;
   }
@@ -213,7 +221,7 @@ const lookup = (ns, kb, eId, attributeName) => {
       constantConstraint(1, aId),
       kb.tribledb.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
     ],
-    new OrderByMinCost(),
+    new OrderByMinCostAndBlockage(new Set([0, 1, 2])),
     new Set([0, 1, 2]),
     [
       new Uint8Array(VALUE_SIZE),
@@ -296,7 +304,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
               ...(isInverse ? [2, 1, 0] : [0, 1, 2]),
             ),
           ],
-          new OrderByMinCost(),
+          new OrderByMinCostAndBlockage(new Set([0, 1])),
           new Set([0, 1, 2]),
           [
             new Uint8Array(VALUE_SIZE),
@@ -358,7 +366,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
               indexConstraint(1, ns.forwardAttributeIndex),
               kb.tribledb.constraint(0, 1, 2),
             ],
-            new OrderByMinCost(),
+            new OrderByMinCostAndBlockage(new Set([0, 1])),
             new Set([0, 1, 2]),
             [
               new Uint8Array(VALUE_SIZE),
@@ -368,7 +376,9 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           )
         ) {
           attrs.push(
-            ...ns.forwardAttributeIndex.get(a).map((attr) => attr.name),
+            ...ns.forwardAttributeIndex.get(a.subarray(16)).map((attr) =>
+              attr.name
+            ),
           );
         }
         for (
@@ -378,7 +388,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
               kb.tribledb.constraint(2, 1, 0),
               indexConstraint(1, ns.inverseAttributeIndex),
             ],
-            new OrderByMinCost(),
+            new OrderByMinCostAndBlockage(new Set([0, 1])),
             new Set([0, 1, 2]),
             [
               new Uint8Array(VALUE_SIZE),
@@ -388,7 +398,9 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           )
         ) {
           attrs.push(
-            ...ns.inverseAttributeIndex.get(a).map((attr) => attr.name),
+            ...ns.inverseAttributeIndex.get(a.subarray(16)).map((attr) =>
+              attr.name
+            ),
           );
         }
         return attrs;
@@ -616,7 +628,7 @@ function* find(ns, cfn, blobdb) {
   for (
     const r of resolve(
       constraints,
-      new OrderByMinCostAndBlockage(vars.blockedBy),
+      new OrderByMinCostAndBlockage(vars.projected, vars.blockedBy),
       new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
       vars.variables.map((_) => new Uint8Array(VALUE_SIZE)),
     )
@@ -709,7 +721,7 @@ class TribleKB {
             indexConstraint(1, uniqueAttributeIndex),
             newTribleDB.constraint(0, 1, 2),
           ],
-          new OrderByMinCostAndBlockage([
+          new OrderByMinCostAndBlockage(new Set([0, 1, 2]), [
             [2, 0],
             [2, 1],
           ]),
@@ -750,7 +762,7 @@ class TribleKB {
             indexConstraint(1, uniqueInverseAttributeIndex),
             newTribleDB.constraint(0, 1, 2),
           ],
-          new OrderByMinCostAndBlockage([
+          new OrderByMinCostAndBlockage(new Set([0, 1, 2]), [
             [0, 1],
             [0, 2],
           ]),

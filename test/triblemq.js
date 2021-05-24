@@ -25,7 +25,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const { nameId, lovesId, titlesId, nameId, motherOfId } = UFOID
+const { nameId, lovesId, titlesId, motherOfId } = UFOID
   .namedCache();
 
 globalInvariants({
@@ -99,17 +99,13 @@ Deno.test({
     outbox.kb = knightskb2;
 
     let slept = 0;
-    while (!inbox.kb.tribledb.equals(outbox.kb.tribledb) && slept < 1000) {
+    while (!inbox.kb.tribledb.isEqual(outbox.kb.tribledb) && slept < 1000) {
       await sleep(10);
       slept += 10;
     }
     await wsCon.disconnect();
 
-    assertEquals(
-      [...inbox.kb.tribledb.index[0].keys()].map((t) => encode(t)),
-      [...outbox.kb.tribledb.index[0].keys()].map((t) => encode(t)),
-    );
-    assert(inbox.kb.tribledb.equals(outbox.kb.tribledb));
+    assert(inbox.kb.tribledb.isEqual(outbox.kb.tribledb));
   },
   // https://github.com/denoland/deno/issues/7457
 });

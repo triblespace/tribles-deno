@@ -56,6 +56,7 @@ Deno.test("KB Find", () => {
   // Add some data.
   const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
 
+  debugger;
   const knightskb = memkb.with(knightsNS, (
     [romeo, juliet],
   ) => [
@@ -354,4 +355,42 @@ Deno.test("KB Walk", () => {
     ) => [{ [id]: romeo.walk(knightskb), name: "Romeo" }]),
   ];
   assertEquals(romeo.loves.name, "Juliet");
+});
+
+Deno.test("KB Walk ownKeys", () => {
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    loves: { id: lovesId },
+    lovedBy: { id: lovesId, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring },
+  });
+
+  // Add some data.
+  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+
+  const knightskb = memkb.with(knightsNS, (
+    [romeo, juliet],
+  ) => [
+    {
+      [id]: romeo,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeo,
+    },
+  ]);
+  // Query some data.
+  debugger;
+  const [{ romeo }] = [
+    ...knightskb.find(knightsNS, (
+      { romeo },
+    ) => [{ [id]: romeo.walk(knightskb), name: "Romeo" }]),
+  ];
+  assertEquals(new Set(Reflect.ownKeys(romeo)), new Set([id, "name", "titles", "loves", "lovedBy"]));
 });
