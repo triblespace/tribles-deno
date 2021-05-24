@@ -25,7 +25,7 @@ import {
   MemBlobDB,
   MemTribleDB,
   namespace,
-  TribleKB,
+  KB,
   types,
   UFOID,
 } from "../mod.js";
@@ -54,7 +54,7 @@ Deno.test("KB Find", () => {
   });
 
   // Add some data.
-  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
   debugger;
   const knightskb = memkb.with(knightsNS, (
@@ -117,7 +117,7 @@ Deno.test("KB Find Single", () => {
           titles: { id: titlesId, ...types.hex },
         });
 
-        const knightskb = new TribleKB(
+        const knightskb = new KB(
           new MemTribleDB(),
           new MemBlobDB(),
         ).with(
@@ -147,7 +147,7 @@ Deno.test("Find Ascending", () => {
   });
 
   // Add some data.
-  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
   const knightskb = memkb.with(knightsNS, (
     [romeo, juliet],
@@ -201,7 +201,7 @@ Deno.test("Find Descending", () => {
   });
 
   // Add some data.
-  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
   const knightskb = memkb.with(knightsNS, (
     [romeo, juliet],
@@ -253,7 +253,7 @@ Deno.test("unique constraint", () => {
   });
 
   // Add some data.
-  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
   const knightskb = memkb.with(knightsNS, (
     [juliet],
@@ -293,7 +293,7 @@ Deno.test("unique inverse constraint", () => {
   });
 
   // Add some data.
-  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
   const knightskb = memkb.with(knightsNS, () => [
     {
@@ -329,7 +329,7 @@ Deno.test("KB Walk", () => {
   });
 
   // Add some data.
-  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
   const knightskb = memkb.with(knightsNS, (
     [romeo, juliet],
@@ -367,7 +367,7 @@ Deno.test("KB Walk ownKeys", () => {
   });
 
   // Add some data.
-  const memkb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
   const knightskb = memkb.with(knightsNS, (
     [romeo, juliet],

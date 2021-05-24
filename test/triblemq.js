@@ -14,8 +14,8 @@ import {
   MemTribleDB,
   namespace,
   S3BlobDB,
-  TribleBox,
-  TribleKB,
+  Box,
+  KB,
   types,
   UFOID,
   WSConnector,
@@ -51,7 +51,7 @@ Deno.test({
     });
     // Add some data.
 
-    const kb = new TribleKB(
+    const kb = new KB(
       new MemTribleDB(),
       new S3BlobDB(
         {
@@ -90,8 +90,8 @@ Deno.test({
       },
     ]);
 
-    const inbox = new TribleBox(kb);
-    const outbox = new TribleBox(kb);
+    const inbox = new Box(kb);
+    const outbox = new Box(kb);
     const wsCon = new WSConnector("ws://127.0.0.1:8816", inbox, outbox);
     await wsCon.connect();
     wsCon.transfer().catch((e) => console.error(e.reasons));

@@ -5,7 +5,7 @@ import {
   id,
   MemBlobDB,
   MemTribleDB,
-  TribleKB,
+  KB,
   types,
   UFOID,
 } from "../mod.js";
@@ -30,7 +30,7 @@ function kbWith(b, size) {
   });
 
   // Add some data.
-  let knightskb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+  let knightskb = new KB(new MemTribleDB(), new MemBlobDB());
 
   b.start();
   knightskb = knightskb.with(
@@ -96,7 +96,7 @@ function kbQuery(b, size) {
   });
 
   // Add some data.
-  let knightskb = new TribleKB(new MemTribleDB(), new MemBlobDB());
+  let knightskb = new KB(new MemTribleDB(), new MemBlobDB());
 
   knightskb = knightskb.with(
     knightsCtx,

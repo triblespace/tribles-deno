@@ -1,6 +1,6 @@
 import { emptyTriblePACT } from "./pact.js";
 import { isTransactionMarker, isValidTransaction } from "./trible.js";
-import { find, TribleKB } from "./triblekb.js";
+import { find } from "./triblekb.js";
 import {
   blake2s32,
   blake2sFinal,
@@ -110,9 +110,9 @@ class WSConnector {
       return;
     }
 
-    this.inbox.kb = this.inbox.kb.withTribles(
+    this.inbox.commit(kb => kb.withTribles(
       contiguousTribles(txnTriblePayload),
-    );
+    ));
   }
 
   async disconnect() {
@@ -122,7 +122,7 @@ class WSConnector {
   }
 }
 
-class TribleBox {
+class Box {
   constructor(kb) {
     this._kb = kb;
 
@@ -142,11 +142,15 @@ class TribleBox {
     });
   }
 
-  get kb() {
+  commit(fn) {
+    this.set(fn(this.get()));
+  }
+
+  get() {
     return this._kb;
   }
 
-  set kb(newKB) {
+  set(newKB) {
     const difKB = newKB.subtract(this._kb);
     if (!difKB.isEmpty()) {
       const oldKB = this._kb;
@@ -196,4 +200,4 @@ class TribleBox {
   }
 }
 
-export { TribleBox, WSConnector };
+export { Box, WSConnector };

@@ -673,7 +673,7 @@ class IDSequence {
   }
 }
 
-class TribleKB {
+class KB {
   constructor(tribledb, blobdb) {
     this.tribledb = tribledb;
     this.blobdb = blobdb;
@@ -684,7 +684,7 @@ class TribleKB {
     if (tribledb === this.tribledb) {
       return this;
     }
-    return new TribleKB(tribledb, this.blobdb);
+    return new KB(tribledb, this.blobdb);
   }
 
   with(ns, efn) {
@@ -795,7 +795,7 @@ class TribleKB {
       }
 
       const newBlobDB = this.blobdb.put(blobs);
-      return new TribleKB(newTribleDB, newBlobDB);
+      return new KB(newTribleDB, newBlobDB);
     }
     return this;
   }
@@ -823,7 +823,7 @@ class TribleKB {
   }
 
   empty() {
-    return new TribleKB(this.tribledb.empty(), this.blobdb.empty());
+    return new KB(this.tribledb.empty(), this.blobdb.empty());
   }
 
   isEmpty() {
@@ -849,25 +849,25 @@ class TribleKB {
   union(other) {
     const tribledb = this.tribledb.union(other.tribledb);
     const blobdb = this.blobdb.merge(other.blobdb);
-    return new TribleKB(tribledb, blobdb);
+    return new KB(tribledb, blobdb);
   }
 
   subtract(other) {
     const tribledb = this.tribledb.subtract(other.tribledb);
     const blobdb = this.blobdb.merge(other.blobdb).shrink(tribledb);
-    return new TribleKB(tribledb, blobdb);
+    return new KB(tribledb, blobdb);
   }
 
   difference(other) {
     const tribledb = this.tribledb.difference(other.tribledb);
     const blobdb = this.blobdb.merge(other.blobdb).shrink(tribledb);
-    return new TribleKB(tribledb, blobdb);
+    return new KB(tribledb, blobdb);
   }
 
   intersect(other) {
     const tribledb = this.tribledb.intersect(other.tribledb);
     const blobdb = this.blobdb.merge(other.blobdb).shrink(tribledb);
-    return new TribleKB(tribledb, blobdb);
+    return new KB(tribledb, blobdb);
   }
 }
 
@@ -1008,5 +1008,5 @@ export {
   globalInvariants,
   id,
   namespace,
-  TribleKB,
+  KB,
 };

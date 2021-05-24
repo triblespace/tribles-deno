@@ -12,7 +12,9 @@ So far the following components have been implemented.
 
 - PACT js implementation.
 - TribleDB js immutable trible database.
-- TribleKB js immutable trible knowledge-base.
+- BlobDB js immutable trible database.
+- KB js immutable trible knowledge-base.
+- MQ js trible-space usable as a message queue.
 - Core types:
   - UFOID
   - UUID
@@ -27,7 +29,7 @@ Currently to be done and missing is:
 - PACT rust implementation.
 - TribleDB rust implementation.
 - TribleMQ js middleware communications libary.
-- JS Ontology tools to dynamically load TribleKB contexts and documentation from
+- JS Ontology tools to dynamically load KnowlegeBase contexts and documentation from
   Trible based ontologies.
 - Core number types.
 - More types...
@@ -71,7 +73,7 @@ or Hashes is far less likely than the system producing bad data from CPU errors.
 Furthermore 64byte coincides nicely with the cache line size on most systems
 (year 2020). [3]
 
-## TribleDB and TribleKB
+## TribleDB and KB
 
 _Tribles_ are stored in TribleDB, a persistent (not in the durable, but
 immutable sense), append only, in memory database. It provides conjunctive
@@ -86,7 +88,7 @@ than a query language. JSON-LD is another candidate, and while we found the
 static conversions of JSON data to be cumbersome, we've adapted many concepts
 from it.
 
-_TribleDB_ is therefore wrapped by _TribleKB_, which performs conversions
+_TribleDB_ is therefore wrapped by _KB_, which performs conversions
 between JS Objects and _trible_ data, provides tree interfaces for data
 insertion, and tree based query capabilites, as well as tree-based graph walking
 capabilites, all operating over familiar plain old javascript objects (and
