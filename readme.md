@@ -14,7 +14,7 @@ So far the following components have been implemented.
 - TribleDB js immutable trible database.
 - BlobDB js immutable trible database.
 - KB js immutable trible knowledge-base.
-- MQ js trible-space usable as a message queue.
+- MQ js middleware communications libary.
 - Core types:
   - UFOID
   - UUID
@@ -28,7 +28,7 @@ Currently to be done and missing is:
 
 - PACT rust implementation.
 - TribleDB rust implementation.
-- TribleMQ js middleware communications libary.
+- More rust...
 - JS Ontology tools to dynamically load KnowlegeBase contexts and documentation from
   Trible based ontologies.
 - Core number types.

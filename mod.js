@@ -1,4 +1,4 @@
-import { Box, WSConnector } from "./src/triblemq.js";
+import { Box, WSConnector } from "./src/mq.js";
 import {
   entitiesToTriples,
   find,
@@ -7,7 +7,7 @@ import {
   id,
   namespace,
   KB,
-} from "./src/triblekb.js";
+} from "./src/kb.js";
 import { types } from "./src/types.js";
 import { MemTribleDB } from "./src/memtribledb.js";
 import { S3BlobDB } from "./src/s3blobdb.js";

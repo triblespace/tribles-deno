@@ -1,6 +1,6 @@
 import { emptyTriblePACT } from "./pact.js";
 import { isTransactionMarker, isValidTransaction } from "./trible.js";
-import { find } from "./triblekb.js";
+import { find } from "./kb.js";
 import {
   blake2s32,
   blake2sFinal,
