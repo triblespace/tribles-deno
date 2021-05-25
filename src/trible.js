@@ -109,8 +109,8 @@ const contiguousTribles = (tribles) => {
   const subarrays = [];
   for (let t = 0; t < tribles.length; t += TRIBLE_SIZE) {
     subarrays.push(tribles.subarray(
-      this.t,
-      this.t + TRIBLE_SIZE,
+      t,
+      t + TRIBLE_SIZE,
     ));
   }
   return subarrays;
