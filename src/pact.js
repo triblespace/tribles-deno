@@ -1000,9 +1000,10 @@ const makePACT = function (SEGMENTS) {
         if (hasBit(this.childbits, pos)) {
           const child = this.children[pos];
           //We need to update the child where this key would belong.
+          const oldChildHash = child.hash;
           nchild = child.put(childDepth, key, value, owner);
-          if (child.hash === nchild.hash) return this;
-          hash = this.hash ^ child.hash ^ nchild.hash;
+          if (oldChildHash === nchild.hash) return this;
+          hash = (this.hash ^ oldChildHash) ^ nchild.hash;
           segmentCount =
             (SEGMENT_LUT[this.branchDepth] === SEGMENT_LUT[nchild.branchDepth])
               ? (this.segmentCount - child.segmentCount) + nchild.segmentCount

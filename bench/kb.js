@@ -3,9 +3,9 @@ import {
   ctx,
   find,
   id,
+  KB,
   MemBlobDB,
   MemTribleDB,
-  KB,
   types,
   UFOID,
 } from "../mod.js";

@@ -1007,6 +1007,6 @@ export {
   getInvariant,
   globalInvariants,
   id,
-  namespace,
   KB,
+  namespace,
 };

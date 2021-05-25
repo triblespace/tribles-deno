@@ -22,10 +22,10 @@ import {
   find,
   globalInvariants,
   id,
+  KB,
   MemBlobDB,
   MemTribleDB,
   namespace,
-  KB,
   types,
   UFOID,
 } from "../mod.js";
@@ -392,5 +392,8 @@ Deno.test("KB Walk ownKeys", () => {
       { romeo },
     ) => [{ [id]: romeo.walk(knightskb), name: "Romeo" }]),
   ];
-  assertEquals(new Set(Reflect.ownKeys(romeo)), new Set([id, "name", "titles", "loves", "lovedBy"]));
+  assertEquals(
+    new Set(Reflect.ownKeys(romeo)),
+    new Set([id, "name", "titles", "loves", "lovedBy"]),
+  );
 });

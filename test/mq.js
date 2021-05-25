@@ -8,14 +8,14 @@ import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 import { encode } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
 import {
+  Box,
   globalInvariants,
   id,
+  KB,
   MemBlobDB,
   MemTribleDB,
   namespace,
   S3BlobDB,
-  Box,
-  KB,
   types,
   UFOID,
   WSConnector,
@@ -90,22 +90,26 @@ Deno.test({
       },
     ]);
 
+    debugger;
+
     const inbox = new Box(kb);
     const outbox = new Box(kb);
     const wsCon = new WSConnector("ws://127.0.0.1:8816", inbox, outbox);
     await wsCon.connect();
     wsCon.transfer().catch((e) => console.error(e.reasons));
-    outbox.kb = knightskb;
-    outbox.kb = knightskb2;
+    outbox.set(knightskb);
+    outbox.set(knightskb2);
 
     let slept = 0;
-    while (!inbox.kb.tribledb.isEqual(outbox.kb.tribledb) && slept < 1000) {
+    while (
+      !inbox.get().tribledb.isEqual(outbox.get().tribledb) && slept < 1000
+    ) {
       await sleep(10);
       slept += 10;
     }
     await wsCon.disconnect();
 
-    assert(inbox.kb.tribledb.isEqual(outbox.kb.tribledb));
+    assert(inbox.get().tribledb.isEqual(outbox.get().tribledb));
   },
   // https://github.com/denoland/deno/issues/7457
 });

@@ -29,8 +29,8 @@ Currently to be done and missing is:
 - PACT rust implementation.
 - TribleDB rust implementation.
 - More rust...
-- JS Ontology tools to dynamically load KnowlegeBase contexts and documentation from
-  Trible based ontologies.
+- JS Ontology tools to dynamically load KnowlegeBase contexts and documentation
+  from Trible based ontologies.
 - Core number types.
 - More types...
 - Even more types...
@@ -88,11 +88,10 @@ than a query language. JSON-LD is another candidate, and while we found the
 static conversions of JSON data to be cumbersome, we've adapted many concepts
 from it.
 
-_TribleDB_ is therefore wrapped by _KB_, which performs conversions
-between JS Objects and _trible_ data, provides tree interfaces for data
-insertion, and tree based query capabilites, as well as tree-based graph walking
-capabilites, all operating over familiar plain old javascript objects (and
-proxies _cough_).
+_TribleDB_ is therefore wrapped by _KB_, which performs conversions between JS
+Objects and _trible_ data, provides tree interfaces for data insertion, and tree
+based query capabilites, as well as tree-based graph walking capabilites, all
+operating over familiar plain old javascript objects (and proxies _cough_).
 
 ## Contexts, Types and Ontologies
 

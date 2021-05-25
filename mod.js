@@ -5,8 +5,8 @@ import {
   getInvariant,
   globalInvariants,
   id,
-  namespace,
   KB,
+  namespace,
 } from "./src/kb.js";
 import { types } from "./src/types.js";
 import { MemTribleDB } from "./src/memtribledb.js";
@@ -16,6 +16,7 @@ import { emptyTriblePACT, emptyValuePACT, makePACT } from "./src/pact.js";
 import { UFOID } from "./src/ufoid.js";
 
 export {
+  Box,
   emptyTriblePACT as TRIBLE_PACT,
   emptyValuePACT,
   entitiesToTriples,
@@ -23,13 +24,12 @@ export {
   getInvariant,
   globalInvariants,
   id,
+  KB,
   makePACT,
   MemBlobDB,
   MemTribleDB,
   namespace,
   S3BlobDB,
-  Box,
-  KB,
   types,
   UFOID,
   WSConnector,

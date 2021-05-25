@@ -110,9 +110,11 @@ class WSConnector {
       return;
     }
 
-    this.inbox.commit(kb => kb.withTribles(
-      contiguousTribles(txnTriblePayload),
-    ));
+    this.inbox.commit((kb) =>
+      kb.withTribles(
+        contiguousTribles(txnTriblePayload),
+      )
+    );
   }
 
   async disconnect() {

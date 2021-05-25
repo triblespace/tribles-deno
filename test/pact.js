@@ -93,7 +93,7 @@ Deno.test("equality check", () => {
   );
   const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
   const valueSets = values.chain((vs) =>
-    fc.tuple(fc.subarray(vs), fc.subarray(vs))
+    fc.tuple(fc.shuffledSubarray(vs), fc.shuffledSubarray(vs))
   );
 
   fc.assert(
@@ -115,7 +115,53 @@ Deno.test("equality check batched", () => {
   );
   const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
   const valueSets = values.chain((vs) =>
-    fc.tuple(fc.subarray(vs), fc.subarray(vs))
+    fc.tuple(fc.shuffledSubarray(vs), fc.shuffledSubarray(vs))
+  );
+
+  fc.assert(
+    fc.property(valueSets, ([vsA, vsB]) => {
+      const pactA = vsA.reduce((pact, v) => pact.put(v), emptyValuePACT.batch())
+        .complete();
+      const pactB = vsB.reduce((pact, v) => pact.put(v), emptyValuePACT.batch())
+        .complete();
+
+      assertEquals(
+        pactA.isEqual(pactB),
+        isSetsEqual(new Set(vsA), new Set(vsB)),
+      );
+    }),
+  );
+});
+
+Deno.test("shuffled equality check", () => {
+  const value = fc.array(fc.nat(255), { minLength: 32, maxLength: 32 }).map(
+    (a) => new Uint8Array(a),
+  );
+  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+  const valueSets = values.chain((vs) =>
+    fc.tuple(fc.constant(vs), fc.shuffledSubarray(vs, { minLength: vs.length }))
+  );
+
+  fc.assert(
+    fc.property(valueSets, ([vsA, vsB]) => {
+      const pactA = vsA.reduce((pact, v) => pact.put(v), emptyValuePACT);
+      const pactB = vsB.reduce((pact, v) => pact.put(v), emptyValuePACT);
+
+      assertEquals(
+        pactA.isEqual(pactB),
+        isSetsEqual(new Set(vsA), new Set(vsB)),
+      );
+    }),
+  );
+});
+
+Deno.test("shuffled equality check batched", () => {
+  const value = fc.array(fc.nat(255), { minLength: 32, maxLength: 32 }).map(
+    (a) => new Uint8Array(a),
+  );
+  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+  const valueSets = values.chain((vs) =>
+    fc.tuple(fc.constant(vs), fc.shuffledSubarray(vs, { minLength: vs.length }))
   );
 
   fc.assert(
@@ -317,5 +363,25 @@ Deno.test("set isIntersecting", () => {
 
       assertEquals(pactIsIntersecting, jsIsIntersecting);
     }),
+  );
+});
+
+Deno.test("static shuffled equality check batched", () => {
+  // deno-fmt-ignore
+  const [vsA, vsB] = [[Uint8Array.from([248,137,105,1,124,164,154,1,184,214,252,238,92,193,119,169,161,182,102,107,85,223,144,167,184,200,255,178,82,36,1,231]),Uint8Array.from([248,3,92,5,9,2,0,98,1,88,5,203,4,3,4,52,254,28,53,64,255,0,4,1,38,53,114,180,7,97,249,239]),Uint8Array.from([248,18,144,26,136,240,17,170,110,228,238,64,180,22,176,82,88,71,196,152,250,29,44,201,70,189,206,150,219,249,7,195]),Uint8Array.from([0,206,0,165,9,213,56,87,126,7,150,197,146,167,42,220,188,88,91,80,73,135,197,58,59,211,66,229,125,241,27,184])],
+                      [Uint8Array.from([0,206,0,165,9,213,56,87,126,7,150,197,146,167,42,220,188,88,91,80,73,135,197,58,59,211,66,229,125,241,27,184]),Uint8Array.from([248,137,105,1,124,164,154,1,184,214,252,238,92,193,119,169,161,182,102,107,85,223,144,167,184,200,255,178,82,36,1,231]),Uint8Array.from([248,18,144,26,136,240,17,170,110,228,238,64,180,22,176,82,88,71,196,152,250,29,44,201,70,189,206,150,219,249,7,195]),Uint8Array.from([248,3,92,5,9,2,0,98,1,88,5,203,4,3,4,52,254,28,53,64,255,0,4,1,38,53,114,180,7,97,249,239])]];
+
+  debugger;
+  const pactA = vsA.reduce((pact, v) => pact.put(v), emptyValuePACT.batch())
+    .complete();
+  const pactB = vsB.reduce((pact, v) => pact.put(v), emptyValuePACT.batch())
+    .complete();
+
+  assertEquals(
+    pactA.isEqual(pactB),
+    isSetsEqual(
+      new Set(vsA.map((v) => v.toString())),
+      new Set(vsB.map((v) => v.toString())),
+    ),
   );
 });

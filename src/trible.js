@@ -105,25 +105,16 @@ const equalValue = (valueA, valueB) => {
   return true;
 };
 
-const contiguousTribles = (tribles) => ({
-  tribles,
-  tribleCount: tribles.length / TRIBLE_SIZE,
-  t: 0,
-  next() {
-    if (this.t < this.tribleCount) {
-      return {
-        value: this.tribles.subarray(
-          this.t++ * TRIBLE_SIZE,
-          this.t * TRIBLE_SIZE,
-        ),
-      };
-    }
-    return { done: true };
-  },
-  [Symbol.iterator]() {
-    return this;
-  },
-});
+const contiguousTribles = (tribles) => {
+  const subarrays = [];
+  for (let t = 0; t < tribles.length; t += TRIBLE_SIZE) {
+    subarrays.push(tribles.subarray(
+      this.t,
+      this.t + TRIBLE_SIZE,
+    ));
+  }
+  return subarrays;
+};
 
 const isTransactionMarker = (trible) => {
   const view = new Uint32Array(trible.buffer, trible.byteOffset, 4);
