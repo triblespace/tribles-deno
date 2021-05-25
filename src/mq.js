@@ -1,12 +1,6 @@
-import { emptyTriblePACT } from "./pact.js";
 import { isTransactionMarker, isValidTransaction } from "./trible.js";
 import { find } from "./kb.js";
-import {
-  blake2s32,
-  blake2sFinal,
-  blake2sInit,
-  blake2sUpdate,
-} from "./blake2s.js";
+import { blake2s32 } from "./blake2s.js";
 import { contiguousTribles, TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
 
 const TRIBLES_PROTOCOL = "tribles";
