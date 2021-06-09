@@ -1,5 +1,5 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
-import { emptyTriblePACT as baseline, nextKey } from "../src/pact.js";
+import { emptyTriblePACT as baseline, nextKey, PACTHash } from "../src/pact.js";
 import { A, E, TRIBLE_SIZE, V1, V2 } from "../src/trible.js";
 
 const variants = [
@@ -92,6 +92,28 @@ function batchedPut(b, pactType, size) {
 benchAllPACT({
   name: "putBatch",
   func: batchedPut,
+});
+
+function batchedPutPrehashed(b, pactType, size) {
+  const sample = generate_sample(size);
+
+  for (const t of sample) {
+    PACTHash(t);
+  }
+
+  const pact = pactType;
+  b.start();
+  const batch = pact.batch();
+  for (const t of sample) {
+    batch.put(t);
+  }
+  batch.complete();
+  b.stop();
+}
+
+benchAllPACT({
+  name: "putBatchPrecompHash",
+  func: batchedPutPrehashed,
 });
 
 function setUnion(b, pactType, size) {
