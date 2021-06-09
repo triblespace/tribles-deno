@@ -189,11 +189,85 @@ class Box {
     };
   }
 
-  async *subscribe(ns, query) {
-    for await (const change of this.changes()) {
-      yield* find(ns, (vars) => query(change, vars), change.newKB.blobdb);
+  where(entities) {
+    return (ns, vars) => {
+      const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
+      const triplesWithVars = precompileTriples(ns, vars, triples);
+      return {
+        isStatic: false,
+        changes: this.changes(),
+        constraints: triplesWithVars.map(([e, a, v]) =>
+          (kb) => {
+            v.proposeBlobDB(this.blobdb);
+            return kb.tribledb.constraint(e.index, a.index, v.index);
+          }
+        ),
+      };
+    };
+  }
+}
+
+async function* subscribe(ns, cfn) {
+  const vars = new VariableProvider();
+  const staticConstraints = [];
+  const dynamicConstraintGroups = [];
+  for (const constraintBuilder of cfn(vars.namedCache())) {
+    const constraintGroup = constraintBuilder(ns, vars);
+    if (constraintGroup.isStatic) {
+      for (const constraint of constraintGroup.constraints) {
+        staticConstraints.push(constraint);
+      }
+    } else {
+      dynamicConstraintGroups.push(constraintGroup);
+    }
+  }
+
+  for (const constantVariable of vars.constantVariables.values()) {
+    staticConstraints.push(
+      constantConstraint(constantVariable.index, constantVariable.constant),
+    );
+  }
+
+  const namedVariables = [...vars.namedVariables.values()];
+
+  while (true) {
+    Promise.race();
+
+    for (
+      const r of resolve(
+        constraints,
+        new OrderByMinCostAndBlockage(vars.projected, vars.blockedBy),
+        new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
+        vars.variables.map((_) => new Uint8Array(VALUE_SIZE)),
+      )
+    ) {
+      const result = {};
+      for (
+        const {
+          index,
+          isWalked,
+          walkedKB,
+          walkedNS,
+          decoder,
+          name,
+          isOmit,
+          blobdb,
+        } of namedVariables
+      ) {
+        if (!isOmit) {
+          const encoded = r[index];
+          const decoded = decoder(
+            encoded.slice(0),
+            async () => await blobdb.get(encoded),
+          );
+          result[name] = isWalked
+            ? walkedKB.walk(walkedNS || ns, decoded)
+            : decoded;
+        }
+      }
+      yield result;
     }
   }
 }
 
-export { Box, WSConnector };
+export { Box, subscribe, WSConnector };

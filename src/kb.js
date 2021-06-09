@@ -101,6 +101,7 @@ class Variable {
     this.isOmit = false;
     this.paths = [];
     this.decoder = null;
+    this.blobdb = null;
   }
 
   groupBy(otherVariable) {
@@ -148,6 +149,11 @@ class Variable {
       return `${this.name}@${this.index}`;
     }
     return `V:${this.index}`;
+  }
+  proposeBlobDB(blobdb) {
+    // Todo check latency cost of blobdb, e.g. inMemory vs. S3.
+    this.blobdb ||= blobdb;
+    return this;
   }
 }
 
@@ -613,57 +619,6 @@ const precompileTriples = (ns, vars, triples) => {
   return precompiledTriples;
 };
 
-function* find(ns, cfn, blobdb) {
-  const vars = new VariableProvider();
-  const constraintBuilderPrepares = cfn(vars.namedCache());
-  const constraintBuilders = constraintBuilderPrepares.map((prepare) =>
-    prepare(ns, vars)
-  );
-
-  const namedVariables = [...vars.namedVariables.values()];
-
-  const constraints = constraintBuilders.flatMap((builder) => builder());
-  constraints.push(
-    ...[...vars.constantVariables.values()].map((v) =>
-      constantConstraint(v.index, v.constant)
-    ),
-  );
-
-  for (
-    const r of resolve(
-      constraints,
-      new OrderByMinCostAndBlockage(vars.projected, vars.blockedBy),
-      new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
-      vars.variables.map((_) => new Uint8Array(VALUE_SIZE)),
-    )
-  ) {
-    const result = {};
-    for (
-      const {
-        index,
-        isWalked,
-        walkedKB,
-        walkedNS,
-        decoder,
-        name,
-        isOmit,
-      } of namedVariables
-    ) {
-      if (!isOmit) {
-        const encoded = r[index];
-        const decoded = decoder(
-          encoded.slice(0),
-          async () => await blobdb.get(encoded),
-        );
-        result[name] = isWalked
-          ? walkedKB.walk(walkedNS || ns, decoded)
-          : decoded;
-      }
-    }
-    yield result;
-  }
-}
-
 class IDSequence {
   constructor(factory) {
     this.factory = factory;
@@ -804,19 +759,19 @@ class KB {
     return this;
   }
 
-  find(ns, efn) {
-    return find(ns, (vars) => [this.where(efn(vars))], this.blobdb);
-  }
-
   where(entities) {
     return (ns, vars) => {
       const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
       const triplesWithVars = precompileTriples(ns, vars, triples);
-      return () => [
-        ...triplesWithVars.map(([{ index: e }, { index: a }, { index: v }]) =>
-          this.tribledb.constraint(e, a, v)
-        ),
-      ];
+      return {
+        isStatic: true,
+        constraints: [
+          ...triplesWithVars.map(([e, a, v]) => {
+            v.proposeBlobDB(this.blobdb);
+            return this.tribledb.constraint(e.index, a.index, v.index);
+          }),
+        ],
+      };
     };
   }
 
@@ -872,6 +827,65 @@ class KB {
     const tribledb = this.tribledb.intersect(other.tribledb);
     const blobdb = this.blobdb.merge(other.blobdb).shrink(tribledb);
     return new KB(tribledb, blobdb);
+  }
+}
+
+function* find(ns, cfn) {
+  const vars = new VariableProvider();
+  const constraints = [];
+  for (const constraintBuilder of cfn(vars.namedCache())) {
+    const constraintGroup = constraintBuilder(ns, vars);
+    if (!constraintGroup.isStatic) {
+      throw Error(
+        `Can only use static constraint groups in find. Use either subscribe, or a static value like box.get().`,
+      );
+    }
+    for (const constraint of constraintGroup.constraints) {
+      constraints.push(constraint);
+    }
+  }
+
+  for (const constantVariable of vars.constantVariables.values()) {
+    constraints.push(
+      constantConstraint(constantVariable.index, constantVariable.constant),
+    );
+  }
+
+  const namedVariables = [...vars.namedVariables.values()];
+
+  for (
+    const r of resolve(
+      constraints,
+      new OrderByMinCostAndBlockage(vars.projected, vars.blockedBy),
+      new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
+      vars.variables.map((_) => new Uint8Array(VALUE_SIZE)),
+    )
+  ) {
+    const result = {};
+    for (
+      const {
+        index,
+        isWalked,
+        walkedKB,
+        walkedNS,
+        decoder,
+        name,
+        isOmit,
+        blobdb,
+      } of namedVariables
+    ) {
+      if (!isOmit) {
+        const encoded = r[index];
+        const decoded = decoder(
+          encoded.slice(0),
+          async () => await blobdb.get(encoded),
+        );
+        result[name] = isWalked
+          ? walkedKB.walk(walkedNS || ns, decoded)
+          : decoded;
+      }
+    }
+    yield result;
   }
 }
 
