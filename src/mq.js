@@ -121,93 +121,117 @@ class WSConnector {
 class Box {
   constructor(kb) {
     this._kb = kb;
-
-    const initChanges = {
-      oldKB: kb.empty(),
-      difKB: kb,
-      newKB: kb,
-    };
-
-    let resolveNext;
-    const nextPromise = new Promise((resolve) => (resolveNext = resolve));
-    this._resolveNext = resolveNext;
-    this._changeNext = nextPromise;
-    this._changeHead = Promise.resolve({
-      next: nextPromise,
-      value: initChanges,
-    });
+    this._subscriptions = [];
   }
 
   commit(fn) {
-    this.set(fn(this.get()));
+    this._kb = fn(this._kb);
+
+    for (const subscription of this._subscriptions) {
+      subscription.notify(this._kb);
+    }
   }
 
   get() {
     return this._kb;
   }
 
-  set(newKB) {
-    const difKB = newKB.subtract(this._kb);
-    if (!difKB.isEmpty()) {
-      const oldKB = this._kb;
-      this._kb = newKB;
-
-      const changes = {
-        oldKB,
-        difKB,
-        newKB,
-      };
-
-      this._changeHead = this._changeNext;
-
-      let resolveNext;
-      const nextPromise = new Promise((resolve) => (resolveNext = resolve));
-
-      this._resolveNext({
-        next: nextPromise,
-        value: changes,
-      });
-
-      this._resolveNext = resolveNext;
-      this._changeNext = nextPromise;
-    }
-  }
-
   changes() {
-    return {
-      changeHead: this._changeHead,
-
-      async next() {
-        const { value, next } = await this.changeHead;
-        this.changeHead = next;
-        return { value };
+    const s = new Subscription(
+      (s, newKb, oldKb) => {
+        const difKB = newKB.subtract(oldKB);
+        return {
+          oldKB,
+          difKB,
+          newKB,
+        };
       },
-
-      [Symbol.asyncIterator]() {
-        return this;
-      },
-    };
+      (s) =>
+        this._subscriptions = this._subscriptions.filter((item) => item !== s),
+    );
+    this._subscriptions.push(s);
+    s.notify(this._kb);
+    return s;
   }
 
   where(entities) {
     return (ns, vars) => {
       const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
       const triplesWithVars = precompileTriples(ns, vars, triples);
+      const changeSubscription = this.changes();
       return {
         isStatic: false,
-        changes: this.changes(),
-        constraints: triplesWithVars.map(([e, a, v]) =>
-          (kb) => {
-            v.proposeBlobDB(this.blobdb);
-            return kb.tribledb.constraint(e.index, a.index, v.index);
-          }
-        ),
+        constraintsSubscription: new Subscription((s, newKb, oldKb) => {
+          triplesWithVars.map(([e, a, v]) =>
+            (kb) => {
+              v.proposeBlobDB(this.blobdb);
+              return kb.tribledb.constraint(e.index, a.index, v.index);
+            }
+          );
+        }, (s) => changeSubscription.unsubscribe()),
       };
     };
   }
 }
 
-async function* subscribe(ns, cfn) {
+//TODO add subscription map? does that layer another subscription? Does it only layer the getNext a la transducers?
+// Do we clone the entire thing and replace the getNext, so that the original remains the same? Is a subscription mutable?
+
+class Subscription {
+  constructor(getNext, onUnsubscribe, onNofity = undefined) {
+    this._getNext = getNext;
+    this._onUnsubscribe = onUnsubscribe;
+    this._onNotify = onNofity;
+
+    this._pulledNotification = undefined;
+    this._latestNotification = undefined;
+
+    this._snoozed = false;
+
+    this.unsubscribed = false;
+  }
+
+  set onNotify(callback) {
+    this._onNotify = callback;
+    if (this._pulledNotification !== this._latestNotification) {
+      callback(this, this._latestNotification, this._pulledNotification);
+    }
+  }
+
+  notify(notification) {
+    const previousNotification = this._latestNotification;
+    this._latestNotification = notification;
+    if (
+      this._onNotify && !this._snoozed &&
+      (previousNotification !== notification)
+    ) {
+      this._snoozed = Boolean(
+        this._onNotify(this, notification, this._pulledNotification),
+      );
+    }
+  }
+
+  pull() {
+    if (this._pulledNotification !== this._latestNotification) {
+      this._pulledNotification = this._latestNotification;
+      this._snoozed = false;
+      return this._getNext(
+        this,
+        this._latestNotification,
+        this._pulledNotification,
+      );
+    }
+  }
+
+  unsubscribe() {
+    if (!this.unsubscribed) {
+      this.unsubscribed = true;
+      this._onUnsubscribe(this);
+    }
+  }
+}
+
+async function* search(ns, cfn) {
   const vars = new VariableProvider();
   const staticConstraints = [];
   const dynamicConstraintGroups = [];
@@ -231,7 +255,12 @@ async function* subscribe(ns, cfn) {
   const namedVariables = [...vars.namedVariables.values()];
 
   while (true) {
-    Promise.race();
+    const activeConstraints = Promise.race();
+
+    const constraints = staticConstraints.slice();
+    for (const dynamicConstraintGroup of dynamicConstraintGroups) {
+      if (dynamicConstraintGroup.changes.head) {}
+    }
 
     for (
       const r of resolve(
@@ -270,4 +299,4 @@ async function* subscribe(ns, cfn) {
   }
 }
 
-export { Box, subscribe, WSConnector };
+export { Box, search, WSConnector };
