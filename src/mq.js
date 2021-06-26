@@ -176,6 +176,10 @@ class Box {
 
 //TODO add subscription map? does that layer another subscription? Does it only layer the getNext a la transducers?
 // Do we clone the entire thing and replace the getNext, so that the original remains the same? Is a subscription mutable?
+// We probably don't want to wrap entire subscription objects for mappings, but what about copying it for immutability?
+// How would we make sure that both are notified, since only one of them is registered.
+// This is an interesting question in general. If we wanted to use this to build a compute DAG, then we'd need this kind of immutability.
+// How does observablehq runtime do it? How do observables in general do it?
 
 class Subscription {
   constructor(getNext, onUnsubscribe, onNofity = undefined) {
@@ -205,9 +209,7 @@ class Subscription {
       this._onNotify && !this._snoozed &&
       (previousNotification !== notification)
     ) {
-      this._snoozed = Boolean(
-        this._onNotify(this, notification, this._pulledNotification),
-      );
+      this._onNotify(this, notification, this._pulledNotification);
     }
   }
 
@@ -221,6 +223,10 @@ class Subscription {
         this._pulledNotification,
       );
     }
+  }
+
+  snooze() {
+    this._snoozed = true;
   }
 
   unsubscribe() {
