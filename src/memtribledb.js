@@ -354,6 +354,25 @@ class MemTribleDB {
       this.AisV.intersect(other.AisV),
     );
   }
+
+  dump() {
+    // TODO This could be done lazily, with either a growable buffer
+    // or by adding a total size to pacts.
+    const novelTriblesEager = [...this.EAV.keys()];
+    const data = new Uint8Array(
+      TRIBLE_SIZE * (novelTriblesEager.length + 1),
+    );
+    let i = 1;
+    for (const trible of novelTriblesEager) {
+      data.set(trible, TRIBLE_SIZE * i++);
+    }
+    //TODO make hash configurable and use transaction trible attr for type
+    blake2s32(
+      data.subarray(TRIBLE_SIZE),
+      data.subarray(TRIBLE_SIZE - VALUE_SIZE, TRIBLE_SIZE),
+    );
+    return data;
+  }
 }
 
 export { MemTribleDB };

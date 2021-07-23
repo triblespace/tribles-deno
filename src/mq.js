@@ -5,25 +5,6 @@ import { contiguousTribles, TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
 
 const TRIBLES_PROTOCOL = "tribles";
 
-function buildTransaction(kb) {
-  // TODO This could be done lazily, with either a growable buffer
-  // or by adding a total size to pacts.
-  const novelTriblesEager = [...kb.tribledb.EAV.keys()];
-  const transaction = new Uint8Array(
-    TRIBLE_SIZE * (novelTriblesEager.length + 1),
-  );
-  let i = 1;
-  for (const trible of novelTriblesEager) {
-    transaction.set(trible, TRIBLE_SIZE * i++);
-  }
-  //TODO make hash configurable and use transaction trible attr for type
-  blake2s32(
-    transaction.subarray(TRIBLE_SIZE),
-    transaction.subarray(TRIBLE_SIZE - VALUE_SIZE, TRIBLE_SIZE),
-  );
-  return transaction;
-}
-
 class WSConnector {
   constructor(addr, inbox, outbox) {
     this.addr = addr;
@@ -72,7 +53,7 @@ class WSConnector {
         return;
       }
       if (!change.difKB.isEmpty()) {
-        const transaction = buildTransaction(change.difKB);
+        const transaction = change.difKB.tribledb.dump();
         await change.difKB.blobdb.flush();
         this.ws.send(transaction);
       }
