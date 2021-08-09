@@ -194,6 +194,22 @@ Deno.test("segment count", () => {
   );
 });
 
+Deno.test("segment count batched", () => {
+  const value = fc.uint8Array({ minLength: 32, maxLength: 32 });
+  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+
+  fc.assert(
+    fc.property(values, (vs) => {
+      const pact = vs.reduce((pact, v) => pact.put(v), emptyValuePACT.batch())
+        .complete();
+
+      const cursor = pact.segmentCursor().push();
+
+      assertEquals(cursor.segmentCount(), vs.length);
+    }),
+  );
+});
+
 Deno.test("set subtract", () => {
   const value = fc.array(fc.nat(255), { minLength: 32, maxLength: 32 }).map(
     (a) => new Uint8Array(a),
