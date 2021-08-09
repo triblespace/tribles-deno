@@ -1001,12 +1001,13 @@ const makePACT = function (SEGMENTS) {
           const child = this.children[pos];
           //We need to update the child where this key would belong.
           const oldChildHash = child.hash;
+          const oldChildCount = child.segmentCount;
           nchild = child.put(childDepth, key, value, owner);
           if (oldChildHash === nchild.hash) return this;
           hash = (this.hash ^ oldChildHash) ^ nchild.hash;
           segmentCount =
             (SEGMENT_LUT[this.branchDepth] === SEGMENT_LUT[nchild.branchDepth])
-              ? (this.segmentCount - child.segmentCount) + nchild.segmentCount
+              ? (this.segmentCount - oldChildCount) + nchild.segmentCount
               : this.segmentCount;
           if (this.owner === owner) {
             this.children[pos] = nchild;
