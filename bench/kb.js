@@ -1,40 +1,39 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
 import {
-  ctx,
   find,
+  globalInvariants,
   id,
   KB,
   MemBlobDB,
   MemTribleDB,
+  namespace,
   types,
   UFOID,
 } from "../mod.js";
 
+const { nameId, lovesId, titlesId } = UFOID.namedCache();
+
+globalInvariants({
+  [nameId]: { isUnique: true },
+  [lovesId]: { isLink: true, isUnique: true },
+  [titlesId]: {},
+});
+
+const knightsNS = namespace({
+  [id]: { ...types.ufoid },
+  name: { id: nameId, ...types.shortstring },
+  loves: { id: lovesId },
+  lovedBy: { id: lovesId, isInverse: true },
+  titles: { id: titlesId, ...types.shortstring },
+});
+
 function kbWith(b, size) {
-  // Define a context, mapping between js data and tribles.
-  const { nameId, lovesId, titlesId } = UFOID.namedCache();
-
-  const knightsCtx = ctx({
-    ns: {
-      [id]: { ...types.ufoid },
-      name: { id: nameId, ...types.shortstring },
-      loves: { id: lovesId },
-      lovedBy: { id: lovesId, isInverse: true },
-      titles: { id: titlesId, ...types.shortstring },
-    },
-    constraints: {
-      [nameId]: { isUnique: true },
-      [lovesId]: { isLink: true, isUnique: true },
-      [titlesId]: {},
-    },
-  });
-
   // Add some data.
   let knightskb = new KB(new MemTribleDB(), new MemBlobDB());
 
   b.start();
   knightskb = knightskb.with(
-    knightsCtx,
+    knightsNS,
     (
       [romeo, juliet],
     ) => [
@@ -54,7 +53,7 @@ function kbWith(b, size) {
   );
   for (let i = 1; i < size; i++) {
     knightskb = knightskb.with(
-      knightsCtx,
+      knightsNS,
       (
         [romeo, juliet],
       ) => [
@@ -77,29 +76,11 @@ function kbWith(b, size) {
 }
 
 function kbQuery(b, size) {
-  // Define a context, mapping between js data and tribles.
-  const { nameId, lovesId, titlesId } = UFOID.namedCache();
-
-  const knightsCtx = ctx({
-    ns: {
-      [id]: { ...types.ufoid },
-      name: { id: nameId, ...types.shortstring },
-      loves: { id: lovesId },
-      lovedBy: { id: lovesId, isInverse: true },
-      titles: { id: titlesId, ...types.shortstring },
-    },
-    constraints: {
-      [nameId]: { isUnique: true },
-      [lovesId]: { isLink: true, isUnique: true },
-      [titlesId]: {},
-    },
-  });
-
   // Add some data.
   let knightskb = new KB(new MemTribleDB(), new MemBlobDB());
 
   knightskb = knightskb.with(
-    knightsCtx,
+    knightsNS,
     (
       [romeo, juliet],
     ) => [
@@ -119,7 +100,7 @@ function kbQuery(b, size) {
   );
   for (let i = 1; i < size; i++) {
     knightskb = knightskb.with(
-      knightsCtx,
+      knightsNS,
       (
         [romeo, juliet],
       ) => [
@@ -141,28 +122,36 @@ function kbQuery(b, size) {
   b.start();
   // Query some data.
   const results = [
-    ...knightskb.find(knightsCtx, (
-      { name, title },
-    ) => [
-      { name: name.at(0).ascend(), titles: [title], loves: { name: "Juliet" } },
-    ]),
+    ...find(
+      knightsNS,
+      (
+        { name, title },
+      ) => [knightskb.where([
+        {
+          name: name,
+          titles: [title],
+          loves: { name: "Juliet" },
+        },
+      ])],
+    ),
   ];
+  console.log(results.length);
   b.stop();
 }
 
 bench({
-  name: "kbWith1e3",
+  name: "kbWith1e5",
   runs: 3,
   func(b) {
-    kbWith(b, 1e3);
+    kbWith(b, 1e4);
   },
 });
 
 bench({
-  name: "kbQuery1e3",
+  name: "kbQuery1e5",
   runs: 10,
   func(b) {
-    kbQuery(b, 1e3);
+    kbQuery(b, 1e4);
   },
 });
 
