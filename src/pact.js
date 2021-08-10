@@ -328,8 +328,8 @@ const makePACT = function (SEGMENTS) {
         ) {
           [this.pathBytes[keyDepth], this.pathNodes[keyDepth + 1]] = this
             .pathNodes[
-              keyDepth
-            ].seek(keyDepth, ascending ? 0 : 255, ascending);
+            keyDepth
+          ].seek(keyDepth, ascending ? 0 : 255, ascending);
           if (this.pathNodes[keyDepth + 1] === null) {
             this.valid[this.segmentDepth] = false;
             break;

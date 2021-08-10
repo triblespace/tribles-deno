@@ -5,12 +5,10 @@ import {
   assertThrows,
 } from "https://deno.land/std@0.78.0/testing/asserts.ts";
 import fc from "https://cdn.skypack.dev/fast-check";
-fc.configureGlobal(
-  {
-    numRuns: Number.MAX_SAFE_INTEGER,
-    interruptAfterTimeLimit: (1000 * 5),
-  },
-);
+fc.configureGlobal({
+  numRuns: Number.MAX_SAFE_INTEGER,
+  interruptAfterTimeLimit: 1000 * 5,
+});
 
 import {
   decode,
@@ -30,8 +28,7 @@ import {
   UFOID,
 } from "../mod.js";
 
-const { nameId, lovesId, titlesId, motherOfId, romeoId } = UFOID
-  .namedCache();
+const { nameId, lovesId, titlesId, motherOfId, romeoId } = UFOID.namedCache();
 
 globalInvariants({
   [nameId]: { isUnique: true },
@@ -57,9 +54,7 @@ Deno.test("KB Find", () => {
   const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
   debugger;
-  const knightskb = memkb.with(knightsNS, (
-    [romeo, juliet],
-  ) => [
+  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
       [id]: romeo,
       name: "Romeo",
@@ -76,9 +71,9 @@ Deno.test("KB Find", () => {
 
   // Query some data.
   const results = [
-    ...find(knightsNS, (
-      { name, title },
-    ) => [knightskb.where({ name: name.ascend(), titles: [title] })]),
+    ...find(knightsNS, ({ name, title }) => [
+      knightskb.where({ name: name.ascend(), titles: [title] }),
+    ]),
   ];
   assertEquals(results, [
     { name: "Juliet", title: "princess" },
@@ -117,19 +112,16 @@ Deno.test("KB Find Single", () => {
           titles: { id: titlesId, ...types.hex },
         });
 
-        const knightskb = new KB(
-          new MemTribleDB(),
-          new MemBlobDB(),
-        ).with(
+        const knightskb = new KB(new MemTribleDB(), new MemBlobDB()).with(
           knightsNS,
           () => [{ [id]: person.id, name: person.name, titles: person.titles }],
         );
 
         /// Query some data.
         const results = [
-          ...find(knightsNS, (
-            { name, title },
-          ) => [knightskb.where({ name, titles: [title] })]),
+          ...find(knightsNS, ({ name, title }) => [
+            knightskb.where({ name, titles: [title] }),
+          ]),
         ];
         assertEquals(results, [{ name: person.name, title: person.titles[0] }]);
       },
@@ -149,9 +141,7 @@ Deno.test("Find Ascending", () => {
   // Add some data.
   const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
-  const knightskb = memkb.with(knightsNS, (
-    [romeo, juliet],
-  ) => [
+  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
       [id]: romeo,
       name: "Romeo",
@@ -170,9 +160,7 @@ Deno.test("Find Ascending", () => {
   const results = [
     ...find(
       knightsNS,
-      (
-        { person, name, title },
-      ) => [
+      ({ person, name, title }) => [
         knightskb.where({
           [id]: person.groupBy(name.ascend()).omit(),
           name,
@@ -190,6 +178,98 @@ Deno.test("Find Ascending", () => {
   ]);
 });
 
+Deno.test("find lower bound", () => {
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    loves: { id: lovesId },
+    lovedBy: { id: lovesId, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring },
+  });
+
+  // Add some data.
+  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+
+  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
+    {
+      [id]: romeo,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeo,
+    },
+  ]);
+
+  // Query some data.
+  const results = [
+    ...find(
+      knightsNS,
+      ({ name, title }) => [
+        knightskb.where({
+          name: name.lower("R"),
+          titles: [title],
+        }),
+      ],
+      knightskb.blobdb,
+    ),
+  ];
+  assertEquals(results, [
+    { name: "Romeo", title: "fool" },
+    { name: "Romeo", title: "prince" },
+  ]);
+});
+
+Deno.test("find upper bound", () => {
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    loves: { id: lovesId },
+    lovedBy: { id: lovesId, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring },
+  });
+
+  // Add some data.
+  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+
+  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
+    {
+      [id]: romeo,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeo,
+    },
+  ]);
+
+  // Query some data.
+  const results = [
+    ...find(
+      knightsNS,
+      ({ name, title }) => [
+        knightskb.where({
+          name: name.upper("R"),
+          titles: [title],
+        }),
+      ],
+      knightskb.blobdb,
+    ),
+  ];
+  assertEquals(results, [
+    { name: "Juliet", title: "princess" },
+    { name: "Juliet", title: "the lady" },
+  ]);
+});
+
 Deno.test("Find Descending", () => {
   // Define a context, mapping between js data and tribles.
   const knightsNS = namespace({
@@ -203,9 +283,7 @@ Deno.test("Find Descending", () => {
   // Add some data.
   const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
-  const knightskb = memkb.with(knightsNS, (
-    [romeo, juliet],
-  ) => [
+  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
       [id]: romeo,
       name: "Romeo",
@@ -223,9 +301,7 @@ Deno.test("Find Descending", () => {
   const results = [
     ...find(
       knightsNS,
-      (
-        { person, name, title },
-      ) => [
+      ({ person, name, title }) => [
         knightskb.where({
           [id]: person.groupBy(name.descend()).omit(),
           name,
@@ -255,9 +331,7 @@ Deno.test("unique constraint", () => {
   // Add some data.
   const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
-  const knightskb = memkb.with(knightsNS, (
-    [juliet],
-  ) => [
+  const knightskb = memkb.with(knightsNS, ([juliet]) => [
     {
       [id]: romeoId,
       name: "Romeo",
@@ -331,9 +405,7 @@ Deno.test("KB Walk", () => {
   // Add some data.
   const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
-  const knightskb = memkb.with(knightsNS, (
-    [romeo, juliet],
-  ) => [
+  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
       [id]: romeo,
       name: "Romeo",
@@ -350,9 +422,9 @@ Deno.test("KB Walk", () => {
   // Query some data.
   debugger;
   const [{ romeo }] = [
-    ...find(knightsNS, (
-      { romeo },
-    ) => [knightskb.where({ [id]: romeo.walk(knightskb), name: "Romeo" })]),
+    ...find(knightsNS, ({ romeo }) => [
+      knightskb.where({ [id]: romeo.walk(knightskb), name: "Romeo" }),
+    ]),
   ];
   assertEquals(romeo.loves.name, "Juliet");
 });
@@ -369,9 +441,7 @@ Deno.test("KB Walk ownKeys", () => {
   // Add some data.
   const memkb = new KB(new MemTribleDB(), new MemBlobDB());
 
-  const knightskb = memkb.with(knightsNS, (
-    [romeo, juliet],
-  ) => [
+  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
       [id]: romeo,
       name: "Romeo",
@@ -388,9 +458,9 @@ Deno.test("KB Walk ownKeys", () => {
   // Query some data.
   debugger;
   const [{ romeo }] = [
-    ...find(knightsNS, (
-      { romeo },
-    ) => [knightskb.where({ [id]: romeo.walk(knightskb), name: "Romeo" })]),
+    ...find(knightsNS, ({ romeo }) => [
+      knightskb.where({ [id]: romeo.walk(knightskb), name: "Romeo" }),
+    ]),
   ];
   assertEquals(
     new Set(Reflect.ownKeys(romeo)),
