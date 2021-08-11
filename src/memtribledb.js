@@ -32,9 +32,11 @@ class MemTribleConstraint {
       this.explorationStack[this.explorationStack.length - 1];
     return lastExplored.children.map((child) => ({
       variable: child.variable,
-      costs: child.cursors.map((cursor) =>
-        cursor.segmentCount() * inmemoryCosts
-      ),
+      costs: child.cursors.map((cursor) => {
+        const count = cursor.segmentCount();
+        //if (count < 0) console.log(cursor);
+        return count * inmemoryCosts;
+      }),
     }));
   }
 
@@ -153,130 +155,128 @@ class MemTribleDB {
     const AisVCursor = this.AisV.segmentCursor();
 
     if (e === a && e === v) {
-      return new MemTribleConstraint(
-        { children: [{ variable: e, cursors: [EisACursor, EisVCursor] }] },
-      );
+      return new MemTribleConstraint({
+        children: [{ variable: e, cursors: [EisACursor, EisVCursor] }],
+      });
     }
     if (e === a) {
-      return new MemTribleConstraint(
-        {
-          children: [
-            {
-              variable: e,
-              cursors: [EVACursor, EisACursor],
-              children: [{ variable: v, cursors: [EVACursor], children: [] }],
-            },
-            {
-              variable: v,
-              cursors: [VEACursor],
-              children: [{
-                variable: e,
-                cursors: [VEACursor, EisACursor],
-                children: [],
-              }],
-            },
-          ],
-        },
-      );
-    }
-    if (e === v) {
-      return new MemTribleConstraint(
-        {
-          children: [
-            {
-              variable: e,
-              cursors: [EAVCursor, EisVCursor],
-              children: [{ variable: a, cursors: [EAVCursor], children: [] }],
-            },
-            {
-              variable: a,
-              cursors: [AEVCursor],
-              children: [{
-                variable: e,
-                cursors: [AEVCursor, EisVCursor],
-                children: [],
-              }],
-            },
-          ],
-        },
-      );
-    }
-    if (a === v) {
-      return new MemTribleConstraint(
-        {
-          children: [
-            {
-              variable: e,
-              cursors: [EAVCursor],
-              children: [{
-                variable: a,
-                cursors: [EAVCursor, AisVCursor],
-                children: [],
-              }],
-            },
-            {
-              variable: a,
-              cursors: [AEVCursor, AisVCursor],
-              children: [{ variable: e, cursors: [AEVCursor], children: [] }],
-            },
-          ],
-        },
-      );
-    }
-    return new MemTribleConstraint(
-      {
+      return new MemTribleConstraint({
         children: [
           {
             variable: e,
-            cursors: [EAVCursor, EVACursor],
+            cursors: [EVACursor, EisACursor],
+            children: [{ variable: v, cursors: [EVACursor], children: [] }],
+          },
+          {
+            variable: v,
+            cursors: [VEACursor],
+            children: [
+              {
+                variable: e,
+                cursors: [VEACursor, EisACursor],
+                children: [],
+              },
+            ],
+          },
+        ],
+      });
+    }
+    if (e === v) {
+      return new MemTribleConstraint({
+        children: [
+          {
+            variable: e,
+            cursors: [EAVCursor, EisVCursor],
+            children: [{ variable: a, cursors: [EAVCursor], children: [] }],
+          },
+          {
+            variable: a,
+            cursors: [AEVCursor],
+            children: [
+              {
+                variable: e,
+                cursors: [AEVCursor, EisVCursor],
+                children: [],
+              },
+            ],
+          },
+        ],
+      });
+    }
+    if (a === v) {
+      return new MemTribleConstraint({
+        children: [
+          {
+            variable: e,
+            cursors: [EAVCursor],
             children: [
               {
                 variable: a,
-                cursors: [EAVCursor],
-                children: [{ variable: v, cursors: [EAVCursor], children: [] }],
-              },
-              {
-                variable: v,
-                cursors: [EVACursor],
-                children: [{ variable: a, cursors: [EVACursor], children: [] }],
+                cursors: [EAVCursor, AisVCursor],
+                children: [],
               },
             ],
           },
           {
             variable: a,
-            cursors: [AEVCursor, AVECursor],
-            children: [
-              {
-                variable: e,
-                cursors: [AEVCursor],
-                children: [{ variable: v, cursors: [AEVCursor], children: [] }],
-              },
-              {
-                variable: v,
-                cursors: [AVECursor],
-                children: [{ variable: e, cursors: [AVECursor], children: [] }],
-              },
-            ],
-          },
-          {
-            variable: v,
-            cursors: [VEACursor, VAECursor],
-            children: [
-              {
-                variable: e,
-                cursors: [VEACursor],
-                children: [{ variable: a, cursors: [VEACursor], children: [] }],
-              },
-              {
-                variable: a,
-                cursors: [VAECursor],
-                children: [{ variable: e, cursors: [VAECursor], children: [] }],
-              },
-            ],
+            cursors: [AEVCursor, AisVCursor],
+            children: [{ variable: e, cursors: [AEVCursor], children: [] }],
           },
         ],
-      },
-    );
+      });
+    }
+    return new MemTribleConstraint({
+      children: [
+        {
+          variable: e,
+          cursors: [EAVCursor, EVACursor],
+          children: [
+            {
+              variable: a,
+              cursors: [EAVCursor],
+              children: [{ variable: v, cursors: [EAVCursor], children: [] }],
+            },
+            {
+              variable: v,
+              cursors: [EVACursor],
+              children: [{ variable: a, cursors: [EVACursor], children: [] }],
+            },
+          ],
+        },
+        {
+          variable: a,
+          cursors: [AEVCursor, AVECursor],
+          children: [
+            {
+              variable: e,
+              cursors: [AEVCursor],
+              children: [{ variable: v, cursors: [AEVCursor], children: [] }],
+            },
+            {
+              variable: v,
+              cursors: [AVECursor],
+              children: [{ variable: e, cursors: [AVECursor], children: [] }],
+            },
+          ],
+        },
+        {
+          variable: v,
+          cursors: [VEACursor, VAECursor],
+          children: [
+            {
+              variable: e,
+              cursors: [VEACursor],
+              children: [{ variable: a, cursors: [VEACursor], children: [] }],
+            },
+            {
+              variable: a,
+              cursors: [VAECursor],
+              children: [{ variable: e, cursors: [VAECursor], children: [] }],
+            },
+          ],
+        },
+      ],
+    });
   }
 
   empty() {
@@ -359,9 +359,7 @@ class MemTribleDB {
     // TODO This could be done lazily, with either a growable buffer
     // or by adding a total size to pacts.
     const novelTriblesEager = [...this.EAV.keys()];
-    const data = new Uint8Array(
-      TRIBLE_SIZE * (novelTriblesEager.length + 1),
-    );
+    const data = new Uint8Array(TRIBLE_SIZE * (novelTriblesEager.length + 1));
     let i = 1;
     for (const trible of novelTriblesEager) {
       data.set(trible, TRIBLE_SIZE * i++);

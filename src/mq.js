@@ -140,16 +140,31 @@ class Box {
       const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
       const triplesWithVars = precompileTriples(ns, vars, triples);
       const changeSubscription = this.changes();
+      const constraintsSubscription = new Subscription((s, newKb, oldKB) => {
+        const {
+          difKB,
+          newKB,
+        } = changeSubscription.pull();
+        triplesWithVars.foreach(([e, a, v]) => {
+          v.proposeBlobDB(newKB.blobdb);
+        });
+        return {
+          constraints: triplesWithVars.map(([e, a, v]) =>
+            newKB.tribledb.constraint(e.index, a.index, v.index)
+          ),
+          oracles: triplesWithVars.map(([e, a, v]) =>
+            difKB.tribledb.constraint(e.index, a.index, v.index)
+          ),
+        };
+      }, (s) => changeSubscription.unsubscribe());
+
+      changeSubscription.onNotify = (s, latest, pulled) => {
+        constraintsSubscription.notify(latest);
+      };
+
       return {
         isStatic: false,
-        constraintsSubscription: new Subscription((s, newKb, oldKb) => {
-          triplesWithVars.map(([e, a, v]) =>
-            (kb) => {
-              v.proposeBlobDB(this.blobdb);
-              return kb.tribledb.constraint(e.index, a.index, v.index);
-            }
-          );
-        }, (s) => changeSubscription.unsubscribe()),
+        constraintsSubscription,
       };
     };
   }
@@ -195,7 +210,7 @@ class Subscription {
   }
 
   pull() {
-    if (this._pulledNotification !== this._latestNotification) {
+    if (this._pulledNotification !== this._latestNotification) { //TODO should the comparison be configurable? Do we want to use ordering, e.g. pulled < latest?
       this._pulledNotification = this._latestNotification;
       this._snoozed = false;
       return this._getNext(

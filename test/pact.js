@@ -17,6 +17,14 @@ import {
 import { equal, equalValue } from "../src/trible.js";
 import { emptyTriblePACT, emptyValuePACT } from "../src/pact.js";
 
+const e = fc.uint8Array({ minLength: 16, maxLength: 16 });
+const a = fc.uint8Array({ minLength: 16, maxLength: 16 });
+const v = fc.uint8Array({ minLength: 32, maxLength: 32 });
+const trible = fc
+  .tuple(e, a, v)
+  .map((t) => new Uint8Array([...t[0], ...t[1], ...t[2]]));
+const tribles = fc.array(trible, { maxLength: 1e5 });
+
 Deno.test("pact insert", () => {
   const value = fc
     .array(fc.nat(255), { minLength: 32, maxLength: 32 })
@@ -31,7 +39,7 @@ Deno.test("pact insert", () => {
       const pactSet = new Set([...pact.keys()].map((t) => encode(t)));
 
       assertEquals(pactSet, jsSet);
-    })
+    }),
   );
 });
 
@@ -51,7 +59,7 @@ Deno.test("pact batch insert", () => {
       const pactSet = new Set([...pact.keys()].map((t) => encode(t)));
 
       assertEquals(pactSet, jsSet);
-    })
+    }),
   );
 });
 
@@ -82,7 +90,7 @@ Deno.test("pact multi batch insert", () => {
       const pactSet = new Set([...pactC.keys()].map((t) => encode(t)));
 
       assertEquals(pactSet, jsSet);
-    })
+    }),
   );
 });
 
@@ -105,9 +113,9 @@ Deno.test("equality check", () => {
 
       assertEquals(
         pactA.isEqual(pactB),
-        isSetsEqual(new Set(vsA), new Set(vsB))
+        isSetsEqual(new Set(vsA), new Set(vsB)),
       );
-    })
+    }),
   );
 });
 
@@ -131,9 +139,9 @@ Deno.test("equality check batched", () => {
 
       assertEquals(
         pactA.isEqual(pactB),
-        isSetsEqual(new Set(vsA), new Set(vsB))
+        isSetsEqual(new Set(vsA), new Set(vsB)),
       );
-    })
+    }),
   );
 });
 
@@ -153,9 +161,9 @@ Deno.test("shuffled equality check", () => {
 
       assertEquals(
         pactA.isEqual(pactB),
-        isSetsEqual(new Set(vsA), new Set(vsB))
+        isSetsEqual(new Set(vsA), new Set(vsB)),
       );
-    })
+    }),
   );
 });
 
@@ -179,9 +187,9 @@ Deno.test("shuffled equality check batched", () => {
 
       assertEquals(
         pactA.isEqual(pactB),
-        isSetsEqual(new Set(vsA), new Set(vsB))
+        isSetsEqual(new Set(vsA), new Set(vsB)),
       );
-    })
+    }),
   );
 });
 
@@ -196,7 +204,7 @@ Deno.test("segment count", () => {
       const cursor = pact.segmentCursor().push();
 
       assertEquals(cursor.segmentCount(), vs.length);
-    })
+    }),
   );
 });
 
@@ -213,45 +221,42 @@ Deno.test("segment count batched", () => {
       const cursor = pact.segmentCursor().push();
 
       assertEquals(cursor.segmentCount(), vs.length);
-    })
+    }),
   );
 });
 
 Deno.test("segment count positive", () => {
-  const value = fc.uint8Array({ minLength: 32, maxLength: 32 });
-  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
-
   fc.assert(
-    fc.property(values, (vs) => {
-      const pact = vs.reduce((pact, v) => pact.put(v), emptyValuePACT);
+    fc.property(tribles, (vs) => {
+      const pact = vs.reduce((pact, v) => pact.put(v), emptyTriblePACT);
 
       const work = [pact.child];
-      let c;
-      while ((c = work.pop())) {
+      while (work.length > 0) {
+        const c = work.shift();
+        if (!c) continue;
         assert(c.segmentCount >= 0);
-        work.push(c.children);
+        if (c.children) work.push(...c.children);
       }
-    })
+    }),
   );
 });
 
 Deno.test("segment count positive batched", () => {
-  const value = fc.uint8Array({ minLength: 32, maxLength: 32 });
-  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
-
   fc.assert(
-    fc.property(values, (vs) => {
-      const pact = vs
-        .reduce((pact, v) => pact.put(v), emptyValuePACT.batch())
+    fc.property(tribles, tribles, (vs, os) => {
+      let pact = vs
+        .reduce((pact, v) => pact.put(v), emptyTriblePACT.batch())
         .complete();
+      pact = os.reduce((pact, v) => pact.put(v), pact.batch()).complete();
 
       const work = [pact.child];
-      let c;
-      while ((c = work.pop())) {
+      while (work.length > 0) {
+        const c = work.shift();
+        if (!c) continue;
         assert(c.segmentCount >= 0);
-        work.push(c.children);
+        if (c.children) work.push(...c.children);
       }
-    })
+    }),
   );
 });
 
@@ -278,7 +283,7 @@ Deno.test("set subtract", () => {
 
       assertEquals(rawPactDifference.length, jsDifference.size);
       assertEquals(pactDifference, jsDifference);
-    })
+    }),
   );
 });
 
@@ -300,18 +305,18 @@ Deno.test("set union", () => {
 
       const pactA = vsA.reduce(
         (pact, trible) => pact.put(trible),
-        emptyValuePACT
+        emptyValuePACT,
       );
       const pactB = vsB.reduce(
         (pact, trible) => pact.put(trible),
-        emptyValuePACT
+        emptyValuePACT,
       );
       const rawPactUnion = [...pactA.union(pactB).keys()];
       const pactUnion = new Set(rawPactUnion.map((v) => encode(v)));
 
       assertEquals(rawPactUnion.length, jsUnion.size);
       assertEquals(pactUnion, jsUnion);
-    })
+    }),
   );
 });
 
@@ -328,7 +333,7 @@ Deno.test("set intersection", () => {
     fc.property(valueSets, ([vsA, vsB]) => {
       const rSet = new Set(vsB.map((t) => encode(t)));
       const jsIntersection = new Set(
-        vsA.map((v) => encode(v)).filter((v) => rSet.has(v))
+        vsA.map((v) => encode(v)).filter((v) => rSet.has(v)),
       );
 
       const pactA = vsA.reduce((pact, v) => pact.put(v), emptyValuePACT);
@@ -336,12 +341,12 @@ Deno.test("set intersection", () => {
 
       const rawPactIntersection = [...pactA.intersect(pactB).keys()];
       const pactIntersection = new Set(
-        rawPactIntersection.map((v) => encode(v))
+        rawPactIntersection.map((v) => encode(v)),
       );
 
       assertEquals(rawPactIntersection.length, jsIntersection.size);
       assertEquals(pactIntersection, jsIntersection);
-    })
+    }),
   );
 });
 
@@ -371,7 +376,7 @@ Deno.test("set symmetric difference", () => {
 
       assertEquals(rawPactDifference.length, jsDifference.size);
       assertEquals(pactDifference, jsDifference);
-    })
+    }),
   );
 });
 
@@ -396,7 +401,7 @@ Deno.test("set isSubsetOf", () => {
       const pactIsSubsetOf = pactA.isSubsetOf(pactB);
 
       assertEquals(pactIsSubsetOf, jsIsSubsetOf);
-    })
+    }),
   );
 });
 
@@ -421,7 +426,7 @@ Deno.test("set isIntersecting", () => {
       const pactIsIntersecting = pactA.isIntersecting(pactB);
 
       assertEquals(pactIsIntersecting, jsIsIntersecting);
-    })
+    }),
   );
 });
 
@@ -482,7 +487,7 @@ Deno.test("static shuffled equality check batched", () => {
     pactA.isEqual(pactB),
     isSetsEqual(
       new Set(vsA.map((v) => v.toString())),
-      new Set(vsB.map((v) => v.toString()))
-    )
+      new Set(vsB.map((v) => v.toString())),
+    ),
   );
 });

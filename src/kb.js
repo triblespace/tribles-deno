@@ -41,8 +41,10 @@ function globalInvariants(invariants) {
   const newUniqueInverseAttributeIndex = uniqueInverseAttributeIndex.batch();
 
   for (
-    const [attributeId, { isLink, isUnique, isUniqueInverse }] of Object
-      .entries(invariants)
+    const [
+      attributeId,
+      { isLink, isUnique, isUniqueInverse },
+    ] of Object.entries(invariants)
   ) {
     const encodedId = new Uint8Array(16);
     ufoid.encoder(attributeId, encodedId);
@@ -267,7 +269,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
     { [id]: ns.attributes.get(id).decoder(eId) },
     {
       get: function (o, attributeName) {
-        if (!(ns.attributes.has(attributeName))) {
+        if (!ns.attributes.has(attributeName)) {
           return undefined;
         }
 
@@ -293,12 +295,16 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         );
       },
       has: function (o, attributeName) {
-        if (!(ns.attributes.has(attributeName))) {
+        if (!ns.attributes.has(attributeName)) {
           return false;
         }
 
-        const { encodedId: aId, isInverse, isUnique, isUniqueInverse } = ns
-          .attributes.get(attributeName);
+        const {
+          encodedId: aId,
+          isInverse,
+          isUnique,
+          isUniqueInverse,
+        } = ns.attributes.get(attributeName);
         if (
           attributeName in o ||
           !isUnique ||
@@ -310,9 +316,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           [
             constantConstraint(0, eId),
             constantConstraint(1, aId),
-            kb.tribledb.constraint(
-              ...(isInverse ? [2, 1, 0] : [0, 1, 2]),
-            ),
+            kb.tribledb.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
           ],
           new OrderByMinCostAndBlockage(new Set([0, 1])),
           new Set([0, 1, 2]),
@@ -346,7 +350,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         );
       },
       getOwnPropertyDescriptor: function (o, attributeName) {
-        if (!(ns.attributes.has(attributeName))) {
+        if (!ns.attributes.has(attributeName)) {
           return undefined;
         }
 
@@ -386,9 +390,9 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           )
         ) {
           attrs.push(
-            ...ns.forwardAttributeIndex.get(a.subarray(16)).map((attr) =>
-              attr.name
-            ),
+            ...ns.forwardAttributeIndex
+              .get(a.subarray(16))
+              .map((attr) => attr.name),
           );
         }
         for (
@@ -408,9 +412,9 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           )
         ) {
           attrs.push(
-            ...ns.inverseAttributeIndex.get(a.subarray(16)).map((attr) =>
-              attr.name
-            ),
+            ...ns.inverseAttributeIndex
+              .get(a.subarray(16))
+              .map((attr) => attr.name),
           );
         }
         return attrs;
@@ -442,8 +446,7 @@ const entitiesToTriples = (ns, unknownFactory, root) => {
   while (work.length != 0) {
     const w = work.pop();
     if (
-      (!w.parentId ||
-        w.parentAttributeDescription.isLink) &&
+      (!w.parentId || w.parentAttributeDescription.isLink) &&
       isPojo(w.value)
     ) {
       const entityId = w.value[id] || unknownFactory();
@@ -458,12 +461,8 @@ const entitiesToTriples = (ns, unknownFactory, root) => {
           ns.attributes.get(attributeName),
           `Error at path [${w.path}]: No attribute named '${attributeName}' in namespace.`,
         );
-        const attributeDescription = ns.attributes.get(
-          attributeName,
-        );
-        if (
-          attributeDescription.expectsArray
-        ) {
+        const attributeDescription = ns.attributes.get(attributeName);
+        if (attributeDescription.expectsArray) {
           assert(
             value instanceof Array,
             `Error at path [${w.path}]: Expected array but found: ${value}`,
@@ -565,15 +564,16 @@ const precompileTriples = (ns, vars, triples) => {
     // Entity
     if (entity instanceof Variable) {
       entity.paths.push(path.slice(0, -1));
-      !entity.decoder || assert(
-        entity.decoder === idDecoder,
-        `Error at paths ${entity.paths} and [${
-          path.slice(
-            0,
-            -1,
-          )
-        }]:\n Variables at positions use incompatible decoders '${entity.decoder.name}' and '${idDecoder.name}'.`,
-      );
+      !entity.decoder ||
+        assert(
+          entity.decoder === idDecoder,
+          `Error at paths ${entity.paths} and [${
+            path.slice(
+              0,
+              -1,
+            )
+          }]:\n Variables at positions use incompatible decoders '${entity.decoder.name}' and '${idDecoder.name}'.`,
+        );
       entity.decoder = idDecoder;
       entityVar = entity;
     } else {
@@ -597,10 +597,11 @@ const precompileTriples = (ns, vars, triples) => {
     if (value instanceof Variable) {
       value.paths.push([...path]);
       const decoder = attributeDescription.decoder;
-      !value.decoder || assert(
-        value.decoder === decoder,
-        `Error at paths ${value.paths} and [${path}]:\n Variables at positions use incompatible decoders '${value.decoder.name}' and '${decoder.name}'.`,
-      );
+      !value.decoder ||
+        assert(
+          value.decoder === decoder,
+          `Error at paths ${value.paths} and [${path}]:\n Variables at positions use incompatible decoders '${value.decoder.name}' and '${decoder.name}'.`,
+        );
       value.decoder = decoder;
       valueVar = value;
     } else {
@@ -647,8 +648,11 @@ class KB {
   }
 
   with(ns, efn) {
-    const { factory: idFactory, encoder: idEncoder, decoder: idDecoder } = ns
-      .attributes.get(id);
+    const {
+      factory: idFactory,
+      encoder: idEncoder,
+      decoder: idDecoder,
+    } = ns.attributes.get(id);
     const entities = efn(new IDSequence(idFactory));
     const triples = entitiesToTriples(ns, idFactory, entities);
     const { tribles, blobs } = triplesToTribles(ns, triples);
@@ -853,6 +857,8 @@ function* find(ns, cfn) {
 
   const namedVariables = [...vars.namedVariables.values()];
 
+  //console.log(vars.blockedBy);
+
   for (
     const r of resolve(
       constraints,
@@ -910,7 +916,9 @@ const namespace = (...namespaces) => {
     }
 
     for (
-      const [attributeName, attributeDescription] of Object.entries(namespace)
+      const [attributeName, attributeDescription] of Object.entries(
+        namespace,
+      )
     ) {
       const existingAttributeDescription = attributes.get(attributeName);
       if (existingAttributeDescription) {
@@ -948,24 +956,17 @@ const namespace = (...namespaces) => {
         if (!invariant) {
           throw Error(`Missing invariants for attribute ${attributeName}.`);
         }
-        if (
-          attributeDescription.isInverse &&
-          !invariant.isLink
-        ) {
+        if (attributeDescription.isInverse && !invariant.isLink) {
           throw Error(
             `Error in namespace "${attributeName}": Only links can be inverse.`,
           );
         }
-        if (
-          !attributeDescription.decoder && !invariant.isLink
-        ) {
+        if (!attributeDescription.decoder && !invariant.isLink) {
           throw Error(
             `Missing decoder in namespace for attribute ${attributeName}.`,
           );
         }
-        if (
-          !attributeDescription.encoder && !invariant.isLink
-        ) {
+        if (!attributeDescription.encoder && !invariant.isLink) {
           throw Error(
             `Missing encoder in namespace for attribute ${attributeName}.`,
           );

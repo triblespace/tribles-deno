@@ -10,10 +10,12 @@ class IndexConstraint {
 
   propose() {
     if (this.done) return [];
-    return [{
-      variable: this.variable,
-      costs: [this.cursor.segmentCount()],
-    }];
+    return [
+      {
+        variable: this.variable,
+        costs: [this.cursor.segmentCount()],
+      },
+    ];
   }
 
   push(variable, ascending) {
@@ -76,8 +78,9 @@ class OrderByMinCostAndBlockage {
         if (
           minCosts <= candidateCosts &&
           (this.projectCount === 0 || this.projected.has(variable)) &&
-          this.blockedBy.every(([blocked, blocker]) =>
-            variable !== blocked || this.exploredVariables.has(blocker)
+          this.blockedBy.every(
+            ([blocked, blocker]) =>
+              variable !== blocked || this.exploredVariables.has(blocker),
           )
         ) {
           candidateVariable = variable;
@@ -85,6 +88,7 @@ class OrderByMinCostAndBlockage {
         }
       }
     }
+    //if (candidateCosts < 0) console.log(candidateVariable, candidateCosts);
     return candidateVariable;
   }
 
@@ -94,7 +98,7 @@ class OrderByMinCostAndBlockage {
 
   push(variable) {
     this.exploredVariables.add(variable);
-    if (this.isProjection = this.projected.has(variable)) {
+    if ((this.isProjection = this.projected.has(variable))) {
       this.projectCount--;
     } else {
       this.omitCount++;
