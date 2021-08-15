@@ -11,8 +11,8 @@ It is still in early development.
 So far the following components have been implemented.
 
 - PACT js implementation.
-- TribleDB js immutable trible database.
-- BlobDB js immutable trible database.
+- TribleSet js immutable trible database.
+- BlobCache js immutable trible database.
 - KB js immutable trible knowledge-base.
 - MQ js middleware communications libary.
 - Core types:
@@ -27,7 +27,7 @@ So far the following components have been implemented.
 Currently to be done and missing is:
 
 - PACT rust implementation.
-- TribleDB rust implementation.
+- tribleset rust implementation.
 - More rust...
 - JS Ontology tools to dynamically load KnowlegeBase contexts and documentation
   from Trible based ontologies.
@@ -73,10 +73,10 @@ or Hashes is far less likely than the system producing bad data from CPU errors.
 Furthermore 64byte coincides nicely with the cache line size on most systems
 (year 2020). [3]
 
-## TribleDB and KB
+## TribleSet and KB
 
-_Tribles_ are stored in TribleDB, a persistent (not in the durable, but
-immutable sense), append only, in memory database. It provides conjunctive
+_Tribles_ are stored in TribleSets, a persistent (not in the durable, but
+immutable sense), append only, in memory databases. It provides conjunctive
 queries and constraint solving over tribles, but is completely limited to binary
 data.
 
@@ -88,7 +88,7 @@ than a query language. JSON-LD is another candidate, and while we found the
 static conversions of JSON data to be cumbersome, we've adapted many concepts
 from it.
 
-_TribleDB_ is therefore wrapped by _KB_, which performs conversions between JS
+_TribleSet_ is therefore wrapped by _KB_, which performs conversions between JS
 Objects and _trible_ data, provides tree interfaces for data insertion, and tree
 based query capabilites, as well as tree-based graph walking capabilites, all
 operating over familiar plain old javascript objects (and proxies _cough_).
@@ -107,7 +107,7 @@ underlying tribles can be interpreted as needed, we can:
 - Decouple programming language types from value types. E.g. a timestamp can be
   read as different date types in the same query.
 - Allow the user to use approprate, self explanatory, names. One programmers
-  legacy\_date is another programmers sanity\_check\_date.
+  legacy_date is another programmers sanity_check_date.
 - Allow users to fix past mistakes or missunderstandings. Whenever a name in OWL
   is used it's used. Trible don't care about names, only about IDs.
 

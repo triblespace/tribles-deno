@@ -2,7 +2,7 @@ import { S3Bucket } from "https://deno.land/x/s3@0.3.0/mod.ts";
 
 import { emptyValuePACT } from "./pact.js";
 
-class S3BlobDB {
+class S3BlobCache {
   constructor(
     config,
     bucket = new S3Bucket(config),
@@ -16,7 +16,7 @@ class S3BlobDB {
   }
 
   put(blobs) {
-    // Each put returns a new BlobDB instance, sharing the parent's blob cache
+    // Each put returns a new BlobCache instance, sharing the parent's blob cache
     // but tracking only still pending and new writes.
     // This way older KBs can only wait on their blobs,
     // and resolved write promises can be GCed.
@@ -40,7 +40,7 @@ class S3BlobDB {
       }
     }
 
-    return new S3BlobDB(
+    return new S3BlobCache(
       this.config,
       this.bucket,
       pendingWrites,
@@ -68,7 +68,7 @@ class S3BlobDB {
         .map((r) => r.reason);
     if (reasons.length !== 0) {
       const e = Error(
-        "Couldn't flush S3BlobDB, some puts returned errors. See error.reasons for more info.",
+        "Couldn't flush S3BlobCache, some puts returned errors. See error.reasons for more info.",
       );
       e.reasons = reasons;
       throw e;
@@ -80,21 +80,21 @@ class S3BlobDB {
   }
 
   isEqual(other) {
-    return (other instanceof S3BlobDB) && (this.bucket === other.bucket);
+    return (other instanceof S3BlobCache) && (this.bucket === other.bucket);
   }
 
   merge(other) {
     if (this.bucket !== other.bucket) {
       throw Error(
-        "Can't merge S3BlobDBs with different buckets through this client, use the 'trible' cmd-line tool instead.",
+        "Can't merge S3BlobCaches with different buckets through this client, use the 'trible' cmd-line tool instead.",
       );
     }
     return this;
   }
 
-  shrink(tribledb) {
+  shrink(tribleset) {
     return this;
   }
 }
 
-export { S3BlobDB };
+export { S3BlobCache };

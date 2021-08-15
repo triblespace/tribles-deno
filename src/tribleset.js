@@ -67,7 +67,7 @@ class MemTribleConstraint {
   }
 }
 
-class MemTribleDB {
+class TribleSet {
   constructor(
     EAV = emptyIdIdValueTriblePACT,
     EVA = emptyIdValueIdTriblePACT,
@@ -128,7 +128,7 @@ class MemTribleDB {
       }
     }
 
-    return new MemTribleDB(
+    return new TribleSet(
       EAV.complete(),
       EVA.complete(),
       AEV.complete(),
@@ -286,7 +286,7 @@ class MemTribleDB {
   }
 
   empty() {
-    return new MemTribleDB();
+    return new TribleSet();
   }
 
   isEmpty() {
@@ -306,7 +306,7 @@ class MemTribleDB {
   }
 
   union(other) {
-    return new MemTribleDB(
+    return new TribleSet(
       this.EAV.union(other.EAV),
       this.EVA.union(other.EVA),
       this.AEV.union(other.AEV),
@@ -320,7 +320,7 @@ class MemTribleDB {
   }
 
   subtract(other) {
-    return new MemTribleDB(
+    return new TribleSet(
       this.EAV.subtract(other.EAV),
       this.EVA.subtract(other.EVA),
       this.AEV.subtract(other.AEV),
@@ -334,7 +334,7 @@ class MemTribleDB {
   }
 
   difference(other) {
-    return new MemTribleDB(
+    return new TribleSet(
       this.EAV.difference(other.EAV),
       this.EVA.difference(other.EVA),
       this.AEV.difference(other.AEV),
@@ -348,7 +348,7 @@ class MemTribleDB {
   }
 
   intersect(other) {
-    return new MemTribleDB(
+    return new TribleSet(
       this.EAV.intersect(other.EAV),
       this.EVA.intersect(other.EVA),
       this.AEV.intersect(other.AEV),
@@ -362,4 +362,4 @@ class MemTribleDB {
   }
 }
 
-export { MemTribleDB };
+export { TribleSet };

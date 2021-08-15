@@ -7,10 +7,10 @@ import { TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
 const TRIBLES_PROTOCOL = "tribles";
 const MARKER_SIZE = TRIBLE_SIZE * 2;
 
-async function serializeTribleDB(tribledb, privateKey) {
-  // TODO This could be done lazily if we knew the size of a tribledb,
+async function serializetribleset(tribleset, privateKey) {
+  // TODO This could be done lazily if we knew the size of a tribleset,
   // which we should def add.
-  const triblesEager = [...tribledb.tribles()];
+  const triblesEager = [...tribleset.tribles()];
   const data = new Uint8Array(MARKER_SIZE + TRIBLE_SIZE * triblesEager.length);
   const tribles = data.subarray(MARKER_SIZE);
   for (let i = 0; i < triblesEager.length; i++) {
@@ -45,7 +45,8 @@ async function readTxnMarker(bytes) {
 }
 
 async function readTxn(bytes) {
-  let [{ payloadLength, publicKey, signature }, bytes] = readTxnMarker(bytes);
+  let payloadLength, publicKey, signature;
+  [{ payloadLength, publicKey, signature }, bytes] = readTxnMarker(bytes);
 
   if (payloadLength > bytes.length)
     throw Error("Bad Txn: Marker declares more bytes than available.");
@@ -80,7 +81,7 @@ function splitTribles(bytes) {
   return tribles;
 }
 
-async function deserializeTribleDB(db, bytes) {
+async function deserializetribleset(db, bytes) {
   while (bytes.length > MARKER_SIZE) {
     try {
       let [{ payload }, bytes] = await readTxn(bytes);
@@ -139,8 +140,8 @@ class WSConnector {
         return;
       }
       if (!change.difKB.isEmpty()) {
-        const transaction = change.difKB.tribledb.dump();
-        await change.difKB.blobdb.flush();
+        const transaction = change.difKB.tribleset.dump();
+        await change.difKB.blobcache.flush();
         this.ws.send(transaction);
       }
     }
@@ -227,8 +228,8 @@ class Box {
         constraintsSubscription: new Subscription(
           (s, newKb, oldKb) => {
             triplesWithVars.map(([e, a, v]) => (kb) => {
-              v.proposeBlobDB(this.blobdb);
-              return kb.tribledb.constraint(e.index, a.index, v.index);
+              v.proposeBlobCache(this.blobcache);
+              return kb.tribleset.constraint(e.index, a.index, v.index);
             });
           },
           (s) => changeSubscription.unsubscribe()
@@ -349,13 +350,13 @@ async function* search(ns, cfn) {
         decoder,
         name,
         isOmit,
-        blobdb,
+        blobcache,
       } of namedVariables) {
         if (!isOmit) {
           const encoded = r[index];
           const decoded = decoder(
             encoded.slice(0),
-            async () => await blobdb.get(encoded)
+            async () => await blobcache.get(encoded)
           );
           result[name] = isWalked
             ? walkedKB.walk(walkedNS || ns, decoded)

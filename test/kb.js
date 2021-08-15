@@ -21,8 +21,8 @@ import {
   globalInvariants,
   id,
   KB,
-  MemBlobDB,
-  MemTribleDB,
+  BlobCache,
+  TribleSet,
   namespace,
   types,
   UFOID,
@@ -51,7 +51,7 @@ Deno.test("KB Find", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   debugger;
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
@@ -112,7 +112,7 @@ Deno.test("KB Find Single", () => {
           titles: { id: titlesId, ...types.hex },
         });
 
-        const knightskb = new KB(new MemTribleDB(), new MemBlobDB()).with(
+        const knightskb = new KB(new TribleSet(), new BlobCache()).with(
           knightsNS,
           () => [{ [id]: person.id, name: person.name, titles: person.titles }],
         );
@@ -139,7 +139,7 @@ Deno.test("Find Ascending", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -167,7 +167,7 @@ Deno.test("Find Ascending", () => {
           titles: [title],
         }),
       ],
-      knightskb.blobdb,
+      knightskb.blobcache,
     ),
   ];
   assertEquals(results, [
@@ -188,7 +188,7 @@ Deno.test("find lower bound", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -215,7 +215,7 @@ Deno.test("find lower bound", () => {
           titles: [title],
         }),
       ],
-      knightskb.blobdb,
+      knightskb.blobcache,
     ),
   ];
   assertEquals(results, [
@@ -234,7 +234,7 @@ Deno.test("find upper bound", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -261,7 +261,7 @@ Deno.test("find upper bound", () => {
           titles: [title],
         }),
       ],
-      knightskb.blobdb,
+      knightskb.blobcache,
     ),
   ];
   assertEquals(results, [
@@ -281,7 +281,7 @@ Deno.test("Find Descending", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -308,7 +308,7 @@ Deno.test("Find Descending", () => {
           titles: [title],
         }),
       ],
-      knightskb.blobdb,
+      knightskb.blobcache,
     ),
   ];
   assertEquals(results, [
@@ -329,7 +329,7 @@ Deno.test("unique constraint", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([juliet]) => [
     {
@@ -367,7 +367,7 @@ Deno.test("unique inverse constraint", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, () => [
     {
@@ -403,7 +403,7 @@ Deno.test("KB Walk", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -439,7 +439,7 @@ Deno.test("KB Walk ownKeys", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {

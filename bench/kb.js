@@ -4,8 +4,8 @@ import {
   globalInvariants,
   id,
   KB,
-  MemBlobDB,
-  MemTribleDB,
+  BlobCache,
+  TribleSet,
   namespace,
   types,
   UFOID,
@@ -29,7 +29,7 @@ const knightsNS = namespace({
 
 function kbWith(b, size) {
   // Add some data.
-  let knightskb = new KB(new MemTribleDB(), new MemBlobDB());
+  let knightskb = new KB(new TribleSet(), new BlobCache());
 
   b.start();
   knightskb = knightskb.with(
@@ -77,7 +77,7 @@ function kbWith(b, size) {
 
 function kbQuery(b, size) {
   // Add some data.
-  let knightskb = new KB(new MemTribleDB(), new MemBlobDB());
+  let knightskb = new KB(new TribleSet(), new BlobCache());
 
   knightskb = knightskb.with(
     knightsNS,

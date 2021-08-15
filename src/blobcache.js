@@ -1,7 +1,7 @@
 import { emptyValuePACT } from "./pact.js";
 import { VALUE_SIZE } from "./trible.js";
 
-class MemBlobDB {
+class BlobCache {
   constructor(
     blobs = emptyValuePACT,
   ) {
@@ -15,7 +15,7 @@ class MemBlobDB {
       nblobs = nblobs.put(key, blob);
     }
 
-    return new MemBlobDB(nblobs.complete());
+    return new BlobCache(nblobs.complete());
   }
 
   // deno-lint-ignore require-await
@@ -25,28 +25,28 @@ class MemBlobDB {
 
   // deno-lint-ignore require-await
   async flush() {
-    console.warn(`Can't flush MemBlobDB, because it's ephemeral.
+    console.warn(`Can't flush BlobCache, because it's ephemeral.
     This is probably done mistakenly. For something persistent
-    take a look at S3BlobDB.`);
+    take a look at S3BlobCache.`);
   }
 
   empty() {
-    return new MemBlobDB();
+    return new BlobCache();
   }
 
   isEqual(other) {
-    return (other instanceof MemBlobDB) &&
+    return (other instanceof BlobCache) &&
       (this.blobs.isEqual(other.blobs));
   }
 
   merge(other) {
-    return new MemBlobDB(this.blobs.union(other.blobs));
+    return new BlobCache(this.blobs.union(other.blobs));
   }
 
-  shrink(tribledb) {
+  shrink(tribleset) {
     const blobs = emptyValuePACT.batch();
     const blobCursor = this.blobs.segmentCursor();
-    const valueCursor = tribledb.VEA.segmentCursor();
+    const valueCursor = tribleset.VEA.segmentCursor();
     blobCursor.push();
     valueCursor.push();
     const key = new Uint8Array(VALUE_SIZE);
@@ -63,8 +63,8 @@ class MemBlobDB {
         valueCursor.seek(key);
       }
     }
-    return new MemBlobDB(blobs.complete());
+    return new BlobCache(blobs.complete());
   }
 }
 
-export { MemBlobDB };
+export { BlobCache };

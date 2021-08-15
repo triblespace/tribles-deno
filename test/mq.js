@@ -12,10 +12,10 @@ import {
   globalInvariants,
   id,
   KB,
-  MemBlobDB,
-  MemTribleDB,
+  BlobCache,
+  TribleSet,
   namespace,
-  S3BlobDB,
+  S3BlobCache,
   types,
   UFOID,
   WSConnector,
@@ -52,8 +52,8 @@ Deno.test({
     // Add some data.
 
     const kb = new KB(
-      new MemTribleDB(),
-      new S3BlobDB(
+      new TribleSet(),
+      new S3BlobCache(
         {
           region: "local",
           accessKeyID: "jeanluc",
@@ -102,14 +102,14 @@ Deno.test({
 
     let slept = 0;
     while (
-      !inbox.get().tribledb.isEqual(outbox.get().tribledb) && slept < 1000
+      !inbox.get().tribleset.isEqual(outbox.get().tribleset) && slept < 1000
     ) {
       await sleep(10);
       slept += 10;
     }
     await wsCon.disconnect();
 
-    assert(inbox.get().tribledb.isEqual(outbox.get().tribledb));
+    assert(inbox.get().tribleset.isEqual(outbox.get().tribleset));
   },
   // https://github.com/denoland/deno/issues/7457
 });

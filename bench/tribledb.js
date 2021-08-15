@@ -1,5 +1,5 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
-import { MemTribleDB } from "../src/memtribledb.js";
+import { TribleSet } from "../src/TribleSet.js";
 import { UFOID } from "../src/ufoid.js";
 import { ufoid } from "../src/types/ufoid.js";
 
@@ -31,7 +31,7 @@ function generateRandomSample(size, sharing_prob = 0.1) {
 
 function dbWithRandom(b, size) {
   const sample = generateRandomSample(size);
-  let db = new MemTribleDB();
+  let db = new TribleSet();
   b.start();
   db = db.with(sample);
   b.stop();
@@ -93,7 +93,7 @@ function generateUfoidSample(size) {
 
 function dbWithUfoid(b, size) {
   const sample = generateUfoidSample(size);
-  let db = new MemTribleDB();
+  let db = new TribleSet();
   b.start();
   db = db.with(sample);
   b.stop();
