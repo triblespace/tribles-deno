@@ -1,9 +1,95 @@
-import { isTransactionMarker, isValidTransaction } from "./trible.js";
+import * as ed from "https://deno.land/x/ed25519/mod.ts";
+
 import { find } from "./kb.js";
 import { blake2s32 } from "./blake2s.js";
-import { contiguousTribles, TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
+import { TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
 
 const TRIBLES_PROTOCOL = "tribles";
+const MARKER_SIZE = TRIBLE_SIZE * 2;
+
+async function serializeTribleDB(tribledb, privateKey) {
+  // TODO This could be done lazily if we knew the size of a tribledb,
+  // which we should def add.
+  const triblesEager = [...tribledb.tribles()];
+  const data = new Uint8Array(MARKER_SIZE + TRIBLE_SIZE * triblesEager.length);
+  const tribles = data.subarray(MARKER_SIZE);
+  for (let i = 0; i < triblesEager.length; i++) {
+    tribles.set(triblesEager[i], i * TRIBLE_SIZE);
+  }
+  const signature = await ed.sign(tribles, privateKey);
+  data.subarray(64, 128).put(signature);
+
+  const payloadLength = tribles.length;
+  const payloadLengthView = new Uint32Array(
+    data.buffer,
+    data.byteOffset + 24,
+    2
+  );
+  payloadLengthView[1] = payloadLength & 0x00000000ffffffff;
+  payloadLengthView[0] = payloadLength & 0xffffffff00000000;
+
+  return data;
+}
+
+async function readTxnMarker(bytes) {
+  if (bytes.length < MARKER_SIZE) return null;
+
+  const view = new Uint32Array(bytes.buffer, bytes.byteOffset, 4);
+  if (!(view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0))
+    return null;
+
+  const publicKey = bytes.subarray(32, 64);
+  const signature = bytes.subarray(64, 128);
+
+  return [{ payloadLength, publicKey, signature }, bytes.subarray(MARKER_SIZE)];
+}
+
+async function readTxn(bytes) {
+  let [{ payloadLength, publicKey, signature }, bytes] = readTxnMarker(bytes);
+
+  if (payloadLength > bytes.length)
+    throw Error("Bad Txn: Marker declares more bytes than available.");
+  const payload = bytes.subarray(0, payloadLength);
+
+  const isSigned = await ed.verify(signature, payload, publicKey);
+  if (!isSigned) throw Error("Bad Txn: Couldn't verify signature.");
+
+  return [{ payload, publicKey }, bytes.subarray(payloadLength)];
+}
+
+const TRIBLE_SIZE_IN_UINT32 = TRIBLE_SIZE / Uint32Array.BYTES_PER_ELEMENT;
+function recoverFromBrokenTxn(bytes) {
+  const view = new Uint32Array(bytes.buffer, bytes.byteOffset);
+
+  for (let i = 0; i < view.length - 4; i = i + TRIBLE_SIZE_IN_UINT32) {
+    if (
+      view[i] === 0 &&
+      view[i + 1] === 0 &&
+      view[i + 2] === 0 &&
+      view[i + 3] === 0
+    )
+      return bytes.subarray(i * Uint32Array.BYTES_PER_ELEMENT);
+  }
+}
+
+function splitTribles(bytes) {
+  const tribles = [];
+  for (let t = 0; t < bytes.length; t += TRIBLE_SIZE) {
+    tribles.push(bytes.subarray(t, t + TRIBLE_SIZE));
+  }
+  return tribles;
+}
+
+async function deserializeTribleDB(db, bytes) {
+  while (bytes.length > MARKER_SIZE) {
+    try {
+      let [{ payload }, bytes] = await readTxn(bytes);
+      db.with(splitTribles(payload));
+    } catch (e) {
+      bytes = recoverFromBrokenTxn(bytes);
+    }
+  }
+}
 
 class WSConnector {
   constructor(addr, inbox, outbox) {
@@ -62,34 +148,30 @@ class WSConnector {
 
   _onMessage(e) {
     const txn = new Uint8Array(e.data);
-    if (txn.length <= 64) {
+    if (txn.length <= MARKER_SIZE) {
       console.warn(`Bad transaction, too short.`);
       return;
     }
     if (txn.length % TRIBLE_SIZE !== 0) {
       console.warn(
-        `Bad transaction, ${txn.length} is not a multiple of ${TRIBLE_SIZE}.`,
+        `Bad transaction, ${txn.length} is not a multiple of ${TRIBLE_SIZE}.`
       );
       return;
     }
-    const txnTrible = txn.subarray(0, TRIBLE_SIZE);
-    if (!isTransactionMarker(txnTrible)) {
+    const txnMarker = txn.subarray(0, MARKER_SIZE);
+    if (!isTransactionMarker(txnMarker)) {
       console.warn(`Bad transaction, doesn't begin with transaction marker.`);
       return;
     }
 
-    const txnTriblePayload = txn.subarray(TRIBLE_SIZE);
-    const txnHash = blake2s32(txnTriblePayload, new Uint8Array(32));
-    if (!isValidTransaction(txnTrible, txnHash)) {
+    const txnPayload = txn.subarray(TRIBLE_SIZE);
+    const txnHash = blake2s32(txnPayload, new Uint8Array(32));
+    if (!isValidTransaction(txnMarker, txnHash)) {
       console.warn("Bad transaction, hash does not match.");
       return;
     }
 
-    this.inbox.commit((kb) =>
-      kb.withTribles(
-        contiguousTribles(txnTriblePayload),
-      )
-    );
+    this.inbox.commit((kb) => kb.withTribles(contiguousTribles(txnPayload)));
   }
 
   async disconnect() {
@@ -128,7 +210,7 @@ class Box {
         };
       },
       (s) =>
-        this._subscriptions = this._subscriptions.filter((item) => item !== s),
+        (this._subscriptions = this._subscriptions.filter((item) => item !== s))
     );
     this._subscriptions.push(s);
     s.notify(this._kb);
@@ -142,14 +224,15 @@ class Box {
       const changeSubscription = this.changes();
       return {
         isStatic: false,
-        constraintsSubscription: new Subscription((s, newKb, oldKb) => {
-          triplesWithVars.map(([e, a, v]) =>
-            (kb) => {
+        constraintsSubscription: new Subscription(
+          (s, newKb, oldKb) => {
+            triplesWithVars.map(([e, a, v]) => (kb) => {
               v.proposeBlobDB(this.blobdb);
               return kb.tribledb.constraint(e.index, a.index, v.index);
-            }
-          );
-        }, (s) => changeSubscription.unsubscribe()),
+            });
+          },
+          (s) => changeSubscription.unsubscribe()
+        ),
       };
     };
   }
@@ -187,8 +270,9 @@ class Subscription {
     const previousNotification = this._latestNotification;
     this._latestNotification = notification;
     if (
-      this._onNotify && !this._snoozed &&
-      (previousNotification !== notification)
+      this._onNotify &&
+      !this._snoozed &&
+      previousNotification !== notification
     ) {
       this._onNotify(this, notification, this._pulledNotification);
     }
@@ -201,7 +285,7 @@ class Subscription {
       return this._getNext(
         this,
         this._latestNotification,
-        this._pulledNotification,
+        this._pulledNotification
       );
     }
   }
@@ -235,7 +319,7 @@ async function* search(ns, cfn) {
 
   for (const constantVariable of vars.constantVariables.values()) {
     staticConstraints.push(
-      constantConstraint(constantVariable.index, constantVariable.constant),
+      constantConstraint(constantVariable.index, constantVariable.constant)
     );
   }
 
@@ -246,35 +330,32 @@ async function* search(ns, cfn) {
 
     const constraints = staticConstraints.slice();
     for (const dynamicConstraintGroup of dynamicConstraintGroups) {
-      if (dynamicConstraintGroup.changes.head) {}
+      if (dynamicConstraintGroup.changes.head) {
+      }
     }
 
-    for (
-      const r of resolve(
-        constraints,
-        new OrderByMinCostAndBlockage(vars.projected, vars.blockedBy),
-        new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
-        vars.variables.map((_) => new Uint8Array(VALUE_SIZE)),
-      )
-    ) {
+    for (const r of resolve(
+      constraints,
+      new OrderByMinCostAndBlockage(vars.projected, vars.blockedBy),
+      new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
+      vars.variables.map((_) => new Uint8Array(VALUE_SIZE))
+    )) {
       const result = {};
-      for (
-        const {
-          index,
-          isWalked,
-          walkedKB,
-          walkedNS,
-          decoder,
-          name,
-          isOmit,
-          blobdb,
-        } of namedVariables
-      ) {
+      for (const {
+        index,
+        isWalked,
+        walkedKB,
+        walkedNS,
+        decoder,
+        name,
+        isOmit,
+        blobdb,
+      } of namedVariables) {
         if (!isOmit) {
           const encoded = r[index];
           const decoded = decoder(
             encoded.slice(0),
-            async () => await blobdb.get(encoded),
+            async () => await blobdb.get(encoded)
           );
           result[name] = isWalked
             ? walkedKB.walk(walkedNS || ns, decoded)

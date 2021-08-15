@@ -105,34 +105,6 @@ const equalValue = (valueA, valueB) => {
   return true;
 };
 
-const contiguousTribles = (tribles) => {
-  const subarrays = [];
-  for (let t = 0; t < tribles.length; t += TRIBLE_SIZE) {
-    subarrays.push(tribles.subarray(
-      t,
-      t + TRIBLE_SIZE,
-    ));
-  }
-  return subarrays;
-};
-
-const isTransactionMarker = (trible) => {
-  const view = new Uint32Array(trible.buffer, trible.byteOffset, 4);
-  for (let i = 0; i < 4; i++) {
-    if (view[i] !== 0) return false;
-  }
-  return true;
-};
-
-const isValidTransaction = (trible, hash) => {
-  const viewT = new Uint32Array(trible.buffer, trible.byteOffset + 32, 8);
-  const viewH = new Uint32Array(hash.buffer, hash.byteOffset, 8);
-  for (let i = 0; i < 8; i++) {
-    if (viewT[i] !== viewH[i]) return false;
-  }
-  return true;
-};
-
 export {
   A,
   A_SIZE,
