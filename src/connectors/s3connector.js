@@ -2,7 +2,7 @@ import { S3Bucket } from "https://deno.land/x/s3@0.3.0/mod.ts";
 
 import { emptyValuePACT } from "./pact.js";
 
-class S3BlobCache {
+class S3Connector {
   constructor(
     config,
     bucket = new S3Bucket(config),
@@ -75,26 +75,6 @@ class S3BlobCache {
     }
   }
 
-  empty() {
-    return this;
-  }
-
-  isEqual(other) {
-    return (other instanceof S3BlobCache) && (this.bucket === other.bucket);
-  }
-
-  merge(other) {
-    if (this.bucket !== other.bucket) {
-      throw Error(
-        "Can't merge S3BlobCaches with different buckets through this client, use the 'trible' cmd-line tool instead.",
-      );
-    }
-    return this;
-  }
-
-  shrink(tribleset) {
-    return this;
-  }
 }
 
 export { S3BlobCache };

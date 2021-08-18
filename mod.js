@@ -1,4 +1,4 @@
-import { Box, WSConnector } from "./src/mq.js";
+import { Box, WSConnector } from "./src/box.js";
 import {
   entitiesToTriples,
   find,

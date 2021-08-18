@@ -4,8 +4,10 @@ import { VALUE_SIZE } from "./trible.js";
 class BlobCache {
   constructor(
     blobs = emptyValuePACT,
+    missHandlers = new Set()
   ) {
     this.blobs = blobs;
+    this.missHandlers = missHandlers;
   }
 
   put(blobs) {
@@ -18,29 +20,28 @@ class BlobCache {
     return new BlobCache(nblobs.complete());
   }
 
-  // deno-lint-ignore require-await
-  async get(k) {
-    return this.blobs.get(k);
-  }
+  async get(key) {
+    let blob = await this.blobs.get(key);
 
-  // deno-lint-ignore require-await
-  async flush() {
-    console.warn(`Can't flush BlobCache, because it's ephemeral.
-    This is probably done mistakenly. For something persistent
-    take a look at S3BlobCache.`);
+    if(blob === undefined) {
+      for(const missHandler of this.missHandlers){
+        blob = await missHandler(key);
+        if(blob !== undefined) break;
+    }
+    if(blob === undefined) {
+      throw Error("No blob for key.");
+    }
+    this.cache = this.cache.put(key, blob);
+    }
+    return blob;
   }
 
   empty() {
     return new BlobCache();
   }
 
-  isEqual(other) {
-    return (other instanceof BlobCache) &&
-      (this.blobs.isEqual(other.blobs));
-  }
-
   merge(other) {
-    return new BlobCache(this.blobs.union(other.blobs));
+    return new BlobCache(this.blobs.union(other.blobs), new Set([...this.missHandlers, ...other.missHandlers]));
   }
 
   shrink(tribleset) {
@@ -63,7 +64,7 @@ class BlobCache {
         valueCursor.seek(key);
       }
     }
-    return new BlobCache(blobs.complete());
+    return new BlobCache(blobs.complete(), this.missHandlers);
   }
 }
 

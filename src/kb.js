@@ -793,11 +793,7 @@ class KB {
   }
 
   isEqual(other) {
-    return (
-      //TODO Should we also compare constraints here?
-      this.tribleset.isEqual(other.tribleset) &&
-      this.blobcache.isEqual(other.blobcache)
-    );
+    return this.tribleset.isEqual(other.tribleset);
   }
 
   isSubsetOf(other) {
