@@ -640,7 +640,14 @@ class IDSequence {
   }
 }
 
+/** A persistent immutable knowledge base that stores tribles and blobs,
+    providing a (JSON) tree based interface to access and create the graph within.*/
 class KB {
+  /**
+   * Create a knowledge base with the gives tribles and blobs.
+   * @param {TribleSet} tribleset - The tribles stored.
+   * @param {BlobCache} blobcache - The blobs associated with the tribles.
+   */
   constructor(tribleset = new TribleSet(), blobcache = new BlobCache()) {
     this.tribleset = tribleset;
     this.blobcache = blobcache;

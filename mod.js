@@ -1,4 +1,5 @@
-import { Box, WSConnector } from "./src/box.js";
+import { Box } from "./src/box.js";
+import {WSConnector} from "./src/connectors/wsconnector.js";
 import {
   entitiesToTriples,
   find,

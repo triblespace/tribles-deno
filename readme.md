@@ -29,7 +29,7 @@ Currently to be done and missing is:
 - PACT rust implementation.
 - tribleset rust implementation.
 - More rust...
-- JS Ontology tools to dynamically load KnowlegeBase contexts and documentation
+- JS Ontology tools to dynamically load KnowlegeBase namespaces and documentation
   from Trible based ontologies.
 - Core number types.
 - More types...
@@ -93,13 +93,13 @@ Objects and _trible_ data, provides tree interfaces for data insertion, and tree
 based query capabilites, as well as tree-based graph walking capabilites, all
 operating over familiar plain old javascript objects (and proxies _cough_).
 
-## Contexts, Types and Ontologies
+## Namespaces, Types and Ontologies
 
 The thing that JSON-LD realy got right, is their decoupling of the underlying
 data representation (in their case RDF) and the user facing representation. If
 different systems are to exchange information, or if a single system is
 upgraded, there needs to be some form of neutral representation, in our case
-bytes. By giving the user the ability to provide contexts in which the
+bytes. By giving the user the ability to provide namespaces in which the
 underlying tribles can be interpreted as needed, we can:
 
 - Provide easy upgrade paths for legacy systems. Old parts can read old
@@ -109,13 +109,13 @@ underlying tribles can be interpreted as needed, we can:
 - Allow the user to use approprate, self explanatory, names. One programmers
   legacy_date is another programmers sanity_check_date.
 - Allow users to fix past mistakes or missunderstandings. Whenever a name in OWL
-  is used it's used. Trible don't care about names, only about IDs.
+  is used it's used up. Trible don't care about names, only about binary IDs.
 
 Typing has drawn heavy inspiration from RDFS, in that the type of a value (the
-meaning of the layout of bytes, not the represenation in a programming language)
+meaning of the layout of bytes, not the representation in a programming language)
 is only depending on the attribute itself. With one type per attribute id. This
 has the advantage of giving statically typed programming languages like Rust the
-ability to properly type queries with the help of statically generated contexts.
+ability to properly type queries with the help of statically generated namespaces.
 
 The above information is itself stored as _tribles_ in the form of an ontology.
 You can think of it as a schema in an RDBMS, with the addition of it also
@@ -128,7 +128,61 @@ containing documentation and meta information.
 - [3] Unless maybe you're using a system with redundant CPUs, e.g. Rocket
   Control. In which case: "Why does your rocket need a knowledge base!!??"
 
-# Examples:
+## Implementation
+Remember:
+The database represents data as semantic network. Each edge in this graph is stored as a fixed size trible (64bytes), a binary triple that consists of an entity-id (16byte), an attribute-id (16byte) and an inline value (32byte).
+Values that are too large to be inlined are stored as blobs, separately from the tribles, with the blob's hash stored as the inline value.
 
-Due to quick API iterations, the examples have become out of date. Take a look
-at the tests instead.
+The implementation is layered into multiple components with different capabilities. These can be roughly categorized as follows:
+
+* Unstructured binary information storage:
+  Provided by the Persistent Adaptive Cuckoo Trie, an immutable in-memory data-structure, for segmented fixed length binary keys, which allows for efficient set operations and search. Segmentation allows for search to focus on pre-defined infix ranges of the key.
+* Structured binary information storage:
+  Provided by Trible Sets and Blob Caches. Trible Sets support set operations and query primitives for higher layers. They store data as covering PACT indices.
+  Blob caches on the other hand store those values which require more space than the inlined 32byte. They use PACTS to map the value hash to the actual blob or a method to retrieve it lazily, e.g. via the network.
+* Semantic information storage with a host language friendly API:
+  The Knowledge Base data-structure makes use of one Trible Set and one Blob Cache.
+  Instead of exposing the binary data of the lower levels directly, it provides writing and querying capabilities that match the model of the host language,
+  aiming for seamless and convenient integration that is familiar to developers.
+  This layer also provides a lot of the data-model in terms of the general graph structure, constraints, types, query capabilities and so on.
+  The knowledge base is also an immutable datatype with set operations defined on it.
+* Mutable containers:
+  Boxes are mutable references to immutable Knowledge Bases that provide a place where the changing of State can take place. They provide safe transaction semantics, and allow for subscriptions to the applied changes.
+* Communication beyond the program:
+  Connectors provide means to send and receive data from and to Boxes.
+  This could be over the network for use with tools like `trible archive`
+  or or to store and load data to or from disk.
+  
+The resulting structure looks like this:
+
+```
+                  ┌────────┐
+                  │  PACT  │
+                  └────────┘             Unstructured
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+               ┌───────┴───────┐
+               │               │
+               ▼               ▼
+        ┌────────────┐  ┌────────────┐
+        │ Trible Set │  │ Blob Cache │
+        └────────────┘  └────────────┘
+               │               │
+               └───────┬───────┘           Structured
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+                       ▼
+           ┏━━━━━━━━━━━━━━━━━━━━━━┓
+           ┃    Knowledge Base    ┃          Semantic
+           ┗━━━━━━━━━━━━━━━━━━━━━━┛        & Embedded
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+                       ▼
+                ╔════════════╗
+                ║    Box     ║                Mutable
+                ╚════════════╝         & Subscribable
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─▲─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+        ┌────────────┬─┴───────┐
+        ▼            ▼         ▼
+ ┌─────────────┐ ┌───────┐ ┌───────┐
+ │  Websocket  │ │ File  │ │  S3   │   ...      Comms
+ └─────────────┘ └───────┘ └───────┘        & Storage
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+```

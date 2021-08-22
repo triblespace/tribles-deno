@@ -1,11 +1,23 @@
+import { TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
+import {emptyValuePACT}from "./pact.js";
+
+const TRIBLES_PROTOCOL = "tribles";
+
+export function filterTrustedPolicy(publicKeys, inbox) {
+	const keyIndex = publicKeys.reduce((pact, key) => pact.put(key), emptyValuePACT);
+	return ({publicKey, kb}) => {
+		
+	}
+}
+
 class WSConnector {
-	  constructor(addr, inbox, outbox) {
+	  constructor(addr) {
 		this.addr = addr;
 		this.ws = null;
-		this.inbox = inbox;
 		this.outbox = outbox;
+		this.inbox = inbox;
 	  }
-	  async connect() {
+	  async open() {
 		this.ws = new WebSocket(this.addr, TRIBLES_PROTOCOL);
 		this.ws.binaryType = "arraybuffer";
 		this.ws.addEventListener("open", (e) => {
@@ -81,10 +93,18 @@ class WSConnector {
 		this.inbox.commit((kb) => kb.withTribles(contiguousTribles(txnPayload)));
 	  }
 	
-	  async disconnect() {
+	  async close() {
 		this.ws.close();
 		await this.ws.closePromise;
 		return this;
+	  }
+	  
+	  subscribe(credentials, subscription) {
+		  
+	  }
+	  
+	  aync send() {
+		  
 	  }
 	}
 	

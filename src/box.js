@@ -186,4 +186,4 @@ async function* search(ns, cfn) {
   }
 }
 
-export { Box, search, WSConnector };
+export { Box, search };
