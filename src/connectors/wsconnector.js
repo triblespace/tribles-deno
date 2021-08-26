@@ -10,12 +10,11 @@ export function filterTrustedPolicy(publicKeys, inbox) {
 	}
 }
 
-class WSConnector {
+class WSConnector extends EventTarget {
 	  constructor(addr) {
+		super();
 		this.addr = addr;
 		this.ws = null;
-		this.outbox = outbox;
-		this.inbox = inbox;
 	  }
 	  async open() {
 		this.ws = new WebSocket(this.addr, TRIBLES_PROTOCOL);
@@ -99,11 +98,7 @@ class WSConnector {
 		return this;
 	  }
 	  
-	  subscribe(credentials, subscription) {
-		  
-	  }
-	  
-	  aync send() {
+	  async send(kb) {
 		  
 	  }
 	}

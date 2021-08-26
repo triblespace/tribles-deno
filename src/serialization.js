@@ -29,6 +29,8 @@ async function serializetribleset(tribleset, privateKey) {
   return data;
 }
 
+async function readTxnType()
+
 async function readTxnMarker(bytes) {
   if (bytes.length < MARKER_SIZE) return null;
 
@@ -71,7 +73,7 @@ function recoverFromBrokenTxn(bytes) {
   }
 }
 
-function splitTribles(bytes) {
+export function splitTribles(bytes) {
   const tribles = [];
   for (let t = 0; t < bytes.length; t += TRIBLE_SIZE) {
 	tribles.push(bytes.subarray(t, t + TRIBLE_SIZE));
@@ -79,7 +81,7 @@ function splitTribles(bytes) {
   return tribles;
 }
 
-async function* deserializetriblesets(bytes) {
+export async function* readAllTxns(bytes) {
   while (bytes.length > MARKER_SIZE) {
 	try {
 	  let [{ payload, publicKey }, bytes] = await readTxn(bytes);
@@ -90,4 +92,8 @@ async function* deserializetriblesets(bytes) {
 	  bytes = recoverFromBrokenTxn(bytes);
 	}
   }
+}
+
+export async function serialize(kb) {
+  
 }
