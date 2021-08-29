@@ -1,4 +1,5 @@
-import { Box, WSConnector } from "./src/mq.js";
+import { Box } from "./src/box.js";
+import { WSConnector } from "./src/connectors/wsconnector.js";
 import {
   entitiesToTriples,
   find,
@@ -9,13 +10,13 @@ import {
   namespace,
 } from "./src/kb.js";
 import { types } from "./src/types.js";
-import { MemTribleDB } from "./src/memtribledb.js";
-import { S3BlobDB } from "./src/s3blobdb.js";
-import { MemBlobDB } from "./src/memblobdb.js";
+import { TribleSet } from "./src/tribleset.js";
+import { BlobCache } from "./src/blobcache.js";
 import { emptyTriblePACT, emptyValuePACT, makePACT } from "./src/pact.js";
 import { UFOID } from "./src/ufoid.js";
 
 export {
+  BlobCache,
   Box,
   emptyTriblePACT as TRIBLE_PACT,
   emptyValuePACT,
@@ -26,10 +27,8 @@ export {
   id,
   KB,
   makePACT,
-  MemBlobDB,
-  MemTribleDB,
   namespace,
-  S3BlobDB,
+  TribleSet,
   types,
   UFOID,
   WSConnector,

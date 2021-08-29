@@ -69,7 +69,7 @@ class MemTribleConstraint {
   }
 }
 
-class MemTribleDB {
+class TribleSet {
   constructor(
     EAV = emptyIdIdValueTriblePACT,
     EVA = emptyIdValueIdTriblePACT,
@@ -130,7 +130,7 @@ class MemTribleDB {
       }
     }
 
-    return new MemTribleDB(
+    return new TribleSet(
       EAV.complete(),
       EVA.complete(),
       AEV.complete(),
@@ -141,6 +141,14 @@ class MemTribleDB {
       EisV.complete(),
       AisV.complete()
     );
+  }
+
+  /**
+   * Provides a way to dump all tribles this db in EAV lexicographic order.
+   * @returns an iterator of tribles
+   */
+  tribles() {
+    return this.EAV.keys();
   }
 
   constraint(e, a, v) {
@@ -280,7 +288,7 @@ class MemTribleDB {
   }
 
   empty() {
-    return new MemTribleDB();
+    return new TribleSet();
   }
 
   isEmpty() {
@@ -300,7 +308,7 @@ class MemTribleDB {
   }
 
   union(other) {
-    return new MemTribleDB(
+    return new TribleSet(
       this.EAV.union(other.EAV),
       this.EVA.union(other.EVA),
       this.AEV.union(other.AEV),
@@ -314,7 +322,7 @@ class MemTribleDB {
   }
 
   subtract(other) {
-    return new MemTribleDB(
+    return new TribleSet(
       this.EAV.subtract(other.EAV),
       this.EVA.subtract(other.EVA),
       this.AEV.subtract(other.AEV),
@@ -328,7 +336,7 @@ class MemTribleDB {
   }
 
   difference(other) {
-    return new MemTribleDB(
+    return new TribleSet(
       this.EAV.difference(other.EAV),
       this.EVA.difference(other.EVA),
       this.AEV.difference(other.AEV),
@@ -342,7 +350,7 @@ class MemTribleDB {
   }
 
   intersect(other) {
-    return new MemTribleDB(
+    return new TribleSet(
       this.EAV.intersect(other.EAV),
       this.EVA.intersect(other.EVA),
       this.AEV.intersect(other.AEV),
@@ -354,23 +362,6 @@ class MemTribleDB {
       this.AisV.intersect(other.AisV)
     );
   }
-
-  dump() {
-    // TODO This could be done lazily, with either a growable buffer
-    // or by adding a total size to pacts.
-    const novelTriblesEager = [...this.EAV.keys()];
-    const data = new Uint8Array(TRIBLE_SIZE * (novelTriblesEager.length + 1));
-    let i = 1;
-    for (const trible of novelTriblesEager) {
-      data.set(trible, TRIBLE_SIZE * i++);
-    }
-    //TODO make hash configurable and use transaction trible attr for type
-    blake2s32(
-      data.subarray(TRIBLE_SIZE),
-      data.subarray(TRIBLE_SIZE - VALUE_SIZE, TRIBLE_SIZE)
-    );
-    return data;
-  }
 }
 
-export { MemTribleDB };
+export { TribleSet };

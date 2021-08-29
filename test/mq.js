@@ -8,14 +8,14 @@ import { v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
 import { encode } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
 import {
+  BlobCache,
   Box,
   globalInvariants,
   id,
   KB,
-  MemBlobDB,
-  MemTribleDB,
   namespace,
-  S3BlobDB,
+  S3BlobCache,
+  TribleSet,
   types,
   UFOID,
   WSConnector,
@@ -51,8 +51,8 @@ Deno.test({
     // Add some data.
 
     const kb = new KB(
-      new MemTribleDB(),
-      new S3BlobDB({
+      new TribleSet(),
+      new S3BlobCache({
         region: "local",
         accessKeyID: "jeanluc",
         secretKey: "teaearlgreyhot",
@@ -95,7 +95,7 @@ Deno.test({
 
     let slept = 0;
     while (
-      !inbox.get().tribledb.isEqual(outbox.get().tribledb) &&
+      !inbox.get().tribleset.isEqual(outbox.get().tribleset) &&
       slept < 1000
     ) {
       await sleep(10);
@@ -103,7 +103,7 @@ Deno.test({
     }
     await wsCon.disconnect();
 
-    assert(inbox.get().tribledb.isEqual(outbox.get().tribledb));
+    assert(inbox.get().tribleset.isEqual(outbox.get().tribleset));
   },
   // https://github.com/denoland/deno/issues/7457
 });

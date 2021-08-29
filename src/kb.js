@@ -2,8 +2,10 @@ import { emptyIdPACT, emptyValuePACT } from "./pact.js";
 import {
   constantConstraint,
   indexConstraint,
+  lowerBoundConstraint,
   OrderByMinCostAndBlockage,
   resolve,
+  upperBoundConstraint,
 } from "./query.js";
 import {
   A,
@@ -15,6 +17,8 @@ import {
   VALUE_SIZE,
 } from "./trible.js";
 import { ufoid } from "./types/ufoid.js";
+import { TribleSet } from "./tribleset.js";
+import { BlobCache } from "./blobcache.js";
 
 const assert = (test, message) => {
   if (!test) {
@@ -95,13 +99,16 @@ class Variable {
     this.index = index;
     this.name = name;
     this.ascending = true;
+    this.upperBound = undefined;
+    this.lowerBound = undefined;
     this.isWalked = false;
     this.walkedKB = null;
     this.walkedNS = null;
     this.isOmit = false;
     this.paths = [];
     this.decoder = null;
-    this.blobdb = null;
+    this.encoder = null;
+    this.blobcache = null;
   }
 
   groupBy(otherVariable) {
@@ -118,6 +125,16 @@ class Variable {
       );
     }
     this.provider.blockedBy.push([this.index, otherVariable.index]);
+    return this;
+  }
+
+  upper(u) {
+    this.upperBound = u;
+    return this;
+  }
+
+  lower(l) {
+    this.lowerBound = l;
     return this;
   }
 
@@ -150,9 +167,9 @@ class Variable {
     }
     return `V:${this.index}`;
   }
-  proposeBlobDB(blobdb) {
-    // Todo check latency cost of blobdb, e.g. inMemory vs. S3.
-    this.blobdb ||= blobdb;
+  proposeBlobCache(blobcache) {
+    // Todo check latency cost of blobcache, e.g. inMemory vs. S3.
+    this.blobcache ||= blobcache;
     return this;
   }
 }
@@ -225,7 +242,7 @@ const lookup = (ns, kb, eId, attributeName) => {
     [
       constantConstraint(0, eId),
       constantConstraint(1, aId),
-      kb.tribledb.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
+      kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
     ],
     new OrderByMinCostAndBlockage(new Set([0, 1, 2])),
     new Set([0, 1, 2]),
@@ -244,7 +261,7 @@ const lookup = (ns, kb, eId, attributeName) => {
       found: true,
       result: isLink
         ? entityProxy(ns, kb, v.slice())
-        : decoder(v.slice(), async () => await kb.blobdb.get(v)),
+        : decoder(v.slice(), async () => await kb.blobcache.get(v)),
     };
   } else {
     const results = [];
@@ -252,7 +269,7 @@ const lookup = (ns, kb, eId, attributeName) => {
       results.push(
         isLink
           ? entityProxy(ns, kb, v.slice())
-          : decoder(v.slice(), async () => await kb.blobdb.get(v))
+          : decoder(v.slice(), async () => await kb.blobcache.get(v))
       );
     }
     return {
@@ -314,7 +331,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           [
             constantConstraint(0, eId),
             constantConstraint(1, aId),
-            kb.tribledb.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
+            kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
           ],
           new OrderByMinCostAndBlockage(new Set([0, 1])),
           new Set([0, 1, 2]),
@@ -375,7 +392,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           [
             constantConstraint(0, eId),
             indexConstraint(1, ns.forwardAttributeIndex),
-            kb.tribledb.constraint(0, 1, 2),
+            kb.tribleset.constraint(0, 1, 2),
           ],
           new OrderByMinCostAndBlockage(new Set([0, 1])),
           new Set([0, 1, 2]),
@@ -394,7 +411,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         for (const [_e, a, _v] of resolve(
           [
             constantConstraint(0, eId),
-            kb.tribledb.constraint(2, 1, 0),
+            kb.tribleset.constraint(2, 1, 0),
             indexConstraint(1, ns.inverseAttributeIndex),
           ],
           new OrderByMinCostAndBlockage(new Set([0, 1])),
@@ -556,15 +573,16 @@ const precompileTriples = (ns, vars, triples) => {
       entity.paths.push(path.slice(0, -1));
       !entity.decoder ||
         assert(
-          entity.decoder === idDecoder,
+          entity.decoder === idDecoder && entity.encoder === idEncoder,
           `Error at paths ${entity.paths} and [${path.slice(
             0,
             -1
-          )}]:\n Variables at positions use incompatible decoders '${
+          )}]:\n Variables at positions use incompatible types.`
             entity.decoder.name
           }' and '${idDecoder.name}'.`
         );
       entity.decoder = idDecoder;
+      entity.encoder = idEncoder;
       entityVar = entity;
     } else {
       const b = new Uint8Array(VALUE_SIZE);
@@ -586,13 +604,14 @@ const precompileTriples = (ns, vars, triples) => {
     // Value
     if (value instanceof Variable) {
       value.paths.push([...path]);
-      const decoder = attributeDescription.decoder;
+      const { decoder, encoder } = attributeDescription;
       !value.decoder ||
         assert(
-          value.decoder === decoder,
-          `Error at paths ${value.paths} and [${path}]:\n Variables at positions use incompatible decoders '${value.decoder.name}' and '${decoder.name}'.`
+          value.decoder === decoder && value.encoder === encoder,
+          `Error at paths ${value.paths} and [${path}]:\n Variables at positions use incompatible types.`
         );
       value.decoder = decoder;
+      value.encoder = encoder;
       valueVar = value;
     } else {
       const encoder = attributeDescription.encoder;
@@ -623,18 +642,25 @@ class IDSequence {
   }
 }
 
+/** A persistent immutable knowledge base that stores tribles and blobs,
+    providing a (JSON) tree based interface to access and create the graph within.*/
 class KB {
-  constructor(tribledb, blobdb) {
-    this.tribledb = tribledb;
-    this.blobdb = blobdb;
+  /**
+   * Create a knowledge base with the gives tribles and blobs.
+   * @param {TribleSet} tribleset - The tribles stored.
+   * @param {BlobCache} blobcache - The blobs associated with the tribles.
+   */
+  constructor(tribleset = new TribleSet(), blobcache = new BlobCache()) {
+    this.tribleset = tribleset;
+    this.blobcache = blobcache;
   }
 
   withTribles(tribles) {
-    const tribledb = this.tribledb.with(tribles);
-    if (tribledb === this.tribledb) {
+    const tribleset = this.tribleset.with(tribles);
+    if (tribleset === this.tribleset) {
       return this;
     }
-    return new KB(tribledb, this.blobdb);
+    return new KB(tribleset, this.blobcache);
   }
 
   with(ns, efn) {
@@ -646,8 +672,8 @@ class KB {
     const entities = efn(new IDSequence(idFactory));
     const triples = entitiesToTriples(ns, idFactory, entities);
     const { tribles, blobs } = triplesToTribles(ns, triples);
-    const newTribleDB = this.tribledb.with(tribles);
-    if (newTribleDB !== this.tribledb) {
+    const newTribleSet = this.tribleset.with(tribles);
+    if (newTribleSet !== this.tribleset) {
       let touchedEntities = emptyIdPACT.batch();
       for (const trible of tribles) {
         touchedEntities.put(E(trible));
@@ -671,7 +697,7 @@ class KB {
           indexConstraint(0, touchedEntities),
           indexConstraint(1, touchedAttributes),
           indexConstraint(1, uniqueAttributeIndex),
-          newTribleDB.constraint(0, 1, 2),
+          newTribleSet.constraint(0, 1, 2),
         ],
         new OrderByMinCostAndBlockage(new Set([0, 1, 2]), [
           [2, 0],
@@ -708,7 +734,7 @@ class KB {
           indexConstraint(2, touchedValues),
           indexConstraint(1, touchedAttributes),
           indexConstraint(1, uniqueInverseAttributeIndex),
-          newTribleDB.constraint(0, 1, 2),
+          newTribleSet.constraint(0, 1, 2),
         ],
         new OrderByMinCostAndBlockage(new Set([0, 1, 2]), [
           [0, 1],
@@ -739,8 +765,8 @@ class KB {
         prevV = v.slice();
       }
 
-      const newBlobDB = this.blobdb.put(blobs);
-      return new KB(newTribleDB, newBlobDB);
+      const newBlobCache = this.blobcache.put(blobs);
+      return new KB(newTribleSet, newBlobCache);
     }
     return this;
   }
@@ -753,8 +779,8 @@ class KB {
         isStatic: true,
         constraints: [
           ...triplesWithVars.map(([e, a, v]) => {
-            v.proposeBlobDB(this.blobdb);
-            return this.tribledb.constraint(e.index, a.index, v.index);
+            v.proposeBlobCache(this.blobcache);
+            return this.tribleset.constraint(e.index, a.index, v.index);
           }),
         ],
       };
@@ -768,51 +794,48 @@ class KB {
   }
 
   empty() {
-    return new KB(this.tribledb.empty(), this.blobdb.empty());
+    return new KB(this.tribleset.empty(), this.blobcache.empty());
   }
 
   isEmpty() {
-    return this.tribledb.isEmpty();
+    return this.tribleset.isEmpty();
   }
 
   isEqual(other) {
-    return (
-      //TODO Should we also compare constraints here?
-      this.tribledb.isEqual(other.tribledb) && this.blobdb.isEqual(other.blobdb)
-    );
+    return this.tribleset.isEqual(other.tribleset);
   }
 
   isSubsetOf(other) {
-    return this.tribledb.isSubsetOf(other.tribledb);
+    return this.tribleset.isSubsetOf(other.tribleset);
   }
 
   isIntersecting(other) {
-    return this.tribledb.isIntersecting(other.tribledb);
+    return this.tribleset.isIntersecting(other.tribleset);
   }
 
   //TODO check invariantIndex!
   union(other) {
-    const tribledb = this.tribledb.union(other.tribledb);
-    const blobdb = this.blobdb.merge(other.blobdb);
-    return new KB(tribledb, blobdb);
+    const tribleset = this.tribleset.union(other.tribleset);
+    const blobcache = this.blobcache.merge(other.blobcache);
+    return new KB(tribleset, blobcache);
   }
 
   subtract(other) {
-    const tribledb = this.tribledb.subtract(other.tribledb);
-    const blobdb = this.blobdb.merge(other.blobdb).shrink(tribledb);
-    return new KB(tribledb, blobdb);
+    const tribleset = this.tribleset.subtract(other.tribleset);
+    const blobcache = this.blobcache.merge(other.blobcache).shrink(tribleset);
+    return new KB(tribleset, blobcache);
   }
 
   difference(other) {
-    const tribledb = this.tribledb.difference(other.tribledb);
-    const blobdb = this.blobdb.merge(other.blobdb).shrink(tribledb);
-    return new KB(tribledb, blobdb);
+    const tribleset = this.tribleset.difference(other.tribleset);
+    const blobcache = this.blobcache.merge(other.blobcache).shrink(tribleset);
+    return new KB(tribleset, blobcache);
   }
 
   intersect(other) {
-    const tribledb = this.tribledb.intersect(other.tribledb);
-    const blobdb = this.blobdb.merge(other.blobdb).shrink(tribledb);
-    return new KB(tribledb, blobdb);
+    const tribleset = this.tribleset.intersect(other.tribleset);
+    const blobcache = this.blobcache.merge(other.blobcache).shrink(tribleset);
+    return new KB(tribleset, blobcache);
   }
 }
 
@@ -837,6 +860,19 @@ function* find(ns, cfn) {
     );
   }
 
+  for (const { upperBound, lowerBound, encoder, index } of vars.variables) {
+    if (upperBound !== undefined) {
+      const encodedBound = new Uint8Array(VALUE_SIZE);
+      encoder(upperBound, encodedBound);
+      constraints.push(upperBoundConstraint(index, encodedBound));
+    }
+    if (lowerBound !== undefined) {
+      const encodedBound = new Uint8Array(VALUE_SIZE);
+      encoder(lowerBound, encodedBound);
+      constraints.push(lowerBoundConstraint(index, encodedBound));
+    }
+  }
+
   const namedVariables = [...vars.namedVariables.values()];
 
   //console.log(vars.blockedBy);
@@ -856,13 +892,13 @@ function* find(ns, cfn) {
       decoder,
       name,
       isOmit,
-      blobdb,
+      blobcache,
     } of namedVariables) {
       if (!isOmit) {
         const encoded = r[index];
         const decoded = decoder(
           encoded.slice(0),
-          async () => await blobdb.get(encoded)
+          async () => await blobcache.get(encoded)
         );
         result[name] = isWalked
           ? walkedKB.walk(walkedNS || ns, decoded)

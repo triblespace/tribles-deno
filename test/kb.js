@@ -17,13 +17,13 @@ import {
 
 import { equal, equalValue } from "../src/trible.js";
 import {
+  BlobCache,
   find,
   globalInvariants,
   id,
   KB,
-  MemBlobDB,
-  MemTribleDB,
   namespace,
+  TribleSet,
   types,
   UFOID,
 } from "../mod.js";
@@ -51,7 +51,7 @@ Deno.test("KB Find", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   debugger;
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
@@ -112,7 +112,7 @@ Deno.test("KB Find Single", () => {
           titles: { id: titlesId, ...types.hex },
         });
 
-        const knightskb = new KB(new MemTribleDB(), new MemBlobDB()).with(
+        const knightskb = new KB(new TribleSet(), new BlobCache()).with(
           knightsNS,
           () => [{ [id]: person.id, name: person.name, titles: person.titles }]
         );
@@ -139,7 +139,7 @@ Deno.test("Find Ascending", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -167,7 +167,7 @@ Deno.test("Find Ascending", () => {
           titles: [title],
         }),
       ],
-      knightskb.blobdb
+      knightskb.blobcache
     ),
   ];
   assertEquals(results, [
@@ -175,6 +175,98 @@ Deno.test("Find Ascending", () => {
     { name: "Juliet", title: "the lady" },
     { name: "Romeo", title: "fool" },
     { name: "Romeo", title: "prince" },
+  ]);
+});
+
+Deno.test("find lower bound", () => {
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    loves: { id: lovesId },
+    lovedBy: { id: lovesId, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring },
+  });
+
+  // Add some data.
+  const memkb = new KB(new TribleSet(), new BlobCache());
+
+  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
+    {
+      [id]: romeo,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeo,
+    },
+  ]);
+
+  // Query some data.
+  const results = [
+    ...find(
+      knightsNS,
+      ({ name, title }) => [
+        knightskb.where({
+          name: name.lower("R"),
+          titles: [title],
+        }),
+      ],
+      knightskb.blobcache
+    ),
+  ];
+  assertEquals(results, [
+    { name: "Romeo", title: "fool" },
+    { name: "Romeo", title: "prince" },
+  ]);
+});
+
+Deno.test("find upper bound", () => {
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    loves: { id: lovesId },
+    lovedBy: { id: lovesId, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring },
+  });
+
+  // Add some data.
+  const memkb = new KB(new TribleSet(), new BlobCache());
+
+  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
+    {
+      [id]: romeo,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeo,
+    },
+  ]);
+
+  // Query some data.
+  const results = [
+    ...find(
+      knightsNS,
+      ({ name, title }) => [
+        knightskb.where({
+          name: name.upper("R"),
+          titles: [title],
+        }),
+      ],
+      knightskb.blobcache
+    ),
+  ];
+  assertEquals(results, [
+    { name: "Juliet", title: "princess" },
+    { name: "Juliet", title: "the lady" },
   ]);
 });
 
@@ -189,7 +281,7 @@ Deno.test("Find Descending", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -216,7 +308,7 @@ Deno.test("Find Descending", () => {
           titles: [title],
         }),
       ],
-      knightskb.blobdb
+      knightskb.blobcache
     ),
   ];
   assertEquals(results, [
@@ -237,7 +329,7 @@ Deno.test("unique constraint", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([juliet]) => [
     {
@@ -275,7 +367,7 @@ Deno.test("unique inverse constraint", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, () => [
     {
@@ -311,7 +403,7 @@ Deno.test("KB Walk", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -347,7 +439,7 @@ Deno.test("KB Walk ownKeys", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new MemTribleDB(), new MemBlobDB());
+  const memkb = new KB(new TribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {

@@ -1,12 +1,12 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
 import {
+  BlobCache,
   find,
   globalInvariants,
   id,
   KB,
-  MemBlobDB,
-  MemTribleDB,
   namespace,
+  TribleSet,
   types,
   UFOID,
 } from "../mod.js";
@@ -29,7 +29,7 @@ const knightsNS = namespace({
 
 function kbWith(b, size) {
   // Add some data.
-  let knightskb = new KB(new MemTribleDB(), new MemBlobDB());
+  let knightskb = new KB(new TribleSet(), new BlobCache());
 
   b.start();
   knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
@@ -67,7 +67,7 @@ function kbWith(b, size) {
 
 function kbQuery(b, size) {
   // Add some data.
-  let knightskb = new KB(new MemTribleDB(), new MemBlobDB());
+  let knightskb = new KB(new TribleSet(), new BlobCache());
 
   knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
     {

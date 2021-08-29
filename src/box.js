@@ -1,101 +1,4 @@
-import { isTransactionMarker, isValidTransaction } from "./trible.js";
 import { find } from "./kb.js";
-import { blake2s32 } from "./blake2s.js";
-import { contiguousTribles, TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
-
-const TRIBLES_PROTOCOL = "tribles";
-
-class WSConnector {
-  constructor(addr, inbox, outbox) {
-    this.addr = addr;
-    this.ws = null;
-    this.inbox = inbox;
-    this.outbox = outbox;
-  }
-  async connect() {
-    this.ws = new WebSocket(this.addr, TRIBLES_PROTOCOL);
-    this.ws.binaryType = "arraybuffer";
-    this.ws.addEventListener("open", (e) => {
-      console.info(`Connected to ${this.addr}.`);
-    });
-    this.ws.addEventListener("message", (e) => {
-      this._onMessage(e);
-    });
-    this.ws.addEventListener("close", (e) => {
-      console.info(`Disconnected from ${this.addr}.`);
-    });
-    this.ws.addEventListener("error", (e) => {
-      console.error(`Error on connection to ${this.addr}: ${e.message}`);
-    });
-    const openPromise = new Promise((resolve, reject) => {
-      this.ws.addEventListener("open", resolve);
-      this.ws.addEventListener("close", reject);
-    });
-    const closePromise = new Promise((resolve, reject) => {
-      this.ws.addEventListener("close", resolve);
-    });
-    this.ws.openPromise = openPromise;
-    this.ws.closePromise = closePromise;
-
-    await openPromise;
-
-    return this;
-  }
-
-  async transfer() {
-    const changeIterator = this.outbox.changes();
-    while (true) {
-      const { change, close } = await Promise.race([
-        changeIterator.next().then(({ value }) => ({ change: value })),
-        this.ws.closePromise.then(() => ({ close: true })),
-      ]);
-      if (close) {
-        return;
-      }
-      if (!change.difKB.isEmpty()) {
-        const transaction = change.difKB.tribledb.dump();
-        await change.difKB.blobdb.flush();
-        this.ws.send(transaction);
-      }
-    }
-  }
-
-  _onMessage(e) {
-    const txn = new Uint8Array(e.data);
-    if (txn.length <= 64) {
-      console.warn(`Bad transaction, too short.`);
-      return;
-    }
-    if (txn.length % TRIBLE_SIZE !== 0) {
-      console.warn(
-        `Bad transaction, ${txn.length} is not a multiple of ${TRIBLE_SIZE}.`
-      );
-      return;
-    }
-    const txnTrible = txn.subarray(0, TRIBLE_SIZE);
-    if (!isTransactionMarker(txnTrible)) {
-      console.warn(`Bad transaction, doesn't begin with transaction marker.`);
-      return;
-    }
-
-    const txnTriblePayload = txn.subarray(TRIBLE_SIZE);
-    const txnHash = blake2s32(txnTriblePayload, new Uint8Array(32));
-    if (!isValidTransaction(txnTrible, txnHash)) {
-      console.warn("Bad transaction, hash does not match.");
-      return;
-    }
-
-    this.inbox.commit((kb) =>
-      kb.withTribles(contiguousTribles(txnTriblePayload))
-    );
-  }
-
-  async disconnect() {
-    this.ws.close();
-    await this.ws.closePromise;
-    return this;
-  }
-}
 
 class Box {
   constructor(kb) {
@@ -138,6 +41,7 @@ class Box {
       const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
       const triplesWithVars = precompileTriples(ns, vars, triples);
       const changeSubscription = this.changes();
+      
       const constraintsSubscription = new Subscription(
         (s, newKb, oldKB) => {
           const { difKB, newKB } = changeSubscription.pull();
@@ -159,7 +63,7 @@ class Box {
       changeSubscription.onNotify = (s, latest, pulled) => {
         constraintsSubscription.notify(latest);
       };
-
+      
       return {
         isStatic: false,
         constraintsSubscription,
@@ -208,9 +112,8 @@ class Subscription {
     }
   }
 
-  pull() {
+  pull() {//TODO should the comparison be configurable? Do we want to use ordering, e.g. pulled < latest?
     if (this._pulledNotification !== this._latestNotification) {
-      //TODO should the comparison be configurable? Do we want to use ordering, e.g. pulled < latest?
       this._pulledNotification = this._latestNotification;
       this._snoozed = false;
       return this._getNext(
@@ -280,13 +183,13 @@ async function* search(ns, cfn) {
         decoder,
         name,
         isOmit,
-        blobdb,
+        blobcache,
       } of namedVariables) {
         if (!isOmit) {
           const encoded = r[index];
           const decoded = decoder(
             encoded.slice(0),
-            async () => await blobdb.get(encoded)
+            async () => await blobcache.get(encoded)
           );
           result[name] = isWalked
             ? walkedKB.walk(walkedNS || ns, decoded)
@@ -298,4 +201,4 @@ async function* search(ns, cfn) {
   }
 }
 
-export { Box, search, WSConnector };
+export { Box, search };

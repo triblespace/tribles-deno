@@ -1,9 +1,10 @@
 import { emptyValuePACT } from "./pact.js";
 import { VALUE_SIZE } from "./trible.js";
 
-class MemBlobDB {
-  constructor(blobs = emptyValuePACT) {
+class BlobCache {
+  constructor(blobs = emptyValuePACT, missHandlers = new Set()) {
     this.blobs = blobs;
+    this.missHandlers = missHandlers;
   }
 
   put(blobs) {
@@ -13,37 +14,40 @@ class MemBlobDB {
       nblobs = nblobs.put(key, blob);
     }
 
-    return new MemBlobDB(nblobs.complete());
+    return new BlobCache(nblobs.complete());
   }
 
-  // deno-lint-ignore require-await
-  async get(k) {
-    return this.blobs.get(k);
-  }
+  async get(key) {
+    let blob = await this.blobs.get(key);
 
-  // deno-lint-ignore require-await
-  async flush() {
-    console.warn(`Can't flush MemBlobDB, because it's ephemeral.
-    This is probably done mistakenly. For something persistent
-    take a look at S3BlobDB.`);
+    if (blob === undefined) {
+      for (const missHandler of this.missHandlers) {
+        blob = await missHandler(key);
+        if (blob !== undefined) break;
+      }
+      if (blob === undefined) {
+        throw Error("No blob for key.");
+      }
+      this.cache = this.cache.put(key, blob);
+    }
+    return blob;
   }
 
   empty() {
-    return new MemBlobDB();
-  }
-
-  isEqual(other) {
-    return other instanceof MemBlobDB && this.blobs.isEqual(other.blobs);
+    return new BlobCache();
   }
 
   merge(other) {
-    return new MemBlobDB(this.blobs.union(other.blobs));
+    return new BlobCache(
+      this.blobs.union(other.blobs),
+      new Set([...this.missHandlers, ...other.missHandlers])
+    );
   }
 
-  shrink(tribledb) {
+  shrink(tribleset) {
     const blobs = emptyValuePACT.batch();
     const blobCursor = this.blobs.segmentCursor();
-    const valueCursor = tribledb.VEA.segmentCursor();
+    const valueCursor = tribleset.VEA.segmentCursor();
     blobCursor.push();
     valueCursor.push();
     const key = new Uint8Array(VALUE_SIZE);
@@ -59,8 +63,8 @@ class MemBlobDB {
         valueCursor.seek(key);
       }
     }
-    return new MemBlobDB(blobs.complete());
+    return new BlobCache(blobs.complete(), this.missHandlers);
   }
 }
 
-export { MemBlobDB };
+export { BlobCache };
