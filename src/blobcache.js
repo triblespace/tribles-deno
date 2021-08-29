@@ -4,7 +4,7 @@ import { VALUE_SIZE } from "./trible.js";
 class BlobCache {
   constructor(
     blobs = emptyValuePACT,
-    missHandlers = new Set()
+    missHandlers = new Set(),
   ) {
     this.blobs = blobs;
     this.missHandlers = missHandlers;
@@ -23,15 +23,15 @@ class BlobCache {
   async get(key) {
     let blob = await this.blobs.get(key);
 
-    if(blob === undefined) {
-      for(const missHandler of this.missHandlers){
+    if (blob === undefined) {
+      for (const missHandler of this.missHandlers) {
         blob = await missHandler(key);
-        if(blob !== undefined) break;
-    }
-    if(blob === undefined) {
-      throw Error("No blob for key.");
-    }
-    this.cache = this.cache.put(key, blob);
+        if (blob !== undefined) break;
+      }
+      if (blob === undefined) {
+        throw Error("No blob for key.");
+      }
+      this.cache = this.cache.put(key, blob);
     }
     return blob;
   }
@@ -41,7 +41,10 @@ class BlobCache {
   }
 
   merge(other) {
-    return new BlobCache(this.blobs.union(other.blobs), new Set([...this.missHandlers, ...other.missHandlers]));
+    return new BlobCache(
+      this.blobs.union(other.blobs),
+      new Set([...this.missHandlers, ...other.missHandlers]),
+    );
   }
 
   shrink(tribleset) {

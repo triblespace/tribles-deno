@@ -29,8 +29,8 @@ Currently to be done and missing is:
 - PACT rust implementation.
 - tribleset rust implementation.
 - More rust...
-- JS Ontology tools to dynamically load KnowlegeBase namespaces and documentation
-  from Trible based ontologies.
+- JS Ontology tools to dynamically load KnowlegeBase namespaces and
+  documentation from Trible based ontologies.
 - Core number types.
 - More types...
 - Even more types...
@@ -112,10 +112,11 @@ underlying tribles can be interpreted as needed, we can:
   is used it's used up. Trible don't care about names, only about binary IDs.
 
 Typing has drawn heavy inspiration from RDFS, in that the type of a value (the
-meaning of the layout of bytes, not the representation in a programming language)
-is only depending on the attribute itself. With one type per attribute id. This
-has the advantage of giving statically typed programming languages like Rust the
-ability to properly type queries with the help of statically generated namespaces.
+meaning of the layout of bytes, not the representation in a programming
+language) is only depending on the attribute itself. With one type per attribute
+id. This has the advantage of giving statically typed programming languages like
+Rust the ability to properly type queries with the help of statically generated
+namespaces.
 
 The above information is itself stored as _tribles_ in the form of an ontology.
 You can think of it as a schema in an RDBMS, with the addition of it also
@@ -129,34 +130,47 @@ containing documentation and meta information.
   Control. In which case: "Why does your rocket need a knowledge base!!??"
 
 ## Implementation
-Remember:
-The database represents data as semantic network. Each edge in this graph is stored as a fixed size trible (64bytes), a binary triple that consists of an entity-id (16byte), an attribute-id (16byte) and an inline value (32byte).
-Values that are too large to be inlined are stored as blobs, separately from the tribles, with the blob's hash stored as the inline value.
 
-The implementation is layered into multiple components with different capabilities. These can be roughly categorized as follows:
+Remember: The database represents data as semantic network. Each edge in this
+graph is stored as a fixed size trible (64bytes), a binary triple that consists
+of an entity-id (16byte), an attribute-id (16byte) and an inline value (32byte).
+Values that are too large to be inlined are stored as blobs, separately from the
+tribles, with the blob's hash stored as the inline value.
 
-* Unstructured binary information storage:
-  Provided by the Persistent Adaptive Cuckoo Trie, an immutable in-memory data-structure, for segmented fixed length binary keys, which allows for efficient set operations and search. Segmentation allows for search to focus on pre-defined infix ranges of the key.
-* Structured binary information storage:
-  Provided by Trible Sets and Blob Caches. Trible Sets support set operations and query primitives for higher layers. They store data as covering PACT indices.
-  Blob caches on the other hand store those values which require more space than the inlined 32byte. They use PACTS to map the value hash to the actual blob or a method to retrieve it lazily, e.g. via the network.
-* Semantic information storage with a host language friendly API:
-  The Knowledge Base data-structure makes use of one Trible Set and one Blob Cache.
-  Instead of exposing the binary data of the lower levels directly, it provides writing and querying capabilities that match the model of the host language,
-  aiming for seamless and convenient integration that is familiar to developers.
-  This layer also provides a lot of the data-model in terms of the general graph structure, constraints, types, query capabilities and so on.
-  The knowledge base is also an immutable datatype with set operations defined on it.
-* Mutable containers:
-  Boxes are mutable references to immutable Knowledge Bases that provide a place where the changing of State can take place. They provide safe transaction semantics, and allow for subscriptions to the applied changes.
-* Communication beyond the program:
-  Connectors provide means to send and receive data from and to Boxes.
-  This could be over the network for use with tools like `trible archive`
-  or or to store and load data to or from disk.
-  
+The implementation is layered into multiple components with different
+capabilities. These can be roughly categorized as follows:
+
+- Unstructured binary information storage: Provided by the Persistent Adaptive
+  Cuckoo Trie, an immutable in-memory data-structure, for segmented fixed length
+  binary keys, which allows for efficient set operations and search.
+  Segmentation allows for search to focus on pre-defined infix ranges of the
+  key.
+- Structured binary information storage: Provided by Trible Sets and Blob
+  Caches. Trible Sets support set operations and query primitives for higher
+  layers. They store data as covering PACT indices. Blob caches on the other
+  hand store those values which require more space than the inlined 32byte. They
+  use PACTS to map the value hash to the actual blob or a method to retrieve it
+  lazily, e.g. via the network.
+- Semantic information storage with a host language friendly API: The Knowledge
+  Base data-structure makes use of one Trible Set and one Blob Cache. Instead of
+  exposing the binary data of the lower levels directly, it provides writing and
+  querying capabilities that match the model of the host language, aiming for
+  seamless and convenient integration that is familiar to developers. This layer
+  also provides a lot of the data-model in terms of the general graph structure,
+  constraints, types, query capabilities and so on. The knowledge base is also
+  an immutable datatype with set operations defined on it.
+- Mutable containers: Boxes are mutable references to immutable Knowledge Bases
+  that provide a place where the changing of State can take place. They provide
+  safe transaction semantics, and allow for subscriptions to the applied
+  changes.
+- Communication beyond the program: Connectors provide means to send and receive
+  data from and to Boxes. This could be over the network for use with tools like
+  `trible archive` or or to store and load data to or from disk.
+
 The resulting structure looks like this:
 
 ```
-                  ┌────────┐
+┌────────┐
                   │  PACT  │
                   └────────┘             Unstructured
 ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─

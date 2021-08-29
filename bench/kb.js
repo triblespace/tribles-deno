@@ -1,12 +1,12 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
 import {
+  BlobCache,
   find,
   globalInvariants,
   id,
   KB,
-  BlobCache,
-  TribleSet,
   namespace,
+  TribleSet,
   types,
   UFOID,
 } from "../mod.js";

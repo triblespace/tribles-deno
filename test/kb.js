@@ -17,13 +17,13 @@ import {
 
 import { equal, equalValue } from "../src/trible.js";
 import {
+  BlobCache,
   find,
   globalInvariants,
   id,
   KB,
-  BlobCache,
-  TribleSet,
   namespace,
+  TribleSet,
   types,
   UFOID,
 } from "../mod.js";

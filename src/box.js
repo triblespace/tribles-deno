@@ -28,8 +28,11 @@ class Box {
           newKB,
         };
       },
-      (s) =>
-        (this._subscriptions = this._subscriptions.filter((item) => item !== s))
+      (
+        s,
+      ) => (this._subscriptions = this._subscriptions.filter((item) =>
+        item !== s
+      )),
     );
     this._subscriptions.push(s);
     s.notify(this._kb);
@@ -45,12 +48,14 @@ class Box {
         isStatic: false,
         constraintsSubscription: new Subscription(
           (s, newKb, oldKb) => {
-            triplesWithVars.map(([e, a, v]) => (kb) => {
-              v.proposeBlobCache(this.blobcache);
-              return kb.tribleset.constraint(e.index, a.index, v.index);
-            });
+            triplesWithVars.map(([e, a, v]) =>
+              (kb) => {
+                v.proposeBlobCache(this.blobcache);
+                return kb.tribleset.constraint(e.index, a.index, v.index);
+              }
+            );
           },
-          (s) => changeSubscription.unsubscribe()
+          (s) => changeSubscription.unsubscribe(),
         ),
       };
     };
@@ -104,7 +109,7 @@ class Subscription {
       return this._getNext(
         this,
         this._latestNotification,
-        this._pulledNotification
+        this._pulledNotification,
       );
     }
   }
@@ -138,7 +143,7 @@ async function* search(ns, cfn) {
 
   for (const constantVariable of vars.constantVariables.values()) {
     staticConstraints.push(
-      constantConstraint(constantVariable.index, constantVariable.constant)
+      constantConstraint(constantVariable.index, constantVariable.constant),
     );
   }
 
@@ -153,28 +158,32 @@ async function* search(ns, cfn) {
       }
     }
 
-    for (const r of resolve(
-      constraints,
-      new OrderByMinCostAndBlockage(vars.projected, vars.blockedBy),
-      new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
-      vars.variables.map((_) => new Uint8Array(VALUE_SIZE))
-    )) {
+    for (
+      const r of resolve(
+        constraints,
+        new OrderByMinCostAndBlockage(vars.projected, vars.blockedBy),
+        new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
+        vars.variables.map((_) => new Uint8Array(VALUE_SIZE)),
+      )
+    ) {
       const result = {};
-      for (const {
-        index,
-        isWalked,
-        walkedKB,
-        walkedNS,
-        decoder,
-        name,
-        isOmit,
-        blobcache,
-      } of namedVariables) {
+      for (
+        const {
+          index,
+          isWalked,
+          walkedKB,
+          walkedNS,
+          decoder,
+          name,
+          isOmit,
+          blobcache,
+        } of namedVariables
+      ) {
         if (!isOmit) {
           const encoded = r[index];
           const decoded = decoder(
             encoded.slice(0),
-            async () => await blobcache.get(encoded)
+            async () => await blobcache.get(encoded),
           );
           result[name] = isWalked
             ? walkedKB.walk(walkedNS || ns, decoded)

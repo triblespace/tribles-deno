@@ -74,7 +74,6 @@ class S3Connector {
       throw e;
     }
   }
-
 }
 
 export { S3BlobCache };

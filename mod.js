@@ -1,5 +1,5 @@
 import { Box } from "./src/box.js";
-import {WSConnector} from "./src/connectors/wsconnector.js";
+import { WSConnector } from "./src/connectors/wsconnector.js";
 import {
   entitiesToTriples,
   find,
@@ -16,6 +16,7 @@ import { emptyTriblePACT, emptyValuePACT, makePACT } from "./src/pact.js";
 import { UFOID } from "./src/ufoid.js";
 
 export {
+  BlobCache,
   Box,
   emptyTriblePACT as TRIBLE_PACT,
   emptyValuePACT,
@@ -26,9 +27,8 @@ export {
   id,
   KB,
   makePACT,
-  BlobCache,
-  TribleSet,
   namespace,
+  TribleSet,
   types,
   UFOID,
   WSConnector,
