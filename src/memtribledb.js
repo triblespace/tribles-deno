@@ -79,7 +79,7 @@ class MemTribleDB {
     VAE = emptyValueIdIdTriblePACT,
     EisA = emptyIdIdValueTriblePACT, // Same order as EAV
     EisV = emptyIdIdValueTriblePACT, // Same order as EAV
-    AisV = emptyIdIdValueTriblePACT, // Same order as AEV
+    AisV = emptyIdIdValueTriblePACT // Same order as AEV
   ) {
     this.EAV = EAV;
     this.EVA = EVA;
@@ -139,7 +139,7 @@ class MemTribleDB {
       VAE.complete(),
       EisA.complete(),
       EisV.complete(),
-      AisV.complete(),
+      AisV.complete()
     );
   }
 
@@ -309,7 +309,7 @@ class MemTribleDB {
       this.VAE.union(other.VAE),
       this.EisA.union(other.EisA),
       this.EisV.union(other.EisV),
-      this.AisV.union(other.AisV),
+      this.AisV.union(other.AisV)
     );
   }
 
@@ -323,7 +323,7 @@ class MemTribleDB {
       this.VAE.subtract(other.VAE),
       this.EisA.subtract(other.EisA),
       this.EisV.subtract(other.EisV),
-      this.AisV.subtract(other.AisV),
+      this.AisV.subtract(other.AisV)
     );
   }
 
@@ -337,7 +337,7 @@ class MemTribleDB {
       this.VAE.difference(other.VAE),
       this.EisA.difference(other.EisA),
       this.EisV.difference(other.EisV),
-      this.AisV.difference(other.AisV),
+      this.AisV.difference(other.AisV)
     );
   }
 
@@ -351,7 +351,7 @@ class MemTribleDB {
       this.VAE.intersect(other.VAE),
       this.EisA.intersect(other.EisA),
       this.EisV.intersect(other.EisV),
-      this.AisV.intersect(other.AisV),
+      this.AisV.intersect(other.AisV)
     );
   }
 
@@ -367,7 +367,7 @@ class MemTribleDB {
     //TODO make hash configurable and use transaction trible attr for type
     blake2s32(
       data.subarray(TRIBLE_SIZE),
-      data.subarray(TRIBLE_SIZE - VALUE_SIZE, TRIBLE_SIZE),
+      data.subarray(TRIBLE_SIZE - VALUE_SIZE, TRIBLE_SIZE)
     );
     return data;
   }

@@ -68,7 +68,7 @@ class WSConnector {
     }
     if (txn.length % TRIBLE_SIZE !== 0) {
       console.warn(
-        `Bad transaction, ${txn.length} is not a multiple of ${TRIBLE_SIZE}.`,
+        `Bad transaction, ${txn.length} is not a multiple of ${TRIBLE_SIZE}.`
       );
       return;
     }
@@ -86,9 +86,7 @@ class WSConnector {
     }
 
     this.inbox.commit((kb) =>
-      kb.withTribles(
-        contiguousTribles(txnTriblePayload),
-      )
+      kb.withTribles(contiguousTribles(txnTriblePayload))
     );
   }
 
@@ -128,7 +126,7 @@ class Box {
         };
       },
       (s) =>
-        this._subscriptions = this._subscriptions.filter((item) => item !== s),
+        (this._subscriptions = this._subscriptions.filter((item) => item !== s))
     );
     this._subscriptions.push(s);
     s.notify(this._kb);
@@ -140,23 +138,23 @@ class Box {
       const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
       const triplesWithVars = precompileTriples(ns, vars, triples);
       const changeSubscription = this.changes();
-      const constraintsSubscription = new Subscription((s, newKb, oldKB) => {
-        const {
-          difKB,
-          newKB,
-        } = changeSubscription.pull();
-        triplesWithVars.foreach(([e, a, v]) => {
-          v.proposeBlobDB(newKB.blobdb);
-        });
-        return {
-          constraints: triplesWithVars.map(([e, a, v]) =>
-            newKB.tribledb.constraint(e.index, a.index, v.index)
-          ),
-          oracles: triplesWithVars.map(([e, a, v]) =>
-            difKB.tribledb.constraint(e.index, a.index, v.index)
-          ),
-        };
-      }, (s) => changeSubscription.unsubscribe());
+      const constraintsSubscription = new Subscription(
+        (s, newKb, oldKB) => {
+          const { difKB, newKB } = changeSubscription.pull();
+          triplesWithVars.foreach(([e, a, v]) => {
+            v.proposeBlobDB(newKB.blobdb);
+          });
+          return {
+            constraints: triplesWithVars.map(([e, a, v]) =>
+              newKB.tribledb.constraint(e.index, a.index, v.index)
+            ),
+            oracles: triplesWithVars.map(([e, a, v]) =>
+              difKB.tribledb.constraint(e.index, a.index, v.index)
+            ),
+          };
+        },
+        (s) => changeSubscription.unsubscribe()
+      );
 
       changeSubscription.onNotify = (s, latest, pulled) => {
         constraintsSubscription.notify(latest);
@@ -202,21 +200,23 @@ class Subscription {
     const previousNotification = this._latestNotification;
     this._latestNotification = notification;
     if (
-      this._onNotify && !this._snoozed &&
-      (previousNotification !== notification)
+      this._onNotify &&
+      !this._snoozed &&
+      previousNotification !== notification
     ) {
       this._onNotify(this, notification, this._pulledNotification);
     }
   }
 
   pull() {
-    if (this._pulledNotification !== this._latestNotification) { //TODO should the comparison be configurable? Do we want to use ordering, e.g. pulled < latest?
+    if (this._pulledNotification !== this._latestNotification) {
+      //TODO should the comparison be configurable? Do we want to use ordering, e.g. pulled < latest?
       this._pulledNotification = this._latestNotification;
       this._snoozed = false;
       return this._getNext(
         this,
         this._latestNotification,
-        this._pulledNotification,
+        this._pulledNotification
       );
     }
   }
@@ -250,7 +250,7 @@ async function* search(ns, cfn) {
 
   for (const constantVariable of vars.constantVariables.values()) {
     staticConstraints.push(
-      constantConstraint(constantVariable.index, constantVariable.constant),
+      constantConstraint(constantVariable.index, constantVariable.constant)
     );
   }
 
@@ -261,35 +261,32 @@ async function* search(ns, cfn) {
 
     const constraints = staticConstraints.slice();
     for (const dynamicConstraintGroup of dynamicConstraintGroups) {
-      if (dynamicConstraintGroup.changes.head) {}
+      if (dynamicConstraintGroup.changes.head) {
+      }
     }
 
-    for (
-      const r of resolve(
-        constraints,
-        new OrderByMinCostAndBlockage(vars.projected, vars.blockedBy),
-        new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
-        vars.variables.map((_) => new Uint8Array(VALUE_SIZE)),
-      )
-    ) {
+    for (const r of resolve(
+      constraints,
+      new OrderByMinCostAndBlockage(vars.projected, vars.blockedBy),
+      new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
+      vars.variables.map((_) => new Uint8Array(VALUE_SIZE))
+    )) {
       const result = {};
-      for (
-        const {
-          index,
-          isWalked,
-          walkedKB,
-          walkedNS,
-          decoder,
-          name,
-          isOmit,
-          blobdb,
-        } of namedVariables
-      ) {
+      for (const {
+        index,
+        isWalked,
+        walkedKB,
+        walkedNS,
+        decoder,
+        name,
+        isOmit,
+        blobdb,
+      } of namedVariables) {
         if (!isOmit) {
           const encoded = r[index];
           const decoded = decoder(
             encoded.slice(0),
-            async () => await blobdb.get(encoded),
+            async () => await blobdb.get(encoded)
           );
           result[name] = isWalked
             ? walkedKB.walk(walkedNS || ns, decoded)

@@ -10,9 +10,9 @@ async function longstringDecoder(b, blob) {
   return new TextDecoder("utf-8").decode(await blob());
 }
 
-const longstring = ({
+const longstring = {
   encoder: longstringEncoder,
   decoder: longstringDecoder,
-});
+};
 
 export { longstring };

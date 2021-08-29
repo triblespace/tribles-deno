@@ -114,7 +114,7 @@ Deno.test("KB Find Single", () => {
 
         const knightskb = new KB(new MemTribleDB(), new MemBlobDB()).with(
           knightsNS,
-          () => [{ [id]: person.id, name: person.name, titles: person.titles }],
+          () => [{ [id]: person.id, name: person.name, titles: person.titles }]
         );
 
         /// Query some data.
@@ -124,8 +124,8 @@ Deno.test("KB Find Single", () => {
           ]),
         ];
         assertEquals(results, [{ name: person.name, title: person.titles[0] }]);
-      },
-    ),
+      }
+    )
   );
 });
 
@@ -167,7 +167,7 @@ Deno.test("Find Ascending", () => {
           titles: [title],
         }),
       ],
-      knightskb.blobdb,
+      knightskb.blobdb
     ),
   ];
   assertEquals(results, [
@@ -216,7 +216,7 @@ Deno.test("Find Descending", () => {
           titles: [title],
         }),
       ],
-      knightskb.blobdb,
+      knightskb.blobdb
     ),
   ];
   assertEquals(results, [
@@ -263,7 +263,7 @@ Deno.test("unique constraint", () => {
       ]);
     },
     Error,
-    "",
+    ""
   );
 });
 
@@ -297,7 +297,7 @@ Deno.test("unique inverse constraint", () => {
       ]);
     },
     Error,
-    "",
+    ""
   );
 });
 
@@ -372,7 +372,7 @@ Deno.test("KB Walk ownKeys", () => {
   ];
   assertEquals(
     new Set(Reflect.ownKeys(romeo)),
-    new Set([id, "name", "titles", "loves", "lovedBy"]),
+    new Set([id, "name", "titles", "loves", "lovedBy"])
   );
 });
 

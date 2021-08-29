@@ -2,9 +2,7 @@ import { emptyValuePACT } from "./pact.js";
 import { VALUE_SIZE } from "./trible.js";
 
 class MemBlobDB {
-  constructor(
-    blobs = emptyValuePACT,
-  ) {
+  constructor(blobs = emptyValuePACT) {
     this.blobs = blobs;
   }
 
@@ -35,8 +33,7 @@ class MemBlobDB {
   }
 
   isEqual(other) {
-    return (other instanceof MemBlobDB) &&
-      (this.blobs.isEqual(other.blobs));
+    return other instanceof MemBlobDB && this.blobs.isEqual(other.blobs);
   }
 
   merge(other) {
@@ -51,8 +48,7 @@ class MemBlobDB {
     valueCursor.push();
     const key = new Uint8Array(VALUE_SIZE);
     if (blobCursor.isValid() && valueCursor.isValid()) {
-      search:
-      while (true) {
+      search: while (true) {
         if (!valueCursor.peek(key)) break search;
         const match = blobCursor.seek(key);
         if (!blobCursor.peek(key)) break search;

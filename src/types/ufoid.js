@@ -9,7 +9,7 @@ function ufoidEncoder(v, b) {
   }
   b.fill(0, 0, b.length - 16);
   const bytes = new Uint8Array(
-    v.match(/.{2}/g).map((hex) => parseInt(hex, 16)),
+    v.match(/.{2}/g).map((hex) => parseInt(hex, 16))
   );
   b.set(bytes, b.length - 16);
   return null;

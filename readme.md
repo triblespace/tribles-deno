@@ -107,7 +107,7 @@ underlying tribles can be interpreted as needed, we can:
 - Decouple programming language types from value types. E.g. a timestamp can be
   read as different date types in the same query.
 - Allow the user to use approprate, self explanatory, names. One programmers
-  legacy\_date is another programmers sanity\_check\_date.
+  legacy_date is another programmers sanity_check_date.
 - Allow users to fix past mistakes or missunderstandings. Whenever a name in OWL
   is used it's used. Trible don't care about names, only about IDs.
 

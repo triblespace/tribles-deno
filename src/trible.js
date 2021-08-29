@@ -108,10 +108,7 @@ const equalValue = (valueA, valueB) => {
 const contiguousTribles = (tribles) => {
   const subarrays = [];
   for (let t = 0; t < tribles.length; t += TRIBLE_SIZE) {
-    subarrays.push(tribles.subarray(
-      t,
-      t + TRIBLE_SIZE,
-    ));
+    subarrays.push(tribles.subarray(t, t + TRIBLE_SIZE));
   }
   return subarrays;
 };

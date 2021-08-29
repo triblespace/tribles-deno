@@ -20,7 +20,7 @@ const nextKey = (key, ascending = true) => {
 
 const SESSION_SEED = [...crypto.getRandomValues(new Uint32Array(16))].reduce(
   (acc, v, i) => acc | (BigInt(v) << BigInt(i * 4)),
-  0n,
+  0n
 );
 function PACTHash(key) {
   if (key.__cached_XXH3_128 === undefined) {
@@ -63,8 +63,8 @@ const nextBit = (bitmap, bitPosition) => {
 
 const prevBit = (bitmap, bitPosition) => {
   let wordPosition = bitPosition >>> 5;
-  const c = 31 -
-    ctz32(bitmap[wordPosition] & (-1 << (31 - (bitPosition & 0b11111))));
+  const c =
+    31 - ctz32(bitmap[wordPosition] & (-1 << (31 - (bitPosition & 0b11111))));
   if (c !== -1) return (wordPosition << 5) + c;
   for (wordPosition--; 0 <= wordPosition; wordPosition--) {
     const c = 31 - ctz32(bitmap[wordPosition]);
@@ -88,7 +88,7 @@ const makePACT = function (SEGMENTS) {
   const SEGMENT_LUT = [...SEGMENTS, 1].flatMap((l, i) => new Array(l).fill(i));
   const SEGMENT_PREFIXES = SEGMENTS.reduce(
     (a, n) => [...a, a[a.length - 1] + n],
-    [0, 0],
+    [0, 0]
   );
   const SEGMENT_INFIXES = [0, ...SEGMENTS];
 
@@ -143,8 +143,7 @@ const makePACT = function (SEGMENTS) {
     seek(infix) {
       if (this.valid) {
         let depth = 0;
-        search:
-        for (; depth < KEY_LENGTH; depth++) {
+        search: for (; depth < KEY_LENGTH; depth++) {
           const sought = infix[depth];
           [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[
             depth
@@ -159,8 +158,7 @@ const makePACT = function (SEGMENTS) {
         if (depth === KEY_LENGTH) {
           return true;
         }
-        backtrack:
-        while (this.pathNodes[depth + 1] === null) {
+        backtrack: while (this.pathNodes[depth + 1] === null) {
           depth--;
           if (depth < 0) {
             this.valid = false;
@@ -257,8 +255,7 @@ const makePACT = function (SEGMENTS) {
             return false;
           }
         }
-        search:
-        for (; depth < searchDepth; depth++) {
+        search: for (; depth < searchDepth; depth++) {
           const soughtByte = soughtInfix[depth - prefixLen + infixZeroed];
           [this.pathBytes[depth], this.pathNodes[depth + 1]] = this.pathNodes[
             depth
@@ -273,8 +270,7 @@ const makePACT = function (SEGMENTS) {
         if (depth === searchDepth) {
           return true;
         }
-        backtrack:
-        while (this.pathNodes[depth + 1] === null) {
+        backtrack: while (this.pathNodes[depth + 1] === null) {
           depth--;
           if (depth < prefixLen) {
             this.valid[this.segmentDepth] = false;
@@ -313,11 +309,11 @@ const makePACT = function (SEGMENTS) {
           keyDepth < segmentEndDepth;
           keyDepth++
         ) {
-          [this.pathBytes[keyDepth], this.pathNodes[keyDepth + 1]] = this
-            .pathNodes[keyDepth].seek(
+          [this.pathBytes[keyDepth], this.pathNodes[keyDepth + 1]] =
+            this.pathNodes[keyDepth].seek(
               keyDepth,
               ascending ? 0 : 255,
-              ascending,
+              ascending
             );
           if (this.pathNodes[keyDepth + 1] === null) {
             this.valid[this.segmentDepth] = false;
@@ -354,8 +350,7 @@ const makePACT = function (SEGMENTS) {
 
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
     let [rightIndex, rightChild] = rightNode.seek(branchDepth, 0, true);
-    search:
-    while (true) {
+    search: while (true) {
       if (leftChild === null && rightChild === null) break search;
 
       if (
@@ -372,7 +367,7 @@ const makePACT = function (SEGMENTS) {
         [leftIndex, leftChild] = leftNode.seek(
           branchDepth,
           leftIndex + 1,
-          true,
+          true
         );
         continue search;
       }
@@ -391,7 +386,7 @@ const makePACT = function (SEGMENTS) {
         [rightIndex, rightChild] = rightNode.seek(
           branchDepth,
           rightIndex + 1,
-          true,
+          true
         );
         continue search;
       }
@@ -401,9 +396,10 @@ const makePACT = function (SEGMENTS) {
       setBit(childbits, leftIndex);
       children[leftIndex] = union;
       hash = hash ^ union.hash;
-      segmentCount = SEGMENT_LUT[branchDepth] === SEGMENT_LUT[union.branchDepth]
-        ? segmentCount + union.segmentCount
-        : segmentCount + 1;
+      segmentCount =
+        SEGMENT_LUT[branchDepth] === SEGMENT_LUT[union.branchDepth]
+          ? segmentCount + union.segmentCount
+          : segmentCount + 1;
 
       const nextIndex = leftIndex + 1;
       [leftIndex, leftChild] = leftNode.seek(branchDepth, nextIndex, true);
@@ -416,7 +412,7 @@ const makePACT = function (SEGMENTS) {
       children,
       hash,
       segmentCount,
-      {},
+      {}
     );
   }
 
@@ -438,8 +434,7 @@ const makePACT = function (SEGMENTS) {
 
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
     let [rightIndex, rightChild] = rightNode.seek(branchDepth, leftIndex, true);
-    search:
-    while (true) {
+    search: while (true) {
       if (leftChild === null) break search;
 
       if (rightChild === null || leftIndex < rightIndex) {
@@ -453,7 +448,7 @@ const makePACT = function (SEGMENTS) {
         [leftIndex, leftChild] = leftNode.seek(
           branchDepth,
           leftIndex + 1,
-          true,
+          true
         );
         continue search;
       }
@@ -486,7 +481,7 @@ const makePACT = function (SEGMENTS) {
       children,
       hash,
       segmentCount,
-      {},
+      {}
     );
   }
 
@@ -508,8 +503,7 @@ const makePACT = function (SEGMENTS) {
 
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
     let [rightIndex, rightChild] = rightNode.seek(branchDepth, leftIndex, true);
-    search:
-    while (true) {
+    search: while (true) {
       if (leftChild === null || rightChild === null) break search;
 
       if (leftIndex < rightIndex) {
@@ -544,7 +538,7 @@ const makePACT = function (SEGMENTS) {
       children,
       hash,
       segmentCount,
-      {},
+      {}
     );
   }
 
@@ -564,8 +558,7 @@ const makePACT = function (SEGMENTS) {
 
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
     let [rightIndex, rightChild] = rightNode.seek(branchDepth, 0, true);
-    search:
-    while (true) {
+    search: while (true) {
       if (leftChild === null && rightChild === null) break search;
 
       if (
@@ -582,7 +575,7 @@ const makePACT = function (SEGMENTS) {
         [leftIndex, leftChild] = leftNode.seek(
           branchDepth,
           leftIndex + 1,
-          true,
+          true
         );
         continue search;
       }
@@ -601,7 +594,7 @@ const makePACT = function (SEGMENTS) {
         [rightIndex, rightChild] = rightNode.seek(
           branchDepth,
           rightIndex + 1,
-          true,
+          true
         );
         continue search;
       }
@@ -631,7 +624,7 @@ const makePACT = function (SEGMENTS) {
       children,
       hash,
       segmentCount,
-      {},
+      {}
     );
   }
 
@@ -678,8 +671,7 @@ const makePACT = function (SEGMENTS) {
 
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
     let [rightIndex, rightChild] = rightNode.seek(branchDepth, leftIndex, true);
-    search:
-    while (true) {
+    search: while (true) {
       if (leftChild === null || rightChild === null) return false;
 
       if (leftIndex < rightIndex) {
@@ -928,7 +920,7 @@ const makePACT = function (SEGMENTS) {
         nchildren,
         hash,
         2,
-        owner,
+        owner
       );
     }
   };
@@ -941,7 +933,7 @@ const makePACT = function (SEGMENTS) {
       children,
       hash,
       segmentCount,
-      owner,
+      owner
     ) {
       this.key = key;
       this.branchDepth = branchDepth;
@@ -1003,7 +995,7 @@ const makePACT = function (SEGMENTS) {
               segmentCount,
               this.segmentCount,
               oldChildCount,
-              nchild.segmentCount,
+              nchild.segmentCount
             );
           }
           if (this.owner === owner) {
@@ -1039,7 +1031,7 @@ const makePACT = function (SEGMENTS) {
           nchildren,
           hash,
           segmentCount,
-          owner,
+          owner
         );
       }
 
@@ -1066,7 +1058,7 @@ const makePACT = function (SEGMENTS) {
         nchildren,
         hash,
         segmentCount,
-        owner,
+        owner
       );
     }
   };
