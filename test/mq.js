@@ -25,8 +25,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const { nameId, lovesId, titlesId, motherOfId } = UFOID
-  .namedCache();
+const { nameId, lovesId, titlesId, motherOfId } = UFOID.namedCache();
 
 globalInvariants({
   [nameId]: { isUnique: true },
@@ -53,20 +52,16 @@ Deno.test({
 
     const kb = new KB(
       new TribleSet(),
-      new S3BlobCache(
-        {
-          region: "local",
-          accessKeyID: "jeanluc",
-          secretKey: "teaearlgreyhot",
-          endpointURL: "https://localhost:9000",
-          bucket: "denotest",
-        },
-      ),
+      new S3BlobCache({
+        region: "local",
+        accessKeyID: "jeanluc",
+        secretKey: "teaearlgreyhot",
+        endpointURL: "https://localhost:9000",
+        bucket: "denotest",
+      })
     );
 
-    const knightskb = kb.with(knightsNS, (
-      [romeo, juliet],
-    ) => [
+    const knightskb = kb.with(knightsNS, ([romeo, juliet]) => [
       {
         [id]: romeo,
         name: "Romeo",
@@ -80,9 +75,7 @@ Deno.test({
         loves: romeo,
       },
     ]);
-    const knightskb2 = knightskb.with(knightsNS, (
-      [william],
-    ) => [
+    const knightskb2 = knightskb.with(knightsNS, ([william]) => [
       {
         [id]: william,
         name: "William",
@@ -102,7 +95,8 @@ Deno.test({
 
     let slept = 0;
     while (
-      !inbox.get().tribleset.isEqual(outbox.get().tribleset) && slept < 1000
+      !inbox.get().tribleset.isEqual(outbox.get().tribleset) &&
+      slept < 1000
     ) {
       await sleep(10);
       slept += 10;

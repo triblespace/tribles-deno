@@ -235,7 +235,7 @@ class OrderByMinCostAndBlockage {
           (this.projectCount === 0 || this.projected.has(variable)) &&
           this.blockedBy.every(
             ([blocked, blocker]) =>
-              variable !== blocked || this.exploredVariables.has(blocker),
+              variable !== blocked || this.exploredVariables.has(blocker)
           )
         ) {
           candidateVariable = variable;
@@ -298,7 +298,7 @@ function* resolve(constraints, ordering, ascendingVariables, bindings) {
           constraints,
           ordering,
           ascendingVariables,
-          bindings,
+          bindings
         );
         hasResult ||= newHasResult;
         if (

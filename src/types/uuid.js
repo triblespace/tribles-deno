@@ -20,10 +20,10 @@ function uuidDecoder(b, blob) {
   return bytesToUuid(b.subarray(b.length - 16));
 }
 
-const uuid = ({
+const uuid = {
   encoder: uuidEncoder,
   decoder: uuidDecoder,
   factory: v4,
-});
+};
 
 export { uuid };

@@ -6,10 +6,9 @@ const TRIBLES_PROTOCOL = "tribles";
 export function filterTrustedPolicy(publicKeys, inbox) {
   const keyIndex = publicKeys.reduce(
     (pact, key) => pact.put(key),
-    emptyValuePACT,
+    emptyValuePACT
   );
-  return ({ publicKey, kb }) => {
-  };
+  return ({ publicKey, kb }) => {};
 }
 
 class WSConnector extends EventTarget {
@@ -74,7 +73,7 @@ class WSConnector extends EventTarget {
     }
     if (txn.length % TRIBLE_SIZE !== 0) {
       console.warn(
-        `Bad transaction, ${txn.length} is not a multiple of ${TRIBLE_SIZE}.`,
+        `Bad transaction, ${txn.length} is not a multiple of ${TRIBLE_SIZE}.`
       );
       return;
     }
@@ -100,8 +99,7 @@ class WSConnector extends EventTarget {
     return this;
   }
 
-  async send(kb) {
-  }
+  async send(kb) {}
 }
 
 export { WSConnector };

@@ -69,7 +69,7 @@ export const UFOID = {
         defineProperty: function (_, attr) {
           throw TypeError("Error: Named UFOID cache is not writable.");
         },
-      },
+      }
     );
   },
 };

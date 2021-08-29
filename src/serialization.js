@@ -21,7 +21,7 @@ async function serializetribleset(tribleset, privateKey) {
   const payloadLengthView = new Uint32Array(
     data.buffer,
     data.byteOffset + 24,
-    2,
+    2
   );
   payloadLengthView[1] = payloadLength & 0x00000000ffffffff;
   payloadLengthView[0] = payloadLength & 0xffffffff00000000;
@@ -29,7 +29,7 @@ async function serializetribleset(tribleset, privateKey) {
   return data;
 }
 
-async function readTxnType();
+async function readTxnType() {}
 
 async function readTxnMarker(bytes) {
   if (bytes.length < MARKER_SIZE) return null;
@@ -98,5 +98,4 @@ export async function* readAllTxns(bytes) {
   }
 }
 
-export async function serialize(kb) {
-}
+export async function serialize(kb) {}

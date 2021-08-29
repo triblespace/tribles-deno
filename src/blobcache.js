@@ -2,10 +2,7 @@ import { emptyValuePACT } from "./pact.js";
 import { VALUE_SIZE } from "./trible.js";
 
 class BlobCache {
-  constructor(
-    blobs = emptyValuePACT,
-    missHandlers = new Set(),
-  ) {
+  constructor(blobs = emptyValuePACT, missHandlers = new Set()) {
     this.blobs = blobs;
     this.missHandlers = missHandlers;
   }
@@ -43,7 +40,7 @@ class BlobCache {
   merge(other) {
     return new BlobCache(
       this.blobs.union(other.blobs),
-      new Set([...this.missHandlers, ...other.missHandlers]),
+      new Set([...this.missHandlers, ...other.missHandlers])
     );
   }
 
@@ -55,8 +52,7 @@ class BlobCache {
     valueCursor.push();
     const key = new Uint8Array(VALUE_SIZE);
     if (blobCursor.isValid() && valueCursor.isValid()) {
-      search:
-      while (true) {
+      search: while (true) {
         if (!valueCursor.peek(key)) break search;
         const match = blobCursor.seek(key);
         if (!blobCursor.peek(key)) break search;

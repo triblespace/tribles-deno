@@ -7,7 +7,7 @@ class S3Connector {
     config,
     bucket = new S3Bucket(config),
     pendingWrites = [],
-    localBlobCache = new Map(),
+    localBlobCache = new Map()
   ) {
     this.config = config;
     this.bucket = bucket;
@@ -30,10 +30,9 @@ class S3Connector {
         promise: null,
         resolved: false,
       };
-      pendingWrite.promise = this.bucket.putObject(
-        blobName,
-        blob,
-      ).then(() => pendingWrite.resolved = true);
+      pendingWrite.promise = this.bucket
+        .putObject(blobName, blob)
+        .then(() => (pendingWrite.resolved = true));
       pendingWrites.push(pendingWrite);
       if (!this.localBlobCache.get(blobName)?.deref()) {
         this.localBlobCache.set(blobName, new WeakRef(blob));
@@ -44,7 +43,7 @@ class S3Connector {
       this.config,
       this.bucket,
       pendingWrites,
-      this.localBlobCache,
+      this.localBlobCache
     );
   }
 
@@ -62,13 +61,14 @@ class S3Connector {
   }
 
   async flush() {
-    const reasons =
-      (await Promise.allSettled(this.pendingWrites.map((pw) => pw.promise)))
-        .filter((r) => r.status === "rejected")
-        .map((r) => r.reason);
+    const reasons = (
+      await Promise.allSettled(this.pendingWrites.map((pw) => pw.promise))
+    )
+      .filter((r) => r.status === "rejected")
+      .map((r) => r.reason);
     if (reasons.length !== 0) {
       const e = Error(
-        "Couldn't flush S3BlobCache, some puts returned errors. See error.reasons for more info.",
+        "Couldn't flush S3BlobCache, some puts returned errors. See error.reasons for more info."
       );
       e.reasons = reasons;
       throw e;

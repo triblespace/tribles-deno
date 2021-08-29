@@ -32,45 +32,35 @@ function kbWith(b, size) {
   let knightskb = new KB(new TribleSet(), new BlobCache());
 
   b.start();
-  knightskb = knightskb.with(
-    knightsNS,
-    (
-      [romeo, juliet],
-    ) => [
+  knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
+    {
+      [id]: romeo,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeo,
+    },
+  ]);
+  for (let i = 1; i < size; i++) {
+    knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
       {
         [id]: romeo,
-        name: "Romeo",
+        name: `Romeo${i}`,
         titles: ["fool", "prince"],
         loves: juliet,
       },
       {
         [id]: juliet,
-        name: "Juliet",
+        name: `Juliet${i}`,
         titles: ["the lady", "princess"],
         loves: romeo,
       },
-    ],
-  );
-  for (let i = 1; i < size; i++) {
-    knightskb = knightskb.with(
-      knightsNS,
-      (
-        [romeo, juliet],
-      ) => [
-        {
-          [id]: romeo,
-          name: `Romeo${i}`,
-          titles: ["fool", "prince"],
-          loves: juliet,
-        },
-        {
-          [id]: juliet,
-          name: `Juliet${i}`,
-          titles: ["the lady", "princess"],
-          loves: romeo,
-        },
-      ],
-    );
+    ]);
   }
   b.stop();
 }
@@ -79,61 +69,48 @@ function kbQuery(b, size) {
   // Add some data.
   let knightskb = new KB(new TribleSet(), new BlobCache());
 
-  knightskb = knightskb.with(
-    knightsNS,
-    (
-      [romeo, juliet],
-    ) => [
+  knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
+    {
+      [id]: romeo,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeo,
+    },
+  ]);
+  for (let i = 1; i < size; i++) {
+    knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
       {
         [id]: romeo,
-        name: "Romeo",
+        name: `Romeo${i}`,
         titles: ["fool", "prince"],
         loves: juliet,
       },
       {
         [id]: juliet,
-        name: "Juliet",
+        name: `Juliet${i}`,
         titles: ["the lady", "princess"],
         loves: romeo,
       },
-    ],
-  );
-  for (let i = 1; i < size; i++) {
-    knightskb = knightskb.with(
-      knightsNS,
-      (
-        [romeo, juliet],
-      ) => [
-        {
-          [id]: romeo,
-          name: `Romeo${i}`,
-          titles: ["fool", "prince"],
-          loves: juliet,
-        },
-        {
-          [id]: juliet,
-          name: `Juliet${i}`,
-          titles: ["the lady", "princess"],
-          loves: romeo,
-        },
-      ],
-    );
+    ]);
   }
   b.start();
   // Query some data.
   const results = [
-    ...find(
-      knightsNS,
-      (
-        { name, title },
-      ) => [knightskb.where([
+    ...find(knightsNS, ({ name, title }) => [
+      knightskb.where([
         {
           name: name,
           titles: [title],
           loves: { name: "Juliet" },
         },
-      ])],
-    ),
+      ]),
+    ]),
   ];
   console.log(results.length);
   b.stop();
