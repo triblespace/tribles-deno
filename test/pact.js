@@ -15,8 +15,27 @@ import {
 } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
 import { equal, equalValue } from "../src/trible.js";
-import { emptyTriblePACT, emptyValuePACT } from "../src/pact.js";
+import { makePACT, emptyTriblePACT, emptyValuePACT } from "../src/pact.js";
 
+const arb_number_of_segments = fc.integer({ min: 1, max: 8 });
+const arb_segment_size = fc.integer({ min: 1, max: 8 });
+const arb_segment_sizes = arb_number_of_segments.chain((n) =>
+  fc.array(arb_segment_size, { minLength: n, maxLength: n })
+);
+
+const make_arb_segmented_key = (segments) =>
+  fc
+    .tuple(
+      ...segments.map((s) => fc.uint8Array({ minLength: s, maxLength: s }))
+    )
+    .map((t) => new Uint8Array(t.flatMap((a) => [...a])));
+
+const arb_pact_and_content = arb_segment_sizes.chain((segments) =>
+  fc.tuple(
+    fc.constant(makePACT(segments)),
+    fc.array(fc.array(make_arb_segmented_key(segments)))
+  )
+);
 const e = fc.uint8Array({ minLength: 16, maxLength: 16 });
 const a = fc.uint8Array({ minLength: 16, maxLength: 16 });
 const v = fc.uint8Array({ minLength: 32, maxLength: 32 });
@@ -227,10 +246,10 @@ Deno.test("segment count batched", () => {
 
 Deno.test("segment count positive", () => {
   fc.assert(
-    fc.property(tribles, (vs) => {
-      const pact = vs.reduce((pact, v) => pact.put(v), emptyTriblePACT);
+    fc.property(arb_pact_and_content, ([pact, content]) => {
+      const filled_pact = content.flat().reduce((p, k) => p.put(k), pact);
 
-      const work = [pact.child];
+      const work = [filled_pact.child];
       while (work.length > 0) {
         const c = work.shift();
         if (!c) continue;
@@ -243,13 +262,13 @@ Deno.test("segment count positive", () => {
 
 Deno.test("segment count positive batched", () => {
   fc.assert(
-    fc.property(tribles, tribles, (vs, os) => {
-      let pact = vs
-        .reduce((pact, v) => pact.put(v), emptyTriblePACT.batch())
-        .complete();
-      pact = os.reduce((pact, v) => pact.put(v), pact.batch()).complete();
+    fc.property(arb_pact_and_content, ([pact, content]) => {
+      const filled_pact = content.reduce(
+        (p1, txn) => txn.reduce((p2, k) => p2.put(k), p1.batch()).complete(),
+        pact
+      );
 
-      const work = [pact.child];
+      const work = [filled_pact.child];
       while (work.length > 0) {
         const c = work.shift();
         if (!c) continue;
