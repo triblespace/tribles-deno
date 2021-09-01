@@ -578,8 +578,6 @@ const precompileTriples = (ns, vars, triples) => {
             0,
             -1
           )}]:\n Variables at positions use incompatible types.`
-            entity.decoder.name
-          }' and '${idDecoder.name}'.`
         );
       entity.decoder = idDecoder;
       entity.encoder = idEncoder;

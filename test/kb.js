@@ -468,7 +468,7 @@ Deno.test("KB Walk ownKeys", () => {
   );
 });
 
-Deno.test("InMemoryDB PACT segmentCount positive", () => {
+Deno.test("TribleSet PACT segmentCount positive", () => {
   const size = 3;
 
   const knightsNS = namespace({
@@ -480,7 +480,7 @@ Deno.test("InMemoryDB PACT segmentCount positive", () => {
   });
 
   // Add some data.
-  let knightskb = new KB(new MemTribleDB(), new MemBlobDB());
+  let knightskb = new KB(new TribleSet(), new BlobCache());
 
   knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
     {
