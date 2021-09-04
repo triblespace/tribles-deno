@@ -105,9 +105,9 @@ function kbQuery(b, size) {
     ...find(knightsNS, ({ name, title }) => [
       knightskb.where([
         {
-          name: "Romeo",
+          name,
           titles: [title],
-          loves: { name },
+          loves: { name: "Juliet" },
         },
       ]),
     ]),
@@ -115,18 +115,18 @@ function kbQuery(b, size) {
   //console.log(results.length);
   b.stop();
 }
-
+/*
 bench({
-  name: "kbWith1e4",
+  name: "kbWith1e5",
   runs: 3,
   func(b) {
-    kbWith(b, 1e4);
+    kbWith(b, 1e5);
   },
 });
-
+*/
 bench({
   name: "kbQuery1e4",
-  runs: 10,
+  runs: 3,
   func(b) {
     kbQuery(b, 1e4);
   },

@@ -90,7 +90,7 @@ const makePACT = function (SEGMENTS) {
   const SEGMENT_LUT = [...SEGMENTS].flatMap((l, i) => new Array(l).fill(i));
   SEGMENT_LUT.push(SEGMENT_LUT[SEGMENT_LUT.length - 1]);
   const SEGMENT_PREFIXES = SEGMENTS.reduce(
-    (a, n) => [...a, a[a.length - 1] + n],
+    (a, segment_size) => [...a, a[a.length - 1] + segment_size],
     [0, 0]
   );
   const SEGMENT_INFIXES = [0, ...SEGMENTS];
@@ -206,7 +206,7 @@ const makePACT = function (SEGMENTS) {
     }
     segmentCount() {
       if (!this.valid[this.segmentDepth]) return 0;
-      const prefixLen = SEGMENT_PREFIXES[this.segmentDepth];
+      const prefixLen = SEGMENT_PREFIXES[this.segmentDepth + 1];
       const node = this.pathNodes[prefixLen];
       // Because a pact might compress an entire segment within a node below it,
       // we need to make sure that our current node is actually inside that
@@ -235,7 +235,7 @@ const makePACT = function (SEGMENTS) {
  Seek example:
 
      • segmentDepth = 2  ──────────┐
-                            ▼
+                                   ▼
                     ┌──────────────┐
     ┌──────────────┐┌──────────────┐┌──────────────────────────────┐
     │  Segment E   ││  Segment A   ││          Segment V           │

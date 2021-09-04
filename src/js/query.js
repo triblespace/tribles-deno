@@ -243,7 +243,7 @@ class OrderByMinCostAndBlockage {
         }
       }
     }
-    console.log(this.exploredVariables, candidateVariable, candidateCosts);
+    //console.log(this.exploredVariables, candidateVariable, candidateCosts);
     return candidateVariable;
   }
 
