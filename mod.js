@@ -1,5 +1,5 @@
-import { Box } from "./src/box.js";
-import { WSConnector } from "./src/connectors/wsconnector.js";
+import { Box } from "./src/js/box.js";
+//import { WSConnector } from "./src/js/connectors/wsconnector.js";
 import {
   entitiesToTriples,
   find,
@@ -8,17 +8,17 @@ import {
   id,
   KB,
   namespace,
-} from "./src/kb.js";
-import { types } from "./src/types.js";
-import { TribleSet } from "./src/tribleset.js";
-import { BlobCache } from "./src/blobcache.js";
-import { emptyTriblePACT, emptyValuePACT, makePACT } from "./src/pact.js";
-import { UFOID } from "./src/ufoid.js";
+} from "./src/js/kb.js";
+import { types } from "./src/js/types.js";
+import { TribleSet } from "./src/js/tribleset.js";
+import { BlobCache } from "./src/js/blobcache.js";
+import { emptyTriblePACT, emptyValuePACT, makePACT } from "./src/js/pact.js";
+import { UFOID } from "./src/js/ufoid.js";
 
 export {
   BlobCache,
   Box,
-  emptyTriblePACT as TRIBLE_PACT,
+  emptyTriblePACT,
   emptyValuePACT,
   entitiesToTriples,
   find,
@@ -31,5 +31,5 @@ export {
   TribleSet,
   types,
   UFOID,
-  WSConnector,
+  //WSConnector,
 };

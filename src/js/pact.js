@@ -1,10 +1,14 @@
 import { ID_SIZE, VALUE_SIZE } from "./trible.js";
-import { XXH3_128 } from "./xxh128.js";
+import {
+  xxh_digest,
+  hash_combine,
+  hash_equal,
+  hash_update,
+} from "../../pkg/functions_lib.js";
 
 // Perstistent Adaptive Cuckoo Trie (PACT)
 
 //TODO Variadic set operations that use cursor jumping for more efficiency on multiple inputs.
-//This implementation is limited to keys with 16<= key.length <= 64.
 
 const nextKey = (key, ascending = true) => {
   for (let i = key.length - 1; 0 <= i; i--) {
@@ -18,13 +22,11 @@ const nextKey = (key, ascending = true) => {
   return false;
 };
 
-const SESSION_SEED = [...crypto.getRandomValues(new Uint32Array(16))].reduce(
-  (acc, v, i) => acc | (BigInt(v) << BigInt(i * 4)),
-  0n
-);
+const SESSION_SEED = crypto.getRandomValues(new Uint8Array(192));
+
 function PACTHash(key) {
   if (key.__cached_XXH3_128 === undefined) {
-    key.__cached_XXH3_128 = XXH3_128(key, SESSION_SEED);
+    key.__cached_XXH3_128 = xxh_digest(key, SESSION_SEED);
   }
   return key.__cached_XXH3_128;
 }
@@ -85,7 +87,8 @@ const noBit = (bitmap) =>
 
 const makePACT = function (SEGMENTS) {
   const KEY_LENGTH = SEGMENTS.reduce((a, n) => a + n, 0);
-  const SEGMENT_LUT = [...SEGMENTS, 1].flatMap((l, i) => new Array(l).fill(i));
+  const SEGMENT_LUT = [...SEGMENTS].flatMap((l, i) => new Array(l).fill(i));
+  SEGMENT_LUT.push(SEGMENT_LUT[SEGMENT_LUT.length - 1]);
   const SEGMENT_PREFIXES = SEGMENTS.reduce(
     (a, n) => [...a, a[a.length - 1] + n],
     [0, 0]
@@ -205,6 +208,9 @@ const makePACT = function (SEGMENTS) {
       if (!this.valid[this.segmentDepth]) return 0;
       const prefixLen = SEGMENT_PREFIXES[this.segmentDepth];
       const node = this.pathNodes[prefixLen];
+      // Because a pact might compress an entire segment within a node below it,
+      // we need to make sure that our current node is actually inside that
+      // segment and not in a segment below it.
       if (SEGMENT_LUT[prefixLen] === SEGMENT_LUT[node.branchDepth]) {
         return node.segmentCount;
       } else {
@@ -333,7 +339,7 @@ const makePACT = function (SEGMENTS) {
   };
 
   function _union(leftNode, rightNode, depth = 0) {
-    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) {
+    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
       return leftNode;
     }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
@@ -345,7 +351,7 @@ const makePACT = function (SEGMENTS) {
 
     const childbits = new Uint32Array(8);
     const children = [];
-    let hash = 0n;
+    let hash = new Uint8Array(16);
     let segmentCount = 0;
 
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
@@ -359,7 +365,7 @@ const makePACT = function (SEGMENTS) {
       ) {
         setBit(childbits, leftIndex);
         children[leftIndex] = leftChild;
-        hash = hash ^ leftChild.hash;
+        hash = hash_combine(hash, leftChild.hash);
         segmentCount =
           SEGMENT_LUT[branchDepth] === SEGMENT_LUT[leftChild.branchDepth]
             ? segmentCount + leftChild.segmentCount
@@ -378,7 +384,7 @@ const makePACT = function (SEGMENTS) {
       ) {
         setBit(childbits, rightIndex);
         children[rightIndex] = rightChild;
-        hash = hash ^ rightChild.hash;
+        hash = hash_combine(hash, rightChild.hash);
         segmentCount =
           SEGMENT_LUT[branchDepth] === SEGMENT_LUT[rightChild.branchDepth]
             ? segmentCount + rightChild.segmentCount
@@ -395,7 +401,7 @@ const makePACT = function (SEGMENTS) {
       const union = _union(leftChild, rightChild, branchDepth + 1);
       setBit(childbits, leftIndex);
       children[leftIndex] = union;
-      hash = hash ^ union.hash;
+      hash = hash_combine(hash, union.hash);
       segmentCount =
         SEGMENT_LUT[branchDepth] === SEGMENT_LUT[union.branchDepth]
           ? segmentCount + union.segmentCount
@@ -417,7 +423,8 @@ const makePACT = function (SEGMENTS) {
   }
 
   function _subtract(leftNode, rightNode, depth = 0) {
-    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) return null;
+    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH)
+      return null;
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     let branchDepth = depth;
     for (; branchDepth < maxDepth; branchDepth++) {
@@ -430,7 +437,7 @@ const makePACT = function (SEGMENTS) {
     const children = [];
     const childbits = new Uint32Array(8);
     let segmentCount = 0;
-    let hash = 0n;
+    let hash = new Uint8Array(16);
 
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
     let [rightIndex, rightChild] = rightNode.seek(branchDepth, leftIndex, true);
@@ -440,7 +447,7 @@ const makePACT = function (SEGMENTS) {
       if (rightChild === null || leftIndex < rightIndex) {
         setBit(childbits, leftIndex);
         children[leftIndex] = leftChild;
-        hash = hash ^ leftChild.hash;
+        hash = hash_combine(hash, leftChild.hash);
         segmentCount =
           SEGMENT_LUT[branchDepth] === SEGMENT_LUT[leftChild.branchDepth]
             ? segmentCount + leftChild.segmentCount
@@ -463,7 +470,7 @@ const makePACT = function (SEGMENTS) {
       if (diff !== null) {
         setBit(childbits, leftIndex);
         children[leftIndex] = diff;
-        hash = hash ^ diff.hash;
+        hash = hash_combine(hash, diff.hash);
         segmentCount =
           SEGMENT_LUT[branchDepth] === SEGMENT_LUT[diff.branchDepth]
             ? segmentCount + diff.segmentCount
@@ -486,7 +493,7 @@ const makePACT = function (SEGMENTS) {
   }
 
   function _intersect(leftNode, rightNode, depth = 0) {
-    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) {
+    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
       return leftNode;
     }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
@@ -498,7 +505,7 @@ const makePACT = function (SEGMENTS) {
 
     const childbits = new Uint32Array(8);
     const children = [];
-    let hash = 0n;
+    let hash = new Uint8Array(16);
     let segmentCount = 0;
 
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
@@ -521,7 +528,7 @@ const makePACT = function (SEGMENTS) {
       if (intersection !== null) {
         setBit(childbits, leftIndex);
         children[leftIndex] = intersection;
-        hash = hash ^ intersection.hash;
+        hash = hash_combine(hash, intersection.hash);
         segmentCount =
           SEGMENT_LUT[branchDepth] === SEGMENT_LUT[intersection.branchDepth]
             ? segmentCount + intersection.segmentCount
@@ -543,7 +550,8 @@ const makePACT = function (SEGMENTS) {
   }
 
   function _difference(leftNode, rightNode, depth = 0) {
-    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) return null;
+    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH)
+      return null;
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     let branchDepth = depth;
     for (; branchDepth < maxDepth; branchDepth++) {
@@ -553,7 +561,7 @@ const makePACT = function (SEGMENTS) {
 
     const childbits = new Uint32Array(8);
     const children = [];
-    let hash = 0n;
+    let hash = new Uint8Array(16);
     let segmentCount = 0;
 
     let [leftIndex, leftChild] = leftNode.seek(branchDepth, 0, true);
@@ -567,7 +575,7 @@ const makePACT = function (SEGMENTS) {
       ) {
         setBit(childbits, leftIndex);
         children[leftIndex] = leftChild;
-        hash = hash ^ leftChild.hash;
+        hash = hash_combine(hash, leftChild.hash);
         segmentCount =
           SEGMENT_LUT[branchDepth] === SEGMENT_LUT[leftChild.branchDepth]
             ? segmentCount + leftChild.segmentCount
@@ -586,7 +594,7 @@ const makePACT = function (SEGMENTS) {
       ) {
         setBit(childbits, rightIndex);
         children[rightIndex] = rightChild;
-        hash = hash ^ rightChild.hash;
+        hash = hash_combine(hash, rightChild.hash);
         segmentCount =
           SEGMENT_LUT[branchDepth] === SEGMENT_LUT[rightChild.branchDepth]
             ? segmentCount + rightChild.segmentCount
@@ -604,7 +612,7 @@ const makePACT = function (SEGMENTS) {
       if (difference !== null) {
         setBit(childbits, leftIndex);
         children[leftIndex] = difference;
-        hash = hash ^ difference.hash;
+        hash = hash_combine(hash, difference.hash);
         segmentCount =
           SEGMENT_LUT[branchDepth] === SEGMENT_LUT[difference.branchDepth]
             ? segmentCount + difference.segmentCount
@@ -629,7 +637,8 @@ const makePACT = function (SEGMENTS) {
   }
 
   function _isSubsetOf(leftNode, rightNode, depth = 0) {
-    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) return true;
+    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH)
+      return true;
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     let branchDepth = depth;
     for (; branchDepth < maxDepth; branchDepth++) {
@@ -659,7 +668,8 @@ const makePACT = function (SEGMENTS) {
   }
 
   function _isIntersecting(leftNode, rightNode, depth = 0) {
-    if (leftNode.hash === rightNode.hash || depth === KEY_LENGTH) return true;
+    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH)
+      return true;
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     let branchDepth = depth;
     for (; branchDepth < maxDepth; branchDepth++) {
@@ -765,7 +775,7 @@ const makePACT = function (SEGMENTS) {
         (this.keyLength === other.keyLength &&
           !!this.child &&
           !!other.child &&
-          this.child.hash === other.child.hash)
+          hash_equal(this.child.hash, other.child.hash))
       );
     }
 
@@ -782,7 +792,7 @@ const makePACT = function (SEGMENTS) {
         !!this.child &&
         !!other.child &&
         (this.child === other.child ||
-          this.child.hash === other.child.hash ||
+          hash_equal(this.child.hash, other.child.hash) ||
           _isIntersecting(this.child, other.child))
       );
     }
@@ -805,7 +815,10 @@ const makePACT = function (SEGMENTS) {
       if (otherNode === null) {
         return new PACTTree(thisNode);
       }
-      if (this.child === null || this.child.hash === other.child.hash) {
+      if (
+        this.child === null ||
+        hash_equal(this.child.hash, other.child.hash)
+      ) {
         return new PACTTree();
       } else {
         return new PACTTree(_subtract(thisNode, otherNode));
@@ -819,7 +832,7 @@ const makePACT = function (SEGMENTS) {
       if (thisNode === null || otherNode === null) {
         return new PACTTree(null);
       }
-      if (thisNode === otherNode || thisNode.hash === otherNode.hash) {
+      if (thisNode === otherNode || hash_equal(thisNode.hash, otherNode.hash)) {
         return new PACTTree(otherNode);
       }
       return new PACTTree(_intersect(thisNode, otherNode));
@@ -835,7 +848,7 @@ const makePACT = function (SEGMENTS) {
       if (otherNode === null) {
         return new PACTTree(thisNode);
       }
-      if (thisNode === otherNode || thisNode.hash === otherNode.hash) {
+      if (thisNode === otherNode || hash_equal(thisNode.hash, otherNode.hash)) {
         return new PACTTree(null);
       }
       return new PACTTree(_difference(thisNode, otherNode));
@@ -911,7 +924,7 @@ const makePACT = function (SEGMENTS) {
       const nchildbits = new Uint32Array(8);
       setBit(nchildbits, lindex);
       setBit(nchildbits, rindex);
-      const hash = this.hash ^ nchild.hash;
+      const hash = hash_combine(this.hash, nchild.hash);
 
       return new PACTNode(
         this.key,
@@ -981,22 +994,22 @@ const makePACT = function (SEGMENTS) {
           const child = this.children[pos];
           //We need to update the child where this key would belong.
           const oldChildHash = child.hash;
+          const oldChildBranchDepth = child.branchDepth;
           const oldChildCount = child.segmentCount;
           nchild = child.put(childDepth, key, value, owner);
-          if (oldChildHash === nchild.hash) return this;
-          hash = this.hash ^ oldChildHash ^ nchild.hash;
-          segmentCount =
+          if (hash_equal(oldChildHash, nchild.hash)) return this;
+          hash = hash_update(this.hash, oldChildHash, nchild.hash);
+          segmentCount = this.segmentCount;
+          segmentCount -=
+            SEGMENT_LUT[this.branchDepth] === SEGMENT_LUT[oldChildBranchDepth]
+              ? oldChildCount
+              : 1;
+          segmentCount +=
             SEGMENT_LUT[this.branchDepth] === SEGMENT_LUT[nchild.branchDepth]
-              ? this.segmentCount - oldChildCount + nchild.segmentCount
-              : this.segmentCount;
+              ? nchild.segmentCount
+              : 1;
           if (segmentCount < 0) {
-            console.error(
-              "Bad segment count:",
-              segmentCount,
-              this.segmentCount,
-              oldChildCount,
-              nchild.segmentCount
-            );
+            throw Error("Failed assertion: Bad segment count.");
           }
           if (this.owner === owner) {
             this.children[pos] = nchild;
@@ -1007,11 +1020,8 @@ const makePACT = function (SEGMENTS) {
           nchildbits = this.childbits.slice();
         } else {
           nchild = new PACTLeaf(key, value, PACTHash(key));
-          hash = this.hash ^ nchild.hash;
-          segmentCount =
-            SEGMENT_LUT[this.branchDepth] === SEGMENT_LUT[nchild.branchDepth]
-              ? this.segmentCount + nchild.segmentCount
-              : this.segmentCount + 1;
+          hash = hash_combine(this.hash, nchild.hash);
+          segmentCount = this.segmentCount + 1;
           if (this.owner === owner) {
             setBit(this.childbits, pos);
             this.children[pos] = nchild;
@@ -1049,7 +1059,7 @@ const makePACT = function (SEGMENTS) {
         SEGMENT_LUT[branchDepth] === SEGMENT_LUT[this.branchDepth]
           ? this.segmentCount + 1
           : 1;
-      const hash = this.hash ^ nchild.hash;
+      const hash = hash_combine(this.hash, nchild.hash);
 
       return new PACTNode(
         this.key,

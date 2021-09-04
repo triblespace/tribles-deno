@@ -4,36 +4,62 @@ import {
   assertEquals,
 } from "https://deno.land/std@0.78.0/testing/asserts.ts";
 import fc from "https://cdn.skypack.dev/fast-check";
+
+/*
 fc.configureGlobal({
   numRuns: Number.MAX_SAFE_INTEGER,
-  interruptAfterTimeLimit: 1000 * 5,
+  interruptAfterTimeLimit: 1000 * 300,
 });
+*/
 
 import {
   decode,
   encode,
 } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
-import { equal, equalValue } from "../src/trible.js";
-import { makePACT, emptyTriblePACT, emptyValuePACT } from "../src/pact.js";
+import { equal, equalValue } from "../src/js/trible.js";
+import { makePACT, emptyTriblePACT, emptyValuePACT } from "../src/js/pact.js";
 
-const arb_number_of_segments = fc.integer({ min: 1, max: 8 });
-const arb_segment_size = fc.integer({ min: 1, max: 8 });
+const arb_number_of_segments = fc.integer({ min: 1, max: 3 });
+const arb_segment_size = fc.integer({ min: 1, max: 3 });
 const arb_segment_sizes = arb_number_of_segments.chain((n) =>
   fc.array(arb_segment_size, { minLength: n, maxLength: n })
 );
 
-const make_arb_segmented_key = (segments) =>
-  fc
+function arb_segmented_keys_(segments) {
+  if (segments.length === 0) {
+    return fc.constant([[]]);
+  }
+  const [s, ...sRest] = segments;
+  return fc
     .tuple(
-      ...segments.map((s) => fc.uint8Array({ minLength: s, maxLength: s }))
+      fc.uint8Array({ minLength: s, maxLength: s }),
+      fc.array(arb_segmented_keys(sRest), {
+        minLength: 1,
+        maxLength: 10,
+      })
     )
-    .map((t) => new Uint8Array(t.flatMap((a) => [...a])));
+    .map(([l, rs]) => {
+      return rs.flat().map((r) => [...l, ...r]);
+    });
+}
+
+function arb_segmented_keys(segments) {
+  return fc
+    .array(arb_segmented_keys_(segments), {
+      minLength: 1,
+      maxLength: 10,
+    })
+    .map((as) => as.flat().map((a) => new Uint8Array(a)));
+}
 
 const arb_pact_and_content = arb_segment_sizes.chain((segments) =>
   fc.tuple(
     fc.constant(makePACT(segments)),
-    fc.array(fc.array(make_arb_segmented_key(segments)))
+    fc.array(arb_segmented_keys(segments), {
+      minLength: 1,
+      maxLength: 3,
+    })
   )
 );
 const e = fc.uint8Array({ minLength: 16, maxLength: 16 });

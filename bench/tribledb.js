@@ -1,7 +1,7 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
-import { TribleSet } from "../src/TribleSet.js";
-import { UFOID } from "../src/ufoid.js";
-import { ufoid } from "../src/types/ufoid.js";
+import { TribleSet } from "../src/js/tribleset.js";
+import { UFOID } from "../src/js/ufoid.js";
+import { ufoid } from "../src/js/types/ufoid.js";
 
 function generateRandomSample(size, sharing_prob = 0.1) {
   const facts = [];

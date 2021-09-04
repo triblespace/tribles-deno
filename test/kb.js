@@ -15,7 +15,7 @@ import {
   encode,
 } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
-import { equal, equalValue } from "../src/trible.js";
+import { equal, equalValue } from "../src/js/trible.js";
 import {
   BlobCache,
   find,

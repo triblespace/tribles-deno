@@ -1,5 +1,5 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
-import { emptyValuePACT } from "../src/pact.js";
+import { emptyValuePACT } from "../src/js/pact.js";
 
 function generate_sample(size, sharing_prob = 0.1) {
   const values = [];

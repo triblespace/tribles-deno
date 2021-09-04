@@ -41,7 +41,7 @@ class Box {
       const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
       const triplesWithVars = precompileTriples(ns, vars, triples);
       const changeSubscription = this.changes();
-      
+
       const constraintsSubscription = new Subscription(
         (s, newKb, oldKB) => {
           const { difKB, newKB } = changeSubscription.pull();
@@ -63,7 +63,7 @@ class Box {
       changeSubscription.onNotify = (s, latest, pulled) => {
         constraintsSubscription.notify(latest);
       };
-      
+
       return {
         isStatic: false,
         constraintsSubscription,
@@ -112,7 +112,8 @@ class Subscription {
     }
   }
 
-  pull() {//TODO should the comparison be configurable? Do we want to use ordering, e.g. pulled < latest?
+  pull() {
+    //TODO should the comparison be configurable? Do we want to use ordering, e.g. pulled < latest?
     if (this._pulledNotification !== this._latestNotification) {
       this._pulledNotification = this._latestNotification;
       this._snoozed = false;
