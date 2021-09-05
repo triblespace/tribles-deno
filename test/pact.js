@@ -246,7 +246,7 @@ Deno.test("segment count", () => {
     fc.property(values, (vs) => {
       const pact = vs.reduce((pact, v) => pact.put(v), emptyValuePACT);
 
-      const cursor = pact.segmentCursor().push();
+      const cursor = pact.segmentCursor();
 
       assertEquals(cursor.segmentCount(), vs.length);
     })
@@ -263,7 +263,7 @@ Deno.test("segment count batched", () => {
         .reduce((pact, v) => pact.put(v), emptyValuePACT.batch())
         .complete();
 
-      const cursor = pact.segmentCursor().push();
+      const cursor = pact.segmentCursor();
 
       assertEquals(cursor.segmentCount(), vs.length);
     })
