@@ -2,3 +2,5 @@
 .vscode
 target
 pkg
+zig-cache
+main.wasm
