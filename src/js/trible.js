@@ -35,7 +35,7 @@ function scrambleEVA(trible) {
   indexOrderedKey.set(E(trible), 0);
   indexOrderedKey.set(V(trible), 16);
   indexOrderedKey.set(A(trible), 48);
-  indexOrderedKey.__cached_XXH3_128 = trible.__cached_XXH3_128;
+  indexOrderedKey.__cached_hash = trible.__cached_hash;
   return indexOrderedKey;
 }
 function scrambleAEV(trible) {
@@ -43,7 +43,7 @@ function scrambleAEV(trible) {
   indexOrderedKey.set(A(trible), 0);
   indexOrderedKey.set(E(trible), 16);
   indexOrderedKey.set(V(trible), 32);
-  indexOrderedKey.__cached_XXH3_128 = trible.__cached_XXH3_128;
+  indexOrderedKey.__cached_hash = trible.__cached_hash;
   return indexOrderedKey;
 }
 function scrambleAVE(trible) {
@@ -51,7 +51,7 @@ function scrambleAVE(trible) {
   indexOrderedKey.set(A(trible), 0);
   indexOrderedKey.set(V(trible), 16);
   indexOrderedKey.set(E(trible), 48);
-  indexOrderedKey.__cached_XXH3_128 = trible.__cached_XXH3_128;
+  indexOrderedKey.__cached_hash = trible.__cached_hash;
   return indexOrderedKey;
 }
 function scrambleVEA(trible) {
@@ -59,7 +59,7 @@ function scrambleVEA(trible) {
   indexOrderedKey.set(V(trible), 0);
   indexOrderedKey.set(E(trible), 32);
   indexOrderedKey.set(A(trible), 48);
-  indexOrderedKey.__cached_XXH3_128 = trible.__cached_XXH3_128;
+  indexOrderedKey.__cached_hash = trible.__cached_hash;
   return indexOrderedKey;
 }
 function scrambleVAE(trible) {
@@ -67,7 +67,7 @@ function scrambleVAE(trible) {
   indexOrderedKey.set(V(trible), 0);
   indexOrderedKey.set(A(trible), 32);
   indexOrderedKey.set(E(trible), 48);
-  indexOrderedKey.__cached_XXH3_128 = trible.__cached_XXH3_128;
+  indexOrderedKey.__cached_hash = trible.__cached_hash;
   return indexOrderedKey;
 }
 

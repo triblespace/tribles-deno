@@ -10,12 +10,23 @@ export fn secret(i : i32) i32 {
     return global_secret[@intCast(usize, i)];
 }
 
-export var global_hash_input : [64]u8 = undefined;
-export var global_hash_output : [16]u8 = undefined;
+export var global_hash_this : [16]u8 = undefined;
+export var global_hash_other : [16]u8 = undefined;
+export var global_hash_data : [64]u8 = undefined;
 
-export fn run_hash(len: i32) void {
-  const siphash = std.hash.SipHash128(2, 4);
-  siphash.create(&global_hash_output, global_hash_input[0..@intCast(usize, len)], global_secret[0..]);
+export fn hash_digest(len: usize) void {
+  const siphash = comptime std.hash.SipHash128(2, 4);
+  siphash.create(&global_hash_this, global_hash_data[0..len], global_secret[0..]);
+}
+
+export fn hash_xor() void {
+    for(global_hash_other) |other, i| {
+        global_hash_this[i] ^= other;
+    }
+}
+
+export fn hash_equal() bool {
+    return std.mem.eql(u8, &global_hash_this, &global_hash_other);
 }
 
 // extern fn inc(a: i32) i32;

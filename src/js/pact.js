@@ -1,10 +1,5 @@
 import { ID_SIZE, VALUE_SIZE } from "./trible.js";
-import {
-  xxh_digest,
-  hash_combine,
-  hash_equal,
-  hash_update,
-} from "../../pkg/functions_lib.js";
+import { hash_digest, hash_combine, hash_equal, hash_update } from "./wasm.js";
 
 // Perstistent Adaptive Cuckoo Trie (PACT)
 
@@ -22,13 +17,11 @@ const nextKey = (key, ascending = true) => {
   return false;
 };
 
-const SESSION_SEED = crypto.getRandomValues(new Uint8Array(192));
-
 function PACTHash(key) {
-  if (key.__cached_XXH3_128 === undefined) {
-    key.__cached_XXH3_128 = xxh_digest(key, SESSION_SEED);
+  if (key.__cached_hash === undefined) {
+    key.__cached_hash = hash_digest(key);
   }
-  return key.__cached_XXH3_128;
+  return key.__cached_hash;
 }
 
 const ctz32 = (n) => {
