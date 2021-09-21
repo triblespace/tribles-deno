@@ -45,7 +45,7 @@ export fn hash_equal() bool {
     return std.mem.eql(u8, &global_hash_this, &global_hash_other);
 }
 
-const CuckooMap = mc.MiniCuckoo(4);
+const CuckooMap = mc.MiniCuckoo(4, u32);
 
 export fn mini() void {
   var map = CuckooMap.init();
