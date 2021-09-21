@@ -68,3 +68,16 @@ export function hash_equal(l, r) {
   _global_hash_other.set(r);
   return instance.exports.hash_equal() === 1;
 }
+
+export function alloc(size) {
+  const ptr = instance.exports.alloc(size);
+  return new Uint8Array(instance.exports.memory.buffer, ptr, size);
+}
+
+export function free(array) {
+  const ptr = instance.exports.free(array.byteOffset, array.byteLength);
+}
+
+export function mini() {
+  return instance.exports.mini();
+}

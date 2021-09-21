@@ -115,15 +115,15 @@ function kbQuery(b, size) {
   //console.log(results.length);
   b.stop();
 }
-/*
+
 bench({
-  name: "kbWith1e5",
+  name: "kbWith1e4",
   runs: 3,
   func(b) {
-    kbWith(b, 1e5);
+    kbWith(b, 1e4);
   },
 });
-*/
+
 bench({
   name: "kbQuery1e4",
   runs: 3,

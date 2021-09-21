@@ -3,4 +3,5 @@
 target
 pkg
 zig-cache
-main.wasm
+*.wasm
+*.trb
