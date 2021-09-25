@@ -82,23 +82,32 @@ pub fn MiniCuckoo(comptime hash_count: usize, comptime T: type) type {
         const hash_luts = generate_hash_luts(&rand_state.random, 4);
         const rand_lut = generate_pearson_lut(&rand_state.random);
         
-        return struct {
+        return packed struct {
             const Self = @This();
-            size_step: u3 = 3,
+            size_step: u3 = 2,
             random: u8 = 0,
             keys: ByteBitset = ByteBitset.initEmpty(),
-            buckets: [256]Bucket,
+            buckets: [0]Bucket,
 
-            pub fn init() Self {
+            pub fn init(alloc: *Allocator) *Self {
                 return .{ .buckets = [_]Bucket{.{}} ** 256 };
             }
-            pub fn put(self: *Self, key: u8, value: *T) void {}
+            
+            fn bucketSlice(self: *Self) {
+                const ptr = @ptrCast([*]Bucket, &self.buckets);
+                const end = 1 << size_step;
+                return ptr[0..end];
+            }
+            
+            pub fn put(self: *Self, key: u8, value: *T) void {
+                
+            }
             pub fn get(self: *Self, key: u8) ?*T {
                 if (self.keys.isSet(key)) {
                     const mask = ~(~@as(u8, 0) << self.size_step);
                     inline for (hash_luts) |lut, i| {
                         const hash = lut[key];
-                        const bucket = self.buckets[hash & mask];
+                        const bucket = self.bucketSlice()[hash & mask];
                         if (bucket.full and bucket.key == key) {
                             return @intToPtr(*T, bucket.ptr);
                         }
@@ -110,15 +119,7 @@ pub fn MiniCuckoo(comptime hash_count: usize, comptime T: type) type {
     }
 }
 
-test "uintLessThan Failure" {
-    comptime {
-        var r_gen = std.rand.DefaultPrng.init(0);
-        var x = r_gen.random.uintLessThan(usize, 2500);
-        try expect(x < 2500);
-    }
-}
-
-test {
+test "put nothing -> get nothing" {
     const CuckooMap = MiniCuckoo(4, u32);
     var map = CuckooMap.init();
     try expect(map.get(0) == null);
