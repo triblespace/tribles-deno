@@ -75,7 +75,9 @@ fn generate_pearson_lut(comptime rng: *std.rand.Random) Byte_LUT {
 
 const Bucket = packed struct { key: u8 = 0, full: bool = false, exp: u3 = 0, hash: u4 = 0, ptr: u48 = 0 };
 
-pub fn MiniCuckoo(comptime hash_count: usize, comptime T: type) type {
+cosnt PACTHeader = packed struct {type: u2, depth: u6, refcount: u32};
+
+pub fn PACTNode(comptime hash_count: usize, comptime T: type) type {
     comptime {
         @setEvalBranchQuota(1000000);
         var rand_state = std.rand.Xoroshiro128.init(0);

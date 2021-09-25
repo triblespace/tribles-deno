@@ -1,5 +1,5 @@
 const std = @import("std");
-const mc = @import("./minicuckoo.zig");
+const mc = @import("./pact.zig");
 
 const allocator = std.heap.page_allocator;
 var global_secret : [16]u8 = undefined;
