@@ -34,10 +34,17 @@ class MemTribleConstraint {
       variable: child.variable,
       costs: child.cursors.map((cursor) => {
         const count = cursor.segmentCount();
-        //if (count < 0) console.log(cursor);
         return count * inmemoryCosts;
       }),
     }));
+  }
+
+  pop(variable) {
+    const lastExplored =
+      this.explorationStack[this.explorationStack.length - 1];
+    if (lastExplored.variable === variable) {
+      this.explorationStack.pop();
+    }
   }
 
   push(variable, ascending = true) {
@@ -51,21 +58,7 @@ class MemTribleConstraint {
     }
     if (nextExplored === null) return [];
     this.explorationStack.push(nextExplored);
-    for (const cursor of nextExplored.cursors) {
-      cursor.push(ascending);
-    }
     return nextExplored.cursors;
-  }
-
-  pop(variable) {
-    const lastExplored =
-      this.explorationStack[this.explorationStack.length - 1];
-    if (lastExplored.variable === variable) {
-      for (const cursor of lastExplored.cursors) {
-        cursor.pop();
-      }
-      this.explorationStack.pop();
-    }
   }
 }
 

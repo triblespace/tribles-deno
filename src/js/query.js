@@ -1,4 +1,13 @@
-import { emptyValuePACT, nextKey } from "./pact.js";
+import {
+  emptyValuePACT,
+  nextKey,
+  bitIterator,
+  singleBitIntersect,
+  bitIntersect,
+  setBit,
+  unsetAllBit,
+  setAllBit,
+} from "./pact.js";
 import { ID_SIZE, VALUE_SIZE } from "./trible.js";
 
 // This constraint is used when there is a fixed number of possible values for a variable.
@@ -21,10 +30,10 @@ class IndexConstraint {
     ];
   }
 
-  push(variable, ascending) {
+  push(variable) {
     if (variable === this.variable) {
       this.done = true;
-      return [this.cursor.push(ascending)];
+      return [this.cursor];
     }
     return [];
   }
@@ -32,7 +41,7 @@ class IndexConstraint {
   pop(variable) {
     if (variable === this.variable) {
       this.done = false;
-      return this.cursor.pop();
+      return this.cursor;
     }
   }
 }
@@ -285,34 +294,62 @@ function* resolve(constraints, ordering, ascendingVariables, bindings) {
 
     const cursors = [];
     for (const c of constraints) {
-      cursors.push(...c.push(variable, ascending));
+      cursors.push(...c.push(variable));
     }
 
-    const candidate = bindings[variable].fill(0); //TODO: could we use this to replace the state in the cursors?
-    let i = 0;
-    let candidateOrigin = i;
+    const pathBytes = bindings[variable].fill(0);
+    const pathBitsets = Array.from({ length: 32 }, () =>
+      new Uint32Array(8).fill(0xffffffff)
+    );
+    const pathBitIterators = new Array(32);
+    for (let c of cursors) {
+      c.bitIntersect(pathBitsets[0]);
+    }
+
+    let depth = 0;
+    pathBitIterators[depth] = bitIterator(pathBitsets[depth]);
+
     while (true) {
-      if (!cursors[i].peek(candidate)) break;
-      i = (i + 1) % cursors.length;
-      if (i === candidateOrigin) {
-        const newHasResult = yield* resolve(
-          constraints,
-          ordering,
-          ascendingVariables,
-          bindings
-        );
-        hasResult ||= newHasResult;
-        if (
-          (hasResult && ordering.shortcircuit()) ||
-          !nextKey(candidate, ascending)
-        ) {
-          break;
+      console.log(depth);
+      const i = pathBitIterators[depth].next();
+      if (i.done) {
+        if (depth === 0) break;
+        depth--;
+        for (const c of cursors) {
+          c.pop();
         }
-        cursors[i].seek(candidate);
       } else {
-        const match = cursors[i].seek(candidate);
-        if (!match) {
-          candidateOrigin = i;
+        pathBytes[depth] = i.value;
+        for (let c of cursors) {
+          c.push(i.value);
+        }
+        if (depth === 31) {
+          const newHasResult = yield* resolve(
+            constraints,
+            ordering,
+            ascendingVariables,
+            bindings
+          );
+          hasResult ||= newHasResult;
+          if (hasResult && ordering.shortcircuit()) {
+            for (c of cursors) {
+              for (let d = 0; d < 32; d++) {
+                c.pop();
+              }
+            }
+            break;
+          } else {
+            for (let c of cursors) {
+              c.pop();
+            }
+          }
+        } else {
+          depth++;
+          setAllBit(pathBitsets[depth]);
+          for (let c of cursors) {
+            c.bitIntersect(pathBitsets[depth]);
+          }
+          pathBitIterators[depth] = bitIterator(pathBitsets[depth]);
         }
       }
     }

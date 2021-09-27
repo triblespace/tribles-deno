@@ -37,57 +37,120 @@ const ctz32 = (n) => {
 
 const highBit32 = 1 << 31;
 
-const setBit = (bitmap, bitPosition) => {
-  bitmap[bitPosition >>> 5] |= highBit32 >>> bitPosition;
+function* bitIterator(bitset, ascending = true) {
+  for (let wordPosition = 0; wordPosition < 8; wordPosition++) {
+    for (let mask = 0xffffffff; ; ) {
+      const c = Math.clz32(bitset[wordPosition] & mask);
+      if (c === 32) break;
+      yield (wordPosition << 5) + c;
+      mask &= highBit32 >>> c;
+    }
+  }
+}
+
+const setBit = (bitset, bitPosition) => {
+  bitset[bitPosition >>> 5] |= highBit32 >>> bitPosition;
 };
 
-const hasBit = (bitmap, bitPosition) => {
-  return (bitmap[bitPosition >>> 5] & (highBit32 >>> bitPosition)) !== 0;
+const hasBit = (bitset, bitPosition) => {
+  return (bitset[bitPosition >>> 5] & (highBit32 >>> bitPosition)) !== 0;
 };
 
-const nextBit = (bitmap, bitPosition) => {
+const nextBit = (bitset, bitPosition) => {
   let wordPosition = bitPosition >>> 5;
-  const c = Math.clz32(bitmap[wordPosition] & (-1 >>> (bitPosition & 0b11111)));
+  const c = Math.clz32(bitset[wordPosition] & (-1 >>> (bitPosition & 0b11111)));
   if (c !== 32) return (wordPosition << 5) + c;
   for (wordPosition++; wordPosition < 8; wordPosition++) {
-    const c = Math.clz32(bitmap[wordPosition]);
+    const c = Math.clz32(bitset[wordPosition]);
     if (c !== 32) return (wordPosition << 5) + c;
   }
   return 256;
 };
 
-const prevBit = (bitmap, bitPosition) => {
+const prevBit = (bitset, bitPosition) => {
   let wordPosition = bitPosition >>> 5;
   const c =
-    31 - ctz32(bitmap[wordPosition] & (-1 << (31 - (bitPosition & 0b11111))));
+    31 - ctz32(bitset[wordPosition] & (-1 << (31 - (bitPosition & 0b11111))));
   if (c !== -1) return (wordPosition << 5) + c;
   for (wordPosition--; 0 <= wordPosition; wordPosition--) {
-    const c = 31 - ctz32(bitmap[wordPosition]);
+    const c = 31 - ctz32(bitset[wordPosition]);
     if (c !== -1) return (wordPosition << 5) + c;
   }
   return -1;
 };
 
-const noBit = (bitmap) =>
-  bitmap[0] === 0 &&
-  bitmap[1] === 0 &&
-  bitmap[2] === 0 &&
-  bitmap[3] === 0 &&
-  bitmap[4] === 0 &&
-  bitmap[5] === 0 &&
-  bitmap[6] === 0 &&
-  bitmap[7] === 0;
+const noBit = (bitset) =>
+  bitset[0] === 0 &&
+  bitset[1] === 0 &&
+  bitset[2] === 0 &&
+  bitset[3] === 0 &&
+  bitset[4] === 0 &&
+  bitset[5] === 0 &&
+  bitset[6] === 0 &&
+  bitset[7] === 0;
 
-const makePACT = function (SEGMENTS) {
-  const KEY_LENGTH = SEGMENTS.reduce((a, n) => a + n, 0);
-  const SEGMENT_LUT = [...SEGMENTS].flatMap((l, i) => new Array(l).fill(i));
-  SEGMENT_LUT.push(SEGMENT_LUT[SEGMENT_LUT.length - 1]);
-  const SEGMENT_PREFIXES = SEGMENTS.reduce(
-    (a, segment_size) => [...a, a[a.length - 1] + segment_size],
-    [0, 0]
-  );
-  const SEGMENT_INFIXES = [0, ...SEGMENTS];
+const setAllBit = (bitset) => {
+  bitset[0] = ~0;
+  bitset[1] = ~0;
+  bitset[2] = ~0;
+  bitset[3] = ~0;
+  bitset[4] = ~0;
+  bitset[5] = ~0;
+  bitset[6] = ~0;
+  bitset[7] = ~0;
+};
 
+const unsetAllBit = (bitset) => {
+  bitset[0] = 0;
+  bitset[1] = 0;
+  bitset[2] = 0;
+  bitset[3] = 0;
+  bitset[4] = 0;
+  bitset[5] = 0;
+  bitset[6] = 0;
+  bitset[7] = 0;
+};
+
+const bitIntersect = (bitset, other) => {
+  bitset[0] &= other[0];
+  bitset[1] &= other[1];
+  bitset[2] &= other[2];
+  bitset[3] &= other[3];
+  bitset[4] &= other[4];
+  bitset[5] &= other[5];
+  bitset[6] &= other[6];
+  bitset[7] &= other[7];
+};
+
+const singleBitIntersect = (bitset, bit) => {
+  const hadBit = hasBit(bitset, bit);
+  unsetAllBit(bitset);
+  if (hadBit) setBit(bitset, bit);
+};
+
+const makePACT = function (segmentCompression, segmentSize = 32) {
+  const KEY_LENGTH = segmentCompression.reduce((a, n) => a + n, 0);
+  if (KEY_LENGTH >= 255) {
+    throw Error("Compressed key must not be longer than 254 bytes.");
+  }
+  const SEGMENT_LUT = new Uint8Array(KEY_LENGTH + 1);
+  SEGMENT_LUT.set(segmentCompression.flatMap((l, i) => new Array(l).fill(i)));
+  SEGMENT_LUT[SEGMENT_LUT.length - 1] = SEGMENT_LUT[SEGMENT_LUT.length - 2];
+  const DEPTH_MAPPING = new Uint8Array(
+    segmentCompression.length * segmentSize
+  ).fill(0xff);
+  let depth = 0;
+  let key_depth = 0;
+  for (const s of segmentCompression) {
+    const pad = segmentSize - s;
+    depth += pad;
+    for (let j = pad; j < s; j++) {
+      DEPTH_MAPPING[depth] = key_depth;
+      depth++;
+      key_depth++;
+    }
+  }
+  console.log(segmentCompression, DEPTH_MAPPING);
   // deno-lint-ignore prefer-const
   let PACTCursor;
   // deno-lint-ignore prefer-const
@@ -182,152 +245,53 @@ const makePACT = function (SEGMENTS) {
   PACTSegmentCursor = class {
     constructor(pact) {
       this.pact = pact;
-      this.ascending = new Array(SEGMENTS.length + 1).fill(true);
-      this.valid = new Array(SEGMENTS.length + 1).fill(true);
-      this.segmentDepth = 0;
-      this.pathBytes = new Uint8Array(KEY_LENGTH);
+      this.depth = 0;
       this.pathNodes = new Array(KEY_LENGTH + 1).fill(null);
 
-      if (pact.child === null) {
-        this.valid[this.segmentDepth] = false;
-        return;
-      }
       this.pathNodes[0] = pact.child;
     }
-    isValid() {
-      return this.valid[this.segmentDepth];
-    }
+
     segmentCount() {
-      if (!this.valid[this.segmentDepth]) return 0;
-      const prefixLen = SEGMENT_PREFIXES[this.segmentDepth + 1];
-      const node = this.pathNodes[prefixLen];
+      const node = this.pathNodes[this.depth];
+      if (node === null) return 0;
       // Because a pact might compress an entire segment within a node below it,
       // we need to make sure that our current node is actually inside that
       // segment and not in a segment below it.
-      if (SEGMENT_LUT[prefixLen] === SEGMENT_LUT[node.branchDepth]) {
+      if (SEGMENT_LUT[this.depth] === SEGMENT_LUT[node.branchDepth]) {
         return node.segmentCount;
       } else {
         return 1;
       }
     }
-    peek(buffer) {
-      if (!this.valid[this.segmentDepth]) return false;
-      const start = SEGMENT_PREFIXES[this.segmentDepth];
-      const end = SEGMENT_PREFIXES[this.segmentDepth + 1];
-      const len = SEGMENT_INFIXES[this.segmentDepth];
-      buffer.set(this.pathBytes.subarray(start, end), buffer.length - len);
-      return true;
-    }
-    value() {
-      if (this.valid[this.segmentDepth]) {
-        const end = SEGMENT_PREFIXES[this.segmentDepth + 1];
-        return this.pathNodes[end].value;
-      }
-    }
-    /*
- Seek example:
 
-     • segmentDepth = 2  ──────────┐
-                                   ▼
-                    ┌──────────────┐
-    ┌──────────────┐┌──────────────┐┌──────────────────────────────┐
-    │  Segment E   ││  Segment A   ││          Segment V           │
-    └──────────────┘└──────────────┘└──────────────────────────────┘
-                    │ infixOverlap │
-    ┌──────────────────────────────┐
-    │         soughtInfix          │
-    └──────────────────────────────┘
-    └──────────────┘
-      infixZeroed
-    */
-    seek(soughtInfix) {
-      if (this.valid[this.segmentDepth]) {
-        const ascending = this.ascending[this.segmentDepth];
-        const prefixLen = SEGMENT_PREFIXES[this.segmentDepth];
-        const infixLen = SEGMENT_INFIXES[this.segmentDepth];
-        const searchDepth = SEGMENT_PREFIXES[this.segmentDepth + 1];
-        const infixZeroed = soughtInfix.length - infixLen;
-        let depth = prefixLen;
-        for (let d = 0; d < infixZeroed; d++) {
-          if (soughtInfix[d] !== 0) {
-            this.valid[this.segmentDepth] = false;
-            return false;
-          }
+    bitIntersect(bitset) {
+      const depth = DEPTH_MAPPING[this.depth];
+      if (depth === 0xff) {
+        unsetAllBit(bitset);
+        setBit(bitset, 0);
+      } else {
+        const node = this.pathNodes[depth];
+        if (node === null) {
+          unsetAllBit(bitset);
+        } else {
+          node.bitIntersect(depth, bitset);
         }
-        search: for (; depth < searchDepth; depth++) {
-          const soughtByte = soughtInfix[depth - prefixLen + infixZeroed];
-          [this.pathBytes[depth], this.pathNodes[depth + 1]] = this.pathNodes[
-            depth
-          ].seek(depth, soughtByte, ascending);
-          if (
-            this.pathNodes[depth + 1] === null ||
-            this.pathBytes[depth] !== soughtByte
-          ) {
-            break search;
-          }
-        }
-        if (depth === searchDepth) {
-          return true;
-        }
-        backtrack: while (this.pathNodes[depth + 1] === null) {
-          depth--;
-          if (depth < prefixLen) {
-            this.valid[this.segmentDepth] = false;
-            return false;
-          }
-          const soughtByte = this.pathBytes[depth];
-          if (soughtByte === (ascending ? 255 : 0)) {
-            this.pathNodes[depth + 1] = null;
-            continue backtrack;
-          }
-          [this.pathBytes[depth], this.pathNodes[depth + 1]] = this.pathNodes[
-            depth
-          ].seek(depth, soughtByte + (ascending ? +1 : -1), ascending);
-        }
-        for (depth++; depth < searchDepth; depth++) {
-          [this.pathBytes[depth], this.pathNodes[depth + 1]] = this.pathNodes[
-            depth
-          ].seek(depth, ascending ? 0 : 255, ascending);
-        }
-        return false;
       }
     }
-    push(ascending = true) {
-      if (this.segmentDepth === SEGMENTS.length) {
-        throw Error("Can't push cursor beyond key length.");
-      }
-      this.segmentDepth++;
-      this.valid[this.segmentDepth] = this.valid[this.segmentDepth - 1];
-      this.ascending[this.segmentDepth] = ascending;
-      if (this.valid[this.segmentDepth]) {
-        const segmentStartDepth = SEGMENT_PREFIXES[this.segmentDepth];
-        const segmentEndDepth = SEGMENT_PREFIXES[this.segmentDepth + 1];
 
-        for (
-          let keyDepth = segmentStartDepth;
-          keyDepth < segmentEndDepth;
-          keyDepth++
-        ) {
-          [this.pathBytes[keyDepth], this.pathNodes[keyDepth + 1]] =
-            this.pathNodes[keyDepth].seek(
-              keyDepth,
-              ascending ? 0 : 255,
-              ascending
-            );
-          if (this.pathNodes[keyDepth + 1] === null) {
-            this.valid[this.segmentDepth] = false;
-            break;
-          }
-        }
+    push(byte) {
+      const depth = DEPTH_MAPPING[this.depth];
+      this.depth++;
+      if (depth !== 0xff) {
+        const node = this.pathNodes[depth].get(byte);
+        if (node === null) throw Error("Nothing to push to.");
+        this.pathNodes[depth + 1] = node;
       }
-      return this;
     }
+
     pop() {
-      if (this.segmentDepth === 0) {
-        throw Error("Can't pop cursor beyond key start.");
-      }
-      this.segmentDepth--;
-      return this;
+      if (this.depth === 0) throw Error("Can't pop below start.");
+      this.depth--;
     }
   };
 
@@ -723,7 +687,6 @@ const makePACT = function (SEGMENTS) {
   PACTTree = class {
     constructor(child = null) {
       this.keyLength = KEY_LENGTH;
-      this.segments = SEGMENTS;
       this.child = child;
     }
     batch() {
@@ -890,6 +853,12 @@ const makePACT = function (SEGMENTS) {
       this.segmentCount = 1;
       this.branchDepth = KEY_LENGTH;
     }
+    bitIntersect(depth, bitset) {
+      singleBitIntersect(bitset, this.key[depth]);
+    }
+    get(depth, v) {
+      return this;
+    }
     seek(depth, v, ascending) {
       const candidate = this.key[depth];
       if ((ascending && v <= candidate) || (!ascending && v >= candidate)) {
@@ -948,6 +917,22 @@ const makePACT = function (SEGMENTS) {
       this.hash = hash;
       this.segmentCount = segmentCount;
       this.owner = owner;
+    }
+
+    bitIntersect(depth, bitset) {
+      if (depth < this.branchDepth) {
+        singleBitIntersect(bitset, this.key[depth]);
+      } else {
+        bitIntersect(bitset, this.childbits);
+      }
+    }
+
+    get(depth, v) {
+      if (depth === this.branchDepth) {
+        this.children[v];
+      } else {
+        return this;
+      }
     }
     seek(depth, v, ascending) {
       if (depth === this.branchDepth) {
@@ -1087,4 +1072,10 @@ export {
   makePACT,
   nextKey,
   PACTHash,
+  bitIterator,
+  singleBitIntersect,
+  bitIntersect,
+  setBit,
+  unsetAllBit,
+  setAllBit,
 };
