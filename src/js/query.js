@@ -310,7 +310,6 @@ function* resolve(constraints, ordering, ascendingVariables, bindings) {
     pathBitIterators[depth] = bitIterator(pathBitsets[depth]);
 
     while (true) {
-      console.log(depth);
       const i = pathBitIterators[depth].next();
       if (i.done) {
         if (depth === 0) break;

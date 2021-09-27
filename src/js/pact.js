@@ -43,7 +43,7 @@ function* bitIterator(bitset, ascending = true) {
       const c = Math.clz32(bitset[wordPosition] & mask);
       if (c === 32) break;
       yield (wordPosition << 5) + c;
-      mask &= highBit32 >>> c;
+      mask &= ~(highBit32 >>> c);
     }
   }
 }
@@ -144,13 +144,12 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
   for (const s of segmentCompression) {
     const pad = segmentSize - s;
     depth += pad;
-    for (let j = pad; j < s; j++) {
+    for (let j = pad; j < segmentSize; j++) {
       DEPTH_MAPPING[depth] = key_depth;
       depth++;
       key_depth++;
     }
   }
-  console.log(segmentCompression, DEPTH_MAPPING);
   // deno-lint-ignore prefer-const
   let PACTCursor;
   // deno-lint-ignore prefer-const
@@ -283,8 +282,9 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const depth = DEPTH_MAPPING[this.depth];
       this.depth++;
       if (depth !== 0xff) {
-        const node = this.pathNodes[depth].get(byte);
-        if (node === null) throw Error("Nothing to push to.");
+        const node = this.pathNodes[depth].get(depth, byte);
+        if (node === undefined && node == null)
+          throw Error("Nothing to push to.");
         this.pathNodes[depth + 1] = node;
       }
     }
@@ -920,6 +920,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     bitIntersect(depth, bitset) {
+      if (depth > this.branchDepth) throw Error("Invalid depth.");
       if (depth < this.branchDepth) {
         singleBitIntersect(bitset, this.key[depth]);
       } else {
@@ -928,8 +929,9 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     get(depth, v) {
+      if (depth > this.branchDepth) throw Error("Invalid depth.");
       if (depth === this.branchDepth) {
-        this.children[v];
+        return this.children[v];
       } else {
         return this;
       }
