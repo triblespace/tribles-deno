@@ -130,20 +130,21 @@ const singleBitIntersect = (bitset, bit) => {
 
 const makePACT = function (segmentCompression, segmentSize = 32) {
   const KEY_LENGTH = segmentCompression.reduce((a, n) => a + n, 0);
-  if (KEY_LENGTH >= 255) {
-    throw Error("Compressed key must not be longer than 254 bytes.");
+  if (KEY_LENGTH > 128) {
+    throw Error("Compressed key must not be longer than 128 bytes.");
   }
   const SEGMENT_LUT = new Uint8Array(KEY_LENGTH + 1);
   SEGMENT_LUT.set(segmentCompression.flatMap((l, i) => new Array(l).fill(i)));
   SEGMENT_LUT[SEGMENT_LUT.length - 1] = SEGMENT_LUT[SEGMENT_LUT.length - 2];
-  const DEPTH_MAPPING = new Uint8Array(
-    segmentCompression.length * segmentSize
-  ).fill(0xff);
+  const DEPTH_MAPPING = new Uint8Array(segmentCompression.length * segmentSize);
   let depth = 0;
   let key_depth = 0;
   for (const s of segmentCompression) {
     const pad = segmentSize - s;
-    depth += pad;
+    for (let j = 0; j < pad; j++) {
+      DEPTH_MAPPING[depth] = 0b10000000 | key_depth;
+      depth++;
+    }
     for (let j = pad; j < segmentSize; j++) {
       DEPTH_MAPPING[depth] = key_depth;
       depth++;
@@ -251,12 +252,13 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     segmentCount() {
-      const node = this.pathNodes[this.depth];
+      const depth = DEPTH_MAPPING[this.depth] & 0b01111111;
+      const node = this.pathNodes[depth];
       if (node === null) return 0;
       // Because a pact might compress an entire segment within a node below it,
       // we need to make sure that our current node is actually inside that
       // segment and not in a segment below it.
-      if (SEGMENT_LUT[this.depth] === SEGMENT_LUT[node.branchDepth]) {
+      if (SEGMENT_LUT[depth] === SEGMENT_LUT[node.branchDepth]) {
         return node.segmentCount;
       } else {
         return 1;
@@ -264,11 +266,12 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     bitIntersect(bitset) {
-      const depth = DEPTH_MAPPING[this.depth];
-      if (depth === 0xff) {
+      let depth = DEPTH_MAPPING[this.depth];
+      if ((depth & 0b10000000) !== 0) {
         unsetAllBit(bitset);
         setBit(bitset, 0);
       } else {
+        depth &= 0b01111111;
         const node = this.pathNodes[depth];
         if (node === null) {
           unsetAllBit(bitset);
@@ -279,9 +282,10 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     push(byte) {
-      const depth = DEPTH_MAPPING[this.depth];
+      let depth = DEPTH_MAPPING[this.depth];
       this.depth++;
-      if (depth !== 0xff) {
+      if ((depth & 0b10000000) === 0) {
+        depth &= 0b01111111;
         const node = this.pathNodes[depth].get(depth, byte);
         if (node === undefined && node == null)
           throw Error("Nothing to push to.");
