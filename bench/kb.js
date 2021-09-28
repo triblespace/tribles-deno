@@ -100,6 +100,8 @@ function kbQuery(b, size) {
     ]);
   }
   b.start();
+  window.debug = true;
+
   // Query some data.
   const results = [
     ...find(knightsNS, ({ name, title }) => [

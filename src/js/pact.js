@@ -297,6 +297,22 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       if (this.depth === 0) throw Error("Can't pop below start.");
       this.depth--;
     }
+
+    fastpath() {
+      const depth = DEPTH_MAPPING[this.depth];
+      if ((d & 0b10000000) !== 0) {
+        this.depth++;
+        return 0;
+      }
+      const node = this.pathNodes[depth];
+      if (depth < node.branchDepth) {
+        this.depth++;
+        this.pathNodes[depth + 1] = node;
+        return node.key[depth];
+      } else {
+        null;
+      }
+    }
   };
 
   function _union(leftNode, rightNode, depth = 0) {

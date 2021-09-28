@@ -252,7 +252,7 @@ class OrderByMinCostAndBlockage {
         }
       }
     }
-    //console.log(this.exploredVariables, candidateVariable, candidateCosts);
+    //if (window.debug) console.log(candidateCosts);
     return candidateVariable;
   }
 
@@ -302,11 +302,12 @@ function* resolve(constraints, ordering, ascendingVariables, bindings) {
       new Uint32Array(8).fill(0xffffffff)
     );
     const pathBitIterators = new Array(32);
-    for (let c of cursors) {
-      c.bitIntersect(pathBitsets[0]);
-    }
 
     let depth = 0;
+
+    for (let c of cursors) {
+      c.bitIntersect(pathBitsets[depth]);
+    }
     pathBitIterators[depth] = bitIterator(pathBitsets[depth]);
 
     while (true) {
