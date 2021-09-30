@@ -280,6 +280,73 @@ class OrderByMinCostAndBlockage {
   }
 }
 
+const MODE_FASTPATH = 0;
+const MODE_BRANCH = 1;
+const MODE_DONE = 2;
+
+function* resolveSegment(shortcircuit, cursors, binding, depth) {
+  let hasResult = false;
+  let failed = false;
+  let d = depth;
+  let c = 0;
+  fastpath: while (true) {
+    if (d === 32) {
+      yield;
+      hasResult = true;
+      break;
+    }
+
+    c = 0;
+    let byte = cursors[c].peek();
+    if (byte === null) break fastpath;
+    for (c = 1; c < cursors.length; c++) {
+      const other_byte = cursors[c].peek();
+      if (other_byte === null) break fastpath;
+      if (byte !== other_byte) {
+        failed = true;
+        break fastpath;
+      }
+    }
+
+    binding[d] = byte;
+    for (c of cursors) {
+      c.push(byte);
+    }
+    d++;
+  }
+
+  if (d < 32 && !failed) {
+    const bitset = new Uint32Array(8);
+    if (0 < c) {
+      setBit(bitset, byte);
+    } else {
+      bitset.fill(0xffffffff);
+    }
+    for (; c < cursors.length; c++) {
+      cursors[c].popose(bitset);
+    }
+    for (const bit of bitIterator(bitset)) {
+      for (c of cursors) {
+        c.push(bit);
+      }
+      binding[d] = bit;
+      hasResult = yield* resolveSegment(shortcircuit, cursors, binding, d + 1);
+      for (c of cursors) {
+        c.pop();
+      }
+      if (shortcircuit && hasResult) break;
+    }
+  }
+
+  for (; depth < d; d--) {
+    for (c of cursors) {
+      c.pop();
+    }
+  }
+
+  return hasResult;
+}
+
 function* resolve(constraints, ordering, ascendingVariables, bindings) {
   //init
   let hasResult = false;
@@ -297,63 +364,17 @@ function* resolve(constraints, ordering, ascendingVariables, bindings) {
       cursors.push(...c.push(variable));
     }
 
-    const pathBytes = bindings[variable].fill(0);
-    const pathBitsets = Array.from({ length: 32 }, () =>
-      new Uint32Array(8).fill(0xffffffff)
-    );
-    const pathBitIterators = new Array(32);
-
-    let depth = 0;
-
-    for (let c of cursors) {
-      c.bitIntersect(pathBitsets[depth]);
+    for (const s of resolveSegment(
+      ordering.shortcircuit(),
+      cursors,
+      bindings[variable],
+      0
+    )) {
+      yield* resolve(constraints, ordering, ascendingVariables, bindings);
     }
-    pathBitIterators[depth] = bitIterator(pathBitsets[depth]);
-
-    while (true) {
-      const i = pathBitIterators[depth].next();
-      if (i.done) {
-        if (depth === 0) break;
-        depth--;
-        for (const c of cursors) {
-          c.pop();
-        }
-      } else {
-        pathBytes[depth] = i.value;
-        for (let c of cursors) {
-          c.push(i.value);
-        }
-        if (depth === 31) {
-          const newHasResult = yield* resolve(
-            constraints,
-            ordering,
-            ascendingVariables,
-            bindings
-          );
-          hasResult ||= newHasResult;
-          if (hasResult && ordering.shortcircuit()) {
-            for (c of cursors) {
-              for (let d = 0; d < 32; d++) {
-                c.pop();
-              }
-            }
-            break;
-          } else {
-            for (let c of cursors) {
-              c.pop();
-            }
-          }
-        } else {
-          depth++;
-          setAllBit(pathBitsets[depth]);
-          for (let c of cursors) {
-            c.bitIntersect(pathBitsets[depth]);
-          }
-          pathBitIterators[depth] = bitIterator(pathBitsets[depth]);
-        }
-      }
+    for (c of cursors) {
+      c.pop();
     }
-
     constraints.forEach((c) => c.pop(variable));
     ordering.pop(variable);
   }

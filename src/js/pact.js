@@ -265,7 +265,21 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       }
     }
 
-    bitIntersect(bitset) {
+    peek() {
+      const depth = DEPTH_MAPPING[this.depth];
+      if ((depth & 0b10000000) !== 0) {
+        return 0;
+      }
+      const node = this.pathNodes[depth];
+      if (depth < node.branchDepth) {
+        this.pathNodes[depth + 1] = node;
+        return node.key[depth];
+      } else {
+        null;
+      }
+    }
+
+    propose(bitset) {
       let depth = DEPTH_MAPPING[this.depth];
       if ((depth & 0b10000000) !== 0) {
         unsetAllBit(bitset);
@@ -276,9 +290,14 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
         if (node === null) {
           unsetAllBit(bitset);
         } else {
-          node.bitIntersect(depth, bitset);
+          node.propose(depth, bitset);
         }
       }
+    }
+
+    pop() {
+      //if (this.depth === 0) throw Error("Can't pop below start.");
+      this.depth--;
     }
 
     push(byte) {
@@ -290,27 +309,6 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
         if (node === undefined && node == null)
           throw Error("Nothing to push to.");
         this.pathNodes[depth + 1] = node;
-      }
-    }
-
-    pop() {
-      if (this.depth === 0) throw Error("Can't pop below start.");
-      this.depth--;
-    }
-
-    fastpath() {
-      const depth = DEPTH_MAPPING[this.depth];
-      if ((d & 0b10000000) !== 0) {
-        this.depth++;
-        return 0;
-      }
-      const node = this.pathNodes[depth];
-      if (depth < node.branchDepth) {
-        this.depth++;
-        this.pathNodes[depth + 1] = node;
-        return node.key[depth];
-      } else {
-        null;
       }
     }
   };
@@ -873,7 +871,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       this.segmentCount = 1;
       this.branchDepth = KEY_LENGTH;
     }
-    bitIntersect(depth, bitset) {
+    propose(depth, bitset) {
       singleBitIntersect(bitset, this.key[depth]);
     }
     get(depth, v) {
@@ -939,7 +937,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       this.owner = owner;
     }
 
-    bitIntersect(depth, bitset) {
+    propose(depth, bitset) {
       if (depth > this.branchDepth) throw Error("Invalid depth.");
       if (depth < this.branchDepth) {
         singleBitIntersect(bitset, this.key[depth]);
