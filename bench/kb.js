@@ -127,10 +127,10 @@ bench({
 });
 
 bench({
-  name: "kbQuery1e4",
+  name: "kbQuery1e5",
   runs: 3,
   func(b) {
-    kbQuery(b, 1e4);
+    kbQuery(b, 1e5);
   },
 });
 

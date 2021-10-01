@@ -280,13 +280,10 @@ class OrderByMinCostAndBlockage {
   }
 }
 
-const MODE_FASTPATH = 0;
-const MODE_BRANCH = 1;
-const MODE_DONE = 2;
-
 function* resolveSegment(shortcircuit, cursors, binding, depth) {
   let hasResult = false;
   let failed = false;
+  let byte;
   let d = depth;
   let c = 0;
   fastpath: while (true) {
@@ -297,7 +294,7 @@ function* resolveSegment(shortcircuit, cursors, binding, depth) {
     }
 
     c = 0;
-    let byte = cursors[c].peek();
+    byte = cursors[c].peek();
     if (byte === null) break fastpath;
     for (c = 1; c < cursors.length; c++) {
       const other_byte = cursors[c].peek();
@@ -323,7 +320,7 @@ function* resolveSegment(shortcircuit, cursors, binding, depth) {
       bitset.fill(0xffffffff);
     }
     for (; c < cursors.length; c++) {
-      cursors[c].popose(bitset);
+      cursors[c].propose(bitset);
     }
     for (const bit of bitIterator(bitset)) {
       for (c of cursors) {
@@ -372,9 +369,7 @@ function* resolve(constraints, ordering, ascendingVariables, bindings) {
     )) {
       yield* resolve(constraints, ordering, ascendingVariables, bindings);
     }
-    for (c of cursors) {
-      c.pop();
-    }
+
     constraints.forEach((c) => c.pop(variable));
     ordering.pop(variable);
   }

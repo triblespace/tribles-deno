@@ -271,11 +271,11 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
         return 0;
       }
       const node = this.pathNodes[depth];
-      if (depth < node.branchDepth) {
+      if (node !== null && depth < node.branchDepth) {
         this.pathNodes[depth + 1] = node;
         return node.key[depth];
       } else {
-        null;
+        return null;
       }
     }
 
