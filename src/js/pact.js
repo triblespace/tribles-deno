@@ -597,7 +597,13 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       [rightIndex, rightChild] = rightNode.seek(branchDepth, leftIndex, true);
     }
   }
-  function _walkBuild(path_compare, branch_combine, cursors, depth) {
+  function _walkBuild(
+    path_compare,
+    branch_combine,
+    primary_cursor,
+    other_cursors,
+    depth
+  ) {
     let failed = false;
     let byte;
     let d = depth;
@@ -609,9 +615,9 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       }
 
       c = 0;
-      byte = cursors[c].peek();
+      byte = primary_cursor.peek();
       if (byte === null) break fastpath;
-      for (c = 1; c < cursors.length; c++) {
+      for (c = 1; c < other_cursors.length; c++) {
         const other_byte = cursors[c].peek();
         if (other_byte === null) break fastpath;
         if (path_compare(byte, other_byte)) {
