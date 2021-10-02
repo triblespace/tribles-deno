@@ -154,6 +154,8 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
   // deno-lint-ignore prefer-const
   let PACTCursor;
   // deno-lint-ignore prefer-const
+  let PACTSegmentCursor;
+  // deno-lint-ignore prefer-const
   let PACTTree;
   // deno-lint-ignore prefer-const
   let PACTBatch;
@@ -163,6 +165,60 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
   let PACTNode;
 
   PACTCursor = class {
+    constructor(pact) {
+      this.pact = pact;
+      this.depth = 0;
+      this.pathNodes = new Array(KEY_LENGTH + 1).fill(null);
+
+      this.pathNodes[0] = pact.child;
+    }
+
+    segmentCount() {
+      const depth = this.depth;
+      const node = this.pathNodes[depth];
+      if (node === null) return 0;
+      // Because a pact might compress an entire segment within a node below it,
+      // we need to make sure that our current node is actually inside that
+      // segment and not in a segment below it.
+      if (SEGMENT_LUT[depth] === SEGMENT_LUT[node.branchDepth]) {
+        return node.segmentCount;
+      } else {
+        return 1;
+      }
+    }
+
+    peek() {
+      const node = this.pathNodes[this.depth];
+      if (node !== null && this.depth < node.branchDepth) {
+        return node.key[depth];
+      } else {
+        return null;
+      }
+    }
+
+    propose(bitset) {
+      const node = this.pathNodes[this.depth];
+      if (node === null) {
+        unsetAllBit(bitset);
+      } else {
+        node.propose(this.depth, bitset);
+      }
+    }
+
+    pop() {
+      //if (this.depth === 0) throw Error("Can't pop below start.");
+      this.depth--;
+    }
+
+    push(byte) {
+      const node = this.pathNodes[this.depth].get(this.depth, byte);
+      if (node == null) return false;
+      this.pathNodes[++this.depth] = node;
+      return true;
+    }
+  };
+
+  PACTSegmentCursor = class {
     constructor(pact) {
       this.pact = pact;
       this.depth = 0;
@@ -192,7 +248,6 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       }
       const node = this.pathNodes[depth];
       if (node !== null && depth < node.branchDepth) {
-        this.pathNodes[depth + 1] = node;
         return node.key[depth];
       } else {
         return null;
@@ -205,7 +260,6 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
         unsetAllBit(bitset);
         setBit(bitset, 0);
       } else {
-        depth &= 0b01111111;
         const node = this.pathNodes[depth];
         if (node === null) {
           unsetAllBit(bitset);
@@ -216,20 +270,18 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     pop() {
-      //if (this.depth === 0) throw Error("Can't pop below start.");
       this.depth--;
     }
 
     push(byte) {
       let depth = DEPTH_MAPPING[this.depth];
-      this.depth++;
       if ((depth & 0b10000000) === 0) {
-        depth &= 0b01111111;
         const node = this.pathNodes[depth].get(depth, byte);
-        if (node === undefined && node == null)
-          throw Error("Nothing to push to.");
+        if (node == null) return false;
         this.pathNodes[depth + 1] = node;
       }
+      this.depth++;
+      return true;
     }
   };
 
@@ -609,11 +661,6 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     let d = depth;
     let c = 0;
     fastpath: while (true) {
-      if (d === 32) {
-        yield;
-        break;
-      }
-
       c = 0;
       byte = primary_cursor.peek();
       if (byte === null) break fastpath;
@@ -626,8 +673,11 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
         }
       }
 
-      binding[d] = byte;
-      for (c of cursors) {
+      if (!primary_cursor.push()) {
+        //TODO
+        break;
+      }
+      for (c of other_cursors) {
         c.push(byte);
       }
       d++;
@@ -719,6 +769,10 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
 
     cursor() {
       return new PACTCursor(this);
+    }
+
+    segmentCursor() {
+      return new PACTSegmentCursor(this);
     }
 
     isEmpty() {
@@ -857,7 +911,8 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       singleBitIntersect(bitset, this.key[depth]);
     }
     get(depth, v) {
-      return this;
+      if (depth < KEY_LENGTH) return this;
+      return null;
     }
     seek(depth, v, ascending) {
       const candidate = this.key[depth];
@@ -929,7 +984,6 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     get(depth, v) {
-      if (depth > this.branchDepth) throw Error("Invalid depth.");
       if (depth === this.branchDepth) {
         return this.children[v];
       } else {
