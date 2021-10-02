@@ -45,24 +45,7 @@ class BlobCache {
   }
 
   shrink(tribleset) {
-    const blobs = emptyValuePACT.batch();
-    const blobCursor = this.blobs.segmentCursor();
-    const valueCursor = tribleset.VEA.segmentCursor();
-    blobCursor.push();
-    valueCursor.push();
-    const key = new Uint8Array(VALUE_SIZE);
-    if (blobCursor.isValid() && valueCursor.isValid()) {
-      search: while (true) {
-        if (!valueCursor.peek(key)) break search;
-        const match = blobCursor.seek(key);
-        if (!blobCursor.peek(key)) break search;
-        if (match) {
-          blobs.put(key.slice(), blobCursor.value());
-        }
-        if (!nextKey(key)) break search;
-        valueCursor.seek(key);
-      }
-    }
+    const blobs = this.blobs.intersect(tribleset.VEA);
     return new BlobCache(blobs.complete(), this.missHandlers);
   }
 }

@@ -154,8 +154,6 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
   // deno-lint-ignore prefer-const
   let PACTCursor;
   // deno-lint-ignore prefer-const
-  let PACTSegmentCursor;
-  // deno-lint-ignore prefer-const
   let PACTTree;
   // deno-lint-ignore prefer-const
   let PACTBatch;
@@ -165,84 +163,6 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
   let PACTNode;
 
   PACTCursor = class {
-    constructor(pact, ascending) {
-      this.pact = pact;
-      this.ascending = ascending;
-      this.valid = true;
-      this.path = new Uint8Array(KEY_LENGTH);
-      this.pathNodes = new Array(KEY_LENGTH + 1).fill(null);
-      this.pathNodes[0] = pact.child;
-
-      for (let depth = 0; depth < KEY_LENGTH; depth++) {
-        if (this.pathNodes[depth] === null) {
-          this.valid = false;
-          return;
-        }
-        [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[
-          depth
-        ].seek(depth, ascending ? 0 : 255, ascending);
-      }
-      return this;
-    }
-    isValid() {
-      return this.valid;
-    }
-    peek(buffer) {
-      if (this.valid) {
-        buffer.set(this.path);
-        return true;
-      }
-      return false;
-    }
-    value() {
-      if (this.valid) {
-        return this.pathNodes[KEY_LENGTH].value;
-      }
-    }
-    seek(infix) {
-      if (this.valid) {
-        let depth = 0;
-        search: for (; depth < KEY_LENGTH; depth++) {
-          const sought = infix[depth];
-          [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[
-            depth
-          ].seek(depth, sought, this.ascending);
-          if (
-            this.pathNodes[depth + 1] === null ||
-            this.path[depth] !== sought
-          ) {
-            break search;
-          }
-        }
-        if (depth === KEY_LENGTH) {
-          return true;
-        }
-        backtrack: while (this.pathNodes[depth + 1] === null) {
-          depth--;
-          if (depth < 0) {
-            this.valid = false;
-            return false;
-          }
-          const sought = this.path[depth];
-          if (sought === (this.ascending ? 255 : 0)) {
-            this.pathNodes[depth + 1] = null;
-            continue backtrack;
-          }
-          [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[
-            depth
-          ].seek(depth, sought + (this.ascending ? +1 : -1), this.ascending);
-        }
-        for (depth++; depth < KEY_LENGTH; depth++) {
-          [this.path[depth], this.pathNodes[depth + 1]] = this.pathNodes[
-            depth
-          ].seek(depth, this.ascending ? 0 : 255, this.ascending);
-        }
-        return false;
-      }
-    }
-  };
-
-  PACTSegmentCursor = class {
     constructor(pact) {
       this.pact = pact;
       this.depth = 0;
@@ -677,6 +597,66 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       [rightIndex, rightChild] = rightNode.seek(branchDepth, leftIndex, true);
     }
   }
+  function _walkBuild(path_compare, branch_combine, cursors, depth) {
+    let failed = false;
+    let byte;
+    let d = depth;
+    let c = 0;
+    fastpath: while (true) {
+      if (d === 32) {
+        yield;
+        break;
+      }
+
+      c = 0;
+      byte = cursors[c].peek();
+      if (byte === null) break fastpath;
+      for (c = 1; c < cursors.length; c++) {
+        const other_byte = cursors[c].peek();
+        if (other_byte === null) break fastpath;
+        if (path_compare(byte, other_byte)) {
+          failed = true;
+          break fastpath;
+        }
+      }
+
+      binding[d] = byte;
+      for (c of cursors) {
+        c.push(byte);
+      }
+      d++;
+    }
+
+    if (d < 32 && !failed) {
+      const bitset = new Uint32Array(8);
+      if (0 < c) {
+        setBit(bitset, byte);
+      } else {
+        bitset.fill(0xffffffff);
+      }
+      for (; c < cursors.length; c++) {
+        cursors[c].propose(bitset);
+      }
+      for (const bit of bitIterator(bitset)) {
+        for (c of cursors) {
+          c.push(bit);
+        }
+        binding[d] = bit;
+        yield * resolveSegment(shortcircuit, cursors, binding, d + 1);
+        for (c of cursors) {
+          c.pop();
+        }
+      }
+    }
+
+    for (; depth < d; d--) {
+      for (c of cursors) {
+        c.pop();
+      }
+    }
+
+    return hasResult;
+  }
 
   PACTBatch = class {
     constructor(child) {
@@ -731,12 +711,8 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       return node.value;
     }
 
-    cursor(ascending = true) {
-      return new PACTCursor(this, ascending);
-    }
-
-    segmentCursor() {
-      return new PACTSegmentCursor(this);
+    cursor() {
+      return new PACTCursor(this);
     }
 
     isEmpty() {
