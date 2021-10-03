@@ -15,7 +15,7 @@ import { ID_SIZE, VALUE_SIZE } from "./trible.js";
 // during a walk.
 class IndexConstraint {
   constructor(variable, index) {
-    this.cursor = index.cursor();
+    this.cursor = index.segmentCursor();
     this.variable = variable;
     this.done = false;
   }

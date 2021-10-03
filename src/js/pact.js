@@ -656,6 +656,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     other_cursors,
     depth
   ) {
+    let done = false;
     let failed = false;
     let byte;
     let d = depth;
