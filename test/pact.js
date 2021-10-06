@@ -246,7 +246,7 @@ Deno.test("segment count", () => {
     fc.property(values, (vs) => {
       const pact = vs.reduce((pact, v) => pact.put(v), emptyValuePACT);
 
-      const cursor = pact.segmentCursor();
+      const cursor = pact.cursor();
 
       assertEquals(cursor.segmentCount(), vs.length);
     })
@@ -263,7 +263,7 @@ Deno.test("segment count batched", () => {
         .reduce((pact, v) => pact.put(v), emptyValuePACT.batch())
         .complete();
 
-      const cursor = pact.segmentCursor();
+      const cursor = pact.cursor();
 
       assertEquals(cursor.segmentCount(), vs.length);
     })
@@ -322,6 +322,8 @@ Deno.test("set subtract", () => {
 
       const pactA = vsA.reduce((pact, v) => pact.put(v), emptyValuePACT);
       const pactB = vsB.reduce((pact, v) => pact.put(v), emptyValuePACT);
+
+      debugger;
 
       const rawPactDifference = [...pactA.subtract(pactB).keys()];
       const pactDifference = new Set(rawPactDifference.map((v) => encode(v)));

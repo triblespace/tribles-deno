@@ -145,15 +145,15 @@ class TribleSet {
   }
 
   constraint(e, a, v) {
-    const EAVCursor = this.EAV.segmentCursor();
-    const EVACursor = this.EVA.segmentCursor();
-    const AEVCursor = this.AEV.segmentCursor();
-    const AVECursor = this.AVE.segmentCursor();
-    const VEACursor = this.VEA.segmentCursor();
-    const VAECursor = this.VAE.segmentCursor();
-    const EisACursor = this.EisA.segmentCursor();
-    const EisVCursor = this.EisV.segmentCursor();
-    const AisVCursor = this.AisV.segmentCursor();
+    const EAVCursor = this.EAV.cursor();
+    const EVACursor = this.EVA.cursor();
+    const AEVCursor = this.AEV.cursor();
+    const AVECursor = this.AVE.cursor();
+    const VEACursor = this.VEA.cursor();
+    const VAECursor = this.VAE.cursor();
+    const EisACursor = this.EisA.cursor();
+    const EisVCursor = this.EisV.cursor();
+    const AisVCursor = this.AisV.cursor();
 
     if (e === a && e === v) {
       return new MemTribleConstraint({
