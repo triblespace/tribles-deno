@@ -301,13 +301,8 @@ function iterate(b, pactType, size) {
   pact = pact.complete();
   b.start();
   let i = 0;
-  const cursor = pact.cursor();
-  const key = new Uint8Array(TRIBLE_SIZE);
-  while (true) {
-    cursor.seek(key);
-    if (!cursor.peek(key)) break;
+  for (const k of pact.keys()) {
     i++;
-    if (!nextKey(key)) break;
   }
   b.stop();
 }
