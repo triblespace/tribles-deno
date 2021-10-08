@@ -236,7 +236,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     push(byte) {
       let depth = DEPTH_MAPPING[this.depth];
       if ((depth & 0b10000000) === 0) {
-        const node = this.pathNodes[depth].get(depth, byte);
+        const node = this.pathNodes[depth].getFast(depth, byte);
         if (node == null) return false;
         this.pathNodes[depth + 1] = node;
       }
@@ -626,7 +626,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       if (node === null) return undefined;
       for (let depth = 0; depth < KEY_LENGTH; depth++) {
         const sought = key[depth];
-        node = node.getSafe(depth, sought);
+        node = node.get(depth, sought);
         if (node === null) return undefined;
       }
       return node.value;
@@ -761,30 +761,29 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     get(depth, v) {
+      if (depth < KEY_LENGTH && this.key[depth] === v) return this;
+      return null;
+    }
+
+    getFast(depth, v) {
       if (depth < KEY_LENGTH) return this;
       return null;
     }
 
-    getSafe(depth, v) {
-      if (depth < KEY_LENGTH && key[depth] === v) return this;
-      return null;
-    }
-
     put(depth, key, value, owner) {
-      let branchDepth = depth;
-      for (; branchDepth < this.branchDepth; branchDepth++) {
-        if (this.key[branchDepth] !== key[branchDepth]) break;
+      for (; depth < this.branchDepth; depth++) {
+        if (this.key[depth] !== key[depth]) break;
       }
 
-      if (branchDepth === this.branchDepth) {
+      if (depth === this.branchDepth) {
         return this;
       }
 
       const nchild = new PACTLeaf(key, value, PACTHash(key));
 
       const nchildren = [];
-      const lindex = this.key[branchDepth];
-      const rindex = key[branchDepth];
+      const lindex = this.key[depth];
+      const rindex = key[depth];
       nchildren[lindex] = this;
       nchildren[rindex] = nchild;
       const nchildbits = emptySet();
@@ -794,7 +793,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
 
       return new PACTNode(
         this.key,
-        branchDepth,
+        depth,
         nchildbits,
         nchildren,
         hash,
@@ -833,14 +832,6 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
 
     get(depth, v) {
       if (depth === this.branchDepth) {
-        return this.children[v];
-      } else {
-        return this;
-      }
-    }
-
-    getSafe(depth, v) {
-      if (depth === this.branchDepth) {
         if (hasBit(this.childbits, v)) return this.children[v];
       } else {
         if (this.key[depth] === v) return this;
@@ -848,13 +839,20 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       return null;
     }
 
+    getFast(depth, v) {
+      if (depth === this.branchDepth) {
+        return this.children[v];
+      } else {
+        return this;
+      }
+    }
+
     put(depth, key, value, owner) {
-      let branchDepth = depth;
-      for (; branchDepth < this.branchDepth; branchDepth++) {
-        if (this.key[branchDepth] !== key[branchDepth]) break;
+      for (; depth < this.branchDepth; depth++) {
+        if (this.key[depth] !== key[depth]) break;
       }
 
-      if (branchDepth === this.branchDepth) {
+      if (depth === this.branchDepth) {
         const pos = key[this.branchDepth];
         const childDepth = this.branchDepth + 1;
         let nchildbits;
@@ -919,22 +917,22 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const nchild = new PACTLeaf(key, value, PACTHash(key));
 
       const nchildren = [];
-      const lindex = this.key[branchDepth];
-      const rindex = key[branchDepth];
+      const lindex = this.key[depth];
+      const rindex = key[depth];
       nchildren[lindex] = this;
       nchildren[rindex] = nchild;
       const nchildbits = emptySet();
       setBit(nchildbits, lindex);
       setBit(nchildbits, rindex);
       const segmentCount =
-        SEGMENT_LUT[branchDepth] === SEGMENT_LUT[this.branchDepth]
+        SEGMENT_LUT[depth] === SEGMENT_LUT[this.branchDepth]
           ? this.segmentCount + 1
           : 1;
       const hash = hash_combine(this.hash, nchild.hash);
 
       return new PACTNode(
         this.key,
-        branchDepth,
+        depth,
         nchildbits,
         nchildren,
         hash,
