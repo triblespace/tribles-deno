@@ -192,14 +192,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const depth = DEPTH_MAPPING[this.depth] & 0b01111111;
       const node = this.pathNodes[depth];
       if (node === null) return 0;
-      // Because a pact might compress an entire segment within a node below it,
-      // we need to make sure that our current node is actually inside that
-      // segment and not in a segment below it.
-      if (SEGMENT_LUT[depth] === SEGMENT_LUT[node.branchDepth]) {
-        return node.segmentCount;
-      } else {
-        return 1;
-      }
+      return node.segmentCount(depth);
     }
 
     peek() {
@@ -207,12 +200,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       if ((depth & 0b10000000) !== 0) {
         return 0;
       }
-      const node = this.pathNodes[depth];
-      if (node !== null && depth < node.branchDepth) {
-        return node.key[depth];
-      } else {
-        return null;
-      }
+      return this.pathNodes[depth]?.peek(depth);
     }
 
     propose(bitset) {
@@ -275,10 +263,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const child = leftNode.get(depth, index);
       children[index] = child;
       hash = hash_combine(hash, child.hash);
-      segmentCount =
-        SEGMENT_LUT[depth] === SEGMENT_LUT[child.branchDepth]
-          ? segmentCount + child.segmentCount
-          : segmentCount + 1;
+      segmentCount += child.segmentCount(depth);
     }
 
     for (let index of bitIterator(rightChildbits)) {
@@ -286,10 +271,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
 
       children[index] = child;
       hash = hash_combine(hash, child.hash);
-      segmentCount =
-        SEGMENT_LUT[depth] === SEGMENT_LUT[child.branchDepth]
-          ? segmentCount + child.segmentCount
-          : segmentCount + 1;
+      segmentCount += child.segmentCount(depth);
     }
 
     for (let index of bitIterator(intersectChildbits)) {
@@ -299,10 +281,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const union = _union(leftChild, rightChild, depth + 1);
       children[index] = union;
       hash = hash_combine(hash, union.hash);
-      segmentCount =
-        SEGMENT_LUT[depth] === SEGMENT_LUT[union.branchDepth]
-          ? segmentCount + union.segmentCount
-          : segmentCount + 1;
+      segmentCount += union.segmentCount(depth);
     }
 
     return new PACTNode(
@@ -344,10 +323,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const child = leftNode.get(depth, index);
       children[index] = child;
       hash = hash_combine(hash, child.hash);
-      segmentCount =
-        SEGMENT_LUT[depth] === SEGMENT_LUT[child.branchDepth]
-          ? segmentCount + child.segmentCount
-          : segmentCount + 1;
+      segmentCount += child.segmentCount(depth);
     }
 
     for (let index of bitIterator(intersectChildbits)) {
@@ -359,10 +335,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
         setBit(leftChildbits, index);
         children[index] = diff;
         hash = hash_combine(hash, diff.hash);
-        segmentCount =
-          SEGMENT_LUT[depth] === SEGMENT_LUT[diff.branchDepth]
-            ? segmentCount + diff.segmentCount
-            : segmentCount + 1;
+        segmentCount += diff.segmentCount(depth);
       }
     }
     if (noBit(leftChildbits)) return null;
@@ -406,10 +379,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       } else {
         children[index] = intersection;
         hash = hash_combine(hash, intersection.hash);
-        segmentCount =
-          SEGMENT_LUT[depth] === SEGMENT_LUT[intersection.branchDepth]
-            ? segmentCount + intersection.segmentCount
-            : segmentCount + 1;
+        segmentCount += intersection.segmentCount(depth);
       }
     }
     if (noBit(intersectChildbits)) return null;
@@ -455,20 +425,14 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const child = leftNode.get(depth, index);
       children[index] = child;
       hash = hash_combine(hash, child.hash);
-      segmentCount =
-        SEGMENT_LUT[depth] === SEGMENT_LUT[child.branchDepth]
-          ? segmentCount + child.segmentCount
-          : segmentCount + 1;
+      segmentCount += child.segmentCount(depth);
     }
 
     for (let index of bitIterator(rightChildbits)) {
       const child = rightNode.get(depth, index);
       children[index] = child;
       hash = hash_combine(hash, child.hash);
-      segmentCount =
-        SEGMENT_LUT[depth] === SEGMENT_LUT[child.branchDepth]
-          ? segmentCount + child.segmentCount
-          : segmentCount + 1;
+      segmentCount += child.segmentCount(depth);
     }
 
     for (let index of bitIterator(intersectChildbits)) {
@@ -480,10 +444,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
         setBit(diffChildbits, index);
         children[index] = difference;
         hash = hash_combine(hash, difference.hash);
-        segmentCount =
-          SEGMENT_LUT[depth] === SEGMENT_LUT[difference.branchDepth]
-            ? segmentCount + difference.segmentCount
-            : segmentCount + 1;
+        segmentCount += difference.segmentCount(depth);
       }
     }
     if (noBit(diffChildbits)) return null;
@@ -752,8 +713,15 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       this.key = key;
       this.value = value;
       this.hash = hash;
-      this.segmentCount = 1;
       this.branchDepth = KEY_LENGTH;
+    }
+
+    segmentCount(_depth) {
+      return 1;
+    }
+
+    peek(depth) {
+      return this.key[depth];
     }
 
     propose(depth, bitset) {
@@ -771,31 +739,29 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     put(depth, key, value, owner) {
-      for (; depth < this.branchDepth; depth++) {
-        if (this.key[depth] !== key[depth]) break;
-      }
+      while (depth < KEY_LENGTH && this.key[depth] != key[depth]) depth += 1;
 
-      if (depth === this.branchDepth) {
+      if (depth === KEY_LENGTH) {
         return this;
       }
 
-      const nchild = new PACTLeaf(key, value, PACTHash(key));
+      const sibling = new PACTLeaf(key, value, PACTHash(key));
 
-      const nchildren = [];
-      const lindex = this.key[depth];
-      const rindex = key[depth];
-      nchildren[lindex] = this;
-      nchildren[rindex] = nchild;
-      const nchildbits = emptySet();
-      setBit(nchildbits, lindex);
-      setBit(nchildbits, rindex);
-      const hash = hash_combine(this.hash, nchild.hash);
+      const branchChildren = [];
+      const leftIndex = this.key[depth];
+      const rightIndex = key[depth];
+      branchChildren[leftIndex] = this;
+      branchChildren[rightIndex] = sibling;
+      const branchChildbits = emptySet();
+      setBit(branchChildbits, leftIndex);
+      setBit(branchChildbits, rightIndex);
+      const hash = hash_combine(this.hash, sibling.hash);
 
       return new PACTNode(
         this.key,
         depth,
-        nchildbits,
-        nchildren,
+        branchChildbits,
+        branchChildren,
         hash,
         2,
         owner
@@ -818,8 +784,27 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       this.childbits = childbits;
       this.children = children;
       this.hash = hash;
-      this.segmentCount = segmentCount;
+      this._segmentCount = segmentCount;
       this.owner = owner;
+    }
+
+    segmentCount(depth) {
+      // Because a pact might compress an entire segment within a node below it,
+      // we need to make sure that our current node is actually inside that
+      // segment and not in a segment below it.
+      if (SEGMENT_LUT[depth] === SEGMENT_LUT[this.branchDepth]) {
+        this._segmentCount;
+      } else {
+        return 1;
+      }
+    }
+
+    peek(depth) {
+      if (depth < this.branchDepth) {
+        return this.key[depth];
+      } else {
+        return null;
+      }
     }
 
     propose(depth, bitset) {
@@ -864,22 +849,12 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
           //We need to update the child where this key would belong.
           const oldChildHash = child.hash;
           const oldChildBranchDepth = child.branchDepth;
-          const oldChildCount = child.segmentCount;
+          const oldChildCount = child.segmentCount(this.branchDepth);
           nchild = child.put(childDepth, key, value, owner);
           if (hash_equal(oldChildHash, nchild.hash)) return this;
           hash = hash_update(this.hash, oldChildHash, nchild.hash);
-          segmentCount = this.segmentCount;
-          segmentCount -=
-            SEGMENT_LUT[this.branchDepth] === SEGMENT_LUT[oldChildBranchDepth]
-              ? oldChildCount
-              : 1;
-          segmentCount +=
-            SEGMENT_LUT[this.branchDepth] === SEGMENT_LUT[nchild.branchDepth]
-              ? nchild.segmentCount
-              : 1;
-          if (segmentCount < 0) {
-            throw Error("Failed assertion: Bad segment count.");
-          }
+          segmentCount = (this.segmentCount - oldChildCount) + nchild.segmentCount(this.branchDepth);
+
           if (this.owner === owner) {
             this.children[pos] = nchild;
             this.hash = hash;
@@ -924,9 +899,10 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const nchildbits = emptySet();
       setBit(nchildbits, lindex);
       setBit(nchildbits, rindex);
+      // We need to check if this insered moved our branchDepth across a segment boundary.
       const segmentCount =
         SEGMENT_LUT[depth] === SEGMENT_LUT[this.branchDepth]
-          ? this.segmentCount + 1
+          ? this._segmentCount + 1
           : 1;
       const hash = hash_combine(this.hash, nchild.hash);
 
