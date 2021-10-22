@@ -6,6 +6,8 @@ const allocator = std.heap.page_allocator;
 
 const ByteBitset = std.StaticBitSet(256);
 
+const PtrSize = u56;
+
 const HASH_COUNT = 4;
 const KEY_LENGTH = 64;
 
@@ -13,6 +15,7 @@ const MAX_ATTEMPTS = 8;
 
 const Byte_LUT = [256]u8;
 const Hash_LUT = [256][HASH_COUNT]u8;
+
 
 fn random_choice(rng: *std.rand.Random, set: ByteBitset) ?u8 {
     if (set.count() == 0) return null;
@@ -148,7 +151,39 @@ const PACTHeader = struct {
 /// branch depth        │
 ///               bucket count
 ///
-const Bucket = packed struct { key: u8 = 0, ptr: u40 = 0 };
+
+fn hash(hashSelect: *ByteBitset, bucket_mask: u8, key: u8) {
+    return bucket_mask & if(hashSelect.isSet(key)) hash_lut[key] else key;
+}
+
+const BucketEntry = packed struct { key: u8 = 0, ptr: PtrSize = 0 };
+const Bucket = struct { entries: [8]BucketEntry = [_]BucketEntry{}**8,
+        pub fn get(self: *Self, key: u8) ?*PACTHeader {
+                for (self.entries) |entry| {
+                    if (entry.key == key and entry.ptr != 0) {
+                        return @intToPtr(*PACTHeader, entry.ptr);
+                    }
+                }
+            return null;
+        }
+        pub fn put(self: *Self, hashes: *ByteBitset, key: u8, ptr: *PACTHeader) bool {
+                for (self.entries) |*entry| {
+                    if (entry.key == key or entry.ptr == 0 or ) {
+                        entry.ptr = @intCast(PtrSize, @ptrToInt(ptr));
+                        return true;
+                    }
+                }
+            return false;
+        }
+        pub fn displace(self: *Self, key: u8, ptr: *PACTHeader) void {
+                for (self.entries) |*entry| {
+                    if (entry.key == key and entry.ptr != 0) {
+                        entry.ptr = @intCast(PtrSize, @ptrToInt(ptr));
+                        return;
+                    }
+                }
+        }
+ };
 
 const PACTInner = comptime blk: {
     @setEvalBranchQuota(1000000);
@@ -164,11 +199,11 @@ const PACTInner = comptime blk: {
         /// invalid buckets with false positively matching keys.
         header: PACTHeader,
         key: u8[KEY_LENGTH],
-        bucket_mask: u8 = HASH_COUNT - 1,
+        bucket_mask: u8 = 0,
         child_set: ByteBitset = ByteBitset.initEmpty(),
 
         pub fn init(branch_depth: u8, key: *u8[KEY_LENGTH]) *Self {
-        const raw = allocator.alloc(u8, @sizeOf(Self) + @sizeOf(Bucket) * HASH_COUNT) catch unreachable;
+        const raw = allocator.alloc(u8, @sizeOf(Self) + @sizeOf(Bucket)) catch unreachable;
         const new = @ptrCast(Self, raw);
         new.* = Self{.header = PACTHeader{.branch_depth=branch_depth,
                                           .refcount = 1}),
@@ -179,7 +214,7 @@ const PACTInner = comptime blk: {
         return new;
         }
 
-        fn putBranch(self: *Self, key: u8, value: *PACTHeader) {
+        fn putBranch(self: *Self, key: u8, value: *PACTHeader) *Self {
             const buckets = self.bucketSlice();
             var ptr = @intCast(u40, @ptrCast(value));
             
@@ -220,9 +255,22 @@ const PACTInner = comptime blk: {
             if(self.bucket_mask != 0xFF) attempts += 1;
             if(attempts == MAX_ATTEMPTS) {
                 attempts = 0;
-                self.grow();
+                self = self.grow();
             }
             }
+            return self;
+        }
+
+        fn grow(self: *Self, mutable: bool) *Self {
+        const raw = allocator.alloc(u8, @sizeOf(Self) + @sizeOf(Bucket) * HASH_COUNT) catch unreachable;
+        const new = @ptrCast(Self, raw);
+        new.* = Self{.header = PACTHeader{.branch_depth=branch_depth,
+                                          .refcount = 1}),
+                    .key = key.*};
+        for(new.bucketSlice()) |*bucket| {
+            bucket.* = Bucket{};
+        }
+        return new;
         }
 
         fn bucketSlice(self: *Self) []Bucket {
@@ -231,7 +279,7 @@ const PACTInner = comptime blk: {
             return ptr[0..end];
         }
 
-        pub fn put(self: *Self, key: u8) void {}
+        pub fn put(self: *Self, key: u8, ptr: *PACTHeader) void {}
         pub fn get(self: *Self, key: u8) ?*PACTHeader {
             if (self.child_set.isSet(key)) {
                 const hashes = hash_lut[key];
