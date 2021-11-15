@@ -77,7 +77,3 @@ export function alloc(size) {
 export function free(array) {
   const ptr = instance.exports.free(array.byteOffset, array.byteLength);
 }
-
-export function mini() {
-  return instance.exports.mini();
-}

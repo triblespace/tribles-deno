@@ -793,7 +793,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       // we need to make sure that our current node is actually inside that
       // segment and not in a segment below it.
       if (SEGMENT_LUT[depth] === SEGMENT_LUT[this.branchDepth]) {
-        this._segmentCount;
+        return this._segmentCount;
       } else {
         return 1;
       }
@@ -853,24 +853,27 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
           nchild = child.put(childDepth, key, value, owner);
           if (hash_equal(oldChildHash, nchild.hash)) return this;
           hash = hash_update(this.hash, oldChildHash, nchild.hash);
-          segmentCount = (this.segmentCount - oldChildCount) + nchild.segmentCount(this.branchDepth);
+          segmentCount =
+            this._segmentCount -
+            oldChildCount +
+            nchild.segmentCount(this.branchDepth);
 
           if (this.owner === owner) {
             this.children[pos] = nchild;
             this.hash = hash;
-            this.segmentCount = segmentCount;
+            this._segmentCount = segmentCount;
             return this;
           }
           nchildbits = this.childbits.slice();
         } else {
           nchild = new PACTLeaf(key, value, PACTHash(key));
           hash = hash_combine(this.hash, nchild.hash);
-          segmentCount = this.segmentCount + 1;
+          segmentCount = this._segmentCount + 1;
           if (this.owner === owner) {
             setBit(this.childbits, pos);
             this.children[pos] = nchild;
             this.hash = hash;
-            this.segmentCount = segmentCount;
+            this._segmentCount = segmentCount;
             return this;
           }
           nchildbits = this.childbits.slice();

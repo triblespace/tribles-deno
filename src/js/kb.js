@@ -964,7 +964,7 @@ const namespace = (...namespaces) => {
         ufoid.encoder(attributeDescription.id, encodedId);
         const invariant = invariantIndex.get(encodedId);
         if (!invariant) {
-          throw Error(`Missing invariants for attribute ${attributeName}.`);
+          throw Error(`Missing invariants for attribute "${attributeName}".`);
         }
         if (attributeDescription.isInverse && !invariant.isLink) {
           throw Error(
