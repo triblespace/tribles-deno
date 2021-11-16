@@ -512,12 +512,13 @@ Deno.test("TribleSet PACT segmentCount positive", () => {
       },
     ]);
   }
-  const work = [knightskb.tribledb.EAV.child];
+  const work = [knightskb.tribleset.EAV.child];
   while (work.length > 0) {
     const c = work.shift();
-    if (!c) continue;
-    if (c.segmentCount < 0) console.log(c.segmentCount);
-    assert(c.segmentCount >= 0);
-    if (c.children) work.push(...c.children);
+    if (c && c.constructor.name === "PACTNode") {
+      if (c._segmentCount < 0) console.log(c._segmentCount);
+      assert(c._segmentCount >= 0);
+      if (c.children) work.push(...c.children);
+    }
   }
 });

@@ -239,7 +239,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
-      if (leftNode.key[depth] !== rightNode.key[depth]) break;
+      if (leftNode.peek(depth) !== rightNode.peek(depth)) break;
     }
     if (depth === KEY_LENGTH) return leftNode;
 
@@ -300,7 +300,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       return null;
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
-      if (leftNode.key[depth] !== rightNode.key[depth]) {
+      if (leftNode.peek(depth) !== rightNode.peek(depth)) {
         return leftNode;
       }
     }
@@ -356,7 +356,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
-      if (leftNode.key[depth] !== rightNode.key[depth]) return null;
+      if (leftNode.peek(depth) !== rightNode.peek(depth)) return null;
     }
     if (depth === KEY_LENGTH) return leftNode;
 
@@ -400,7 +400,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       return null;
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
-      if (leftNode.key[depth] !== rightNode.key[depth]) break;
+      if (leftNode.peek(depth) !== rightNode.peek(depth)) break;
     }
     if (depth === KEY_LENGTH) return null;
 
@@ -465,7 +465,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       return true;
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
-      if (leftNode.key[depth] !== rightNode.key[depth]) break;
+      if (leftNode.peek(depth) !== rightNode.peek(depth)) break;
     }
     if (depth === KEY_LENGTH) return true;
 
@@ -500,7 +500,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       return true;
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
-      if (leftNode.key[depth] !== rightNode.key[depth]) {
+      if (leftNode.peek(depth) !== rightNode.peek(depth)) {
         return false;
       }
     }
@@ -528,7 +528,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
 
   function* _walk(node, key = new Uint8Array(KEY_LENGTH), depth = 0) {
     for (; depth < node.branchDepth; depth++) {
-      key[depth] = node.key[depth];
+      key[depth] = node.peek(depth);
     }
     if (depth === KEY_LENGTH) {
       yield [key, node.value];
@@ -559,7 +559,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       if (this.child) {
         this.child = this.child.put(0, key, value, this.owner);
       } else {
-        this.child = new PACTLeaf(key, value, PACTHash(key));
+        this.child = new PACTLeaf(0, key, value, PACTHash(key));
       }
       return this;
     }
@@ -580,7 +580,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
         if (this.child === nchild) return this;
         return new PACTTree(nchild);
       }
-      return new PACTTree(new PACTLeaf(key, value, PACTHash(key)));
+      return new PACTTree(new PACTLeaf(0, key, value, PACTHash(key)));
     }
     get(key) {
       let node = this.child;
@@ -709,10 +709,11 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
   };
 
   PACTLeaf = class {
-    constructor(key, value, hash) {
-      this.key = key;
+    constructor(depth, key, value, hash) {
+      this.key = key.slice(depth);
       this.value = value;
       this.hash = hash;
+      this.depth = depth;
       this.branchDepth = KEY_LENGTH;
     }
 
@@ -721,15 +722,15 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     peek(depth) {
-      return this.key[depth];
+      return this.key[depth - this.depth];
     }
 
     propose(depth, bitset) {
-      singleBitIntersect(bitset, this.key[depth]);
+      singleBitIntersect(bitset, this.key[depth - this.depth]);
     }
 
     get(depth, v) {
-      if (depth < KEY_LENGTH && this.key[depth] === v) return this;
+      if (depth < KEY_LENGTH && this.key[depth - this.depth] === v) return this;
       return null;
     }
 
@@ -739,16 +740,17 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     put(depth, key, value, owner) {
-      while (depth < KEY_LENGTH && this.key[depth] != key[depth]) depth += 1;
+      while (depth < KEY_LENGTH && this.key[depth - this.depth] === key[depth])
+        depth += 1;
 
       if (depth === KEY_LENGTH) {
         return this;
       }
 
-      const sibling = new PACTLeaf(key, value, PACTHash(key));
+      const sibling = new PACTLeaf(depth + 1, key, value, PACTHash(key));
 
       const branchChildren = [];
-      const leftIndex = this.key[depth];
+      const leftIndex = this.key[depth - this.depth];
       const rightIndex = key[depth];
       branchChildren[leftIndex] = this;
       branchChildren[rightIndex] = sibling;
@@ -758,7 +760,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const hash = hash_combine(this.hash, sibling.hash);
 
       return new PACTNode(
-        this.key,
+        key,
         depth,
         branchChildbits,
         branchChildren,
@@ -866,7 +868,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
           }
           nchildbits = this.childbits.slice();
         } else {
-          nchild = new PACTLeaf(key, value, PACTHash(key));
+          nchild = new PACTLeaf(depth + 1, key, value, PACTHash(key));
           hash = hash_combine(this.hash, nchild.hash);
           segmentCount = this._segmentCount + 1;
           if (this.owner === owner) {
@@ -892,7 +894,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
         );
       }
 
-      const nchild = new PACTLeaf(key, value, PACTHash(key));
+      const nchild = new PACTLeaf(depth + 1, key, value, PACTHash(key));
 
       const nchildren = [];
       const lindex = this.key[depth];

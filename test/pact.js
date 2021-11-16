@@ -84,7 +84,8 @@ Deno.test("pact insert", () => {
       const pactSet = new Set([...pact.keys()].map((t) => encode(t)));
 
       assertEquals(pactSet, jsSet);
-    })
+    }),
+    { seed: -1017857781, path: "0:1:0:0:0:0:0:0:0:0:1:2", endOnFailure: true }
   );
 });
 
@@ -278,9 +279,10 @@ Deno.test("segment count positive", () => {
       const work = [filled_pact.child];
       while (work.length > 0) {
         const c = work.shift();
-        if (!c) continue;
-        assert(c.segmentCount >= 0);
-        if (c.children) work.push(...c.children);
+        if (c && c.constructor.name === "PACTNode") {
+          assert(c._segmentCount >= 0);
+          if (c.children) work.push(...c.children);
+        }
       }
     })
   );
@@ -297,9 +299,10 @@ Deno.test("segment count positive batched", () => {
       const work = [filled_pact.child];
       while (work.length > 0) {
         const c = work.shift();
-        if (!c) continue;
-        assert(c.segmentCount >= 0);
-        if (c.children) work.push(...c.children);
+        if (c && c.constructor.name === "PACTNode") {
+          assert(c._segmentCount >= 0);
+          if (c.children) work.push(...c.children);
+        }
       }
     })
   );
@@ -423,7 +426,12 @@ Deno.test("set symmetric difference", () => {
 
       assertEquals(rawPactDifference.length, jsDifference.size);
       assertEquals(pactDifference, jsDifference);
-    })
+    }),
+    {
+      seed: 904358189,
+      path: "23:7:2:19:29:39:49:59:69:79:89:99:109:119:129:139:149:159:169:178:187:196:205:206:195:203:211:219:227:235:243:251:259:267:275:283:291:299:307:315:323:331:339:347:355:363:371:379:387:395:403:411:419:427:435:443:451:459:467:475:483:491:499:507:515:523:531:539:547:563:571:579:587:595:603:611:619:627:635:643:651:659:667:675:683:691:699:707:715:723:731:739:747:755:763:771:779:787:795:803:811:819:827:835:843:851:859:867:875:883:891:899:907:915:923:931:939:955:963:971:979:987:995:1003:1011:1019:1027:1035:1043:1051:1059:1067:1075:1083:1091:1099:1107:1115:1123:1131:1139:1147:1171:1179:1187:1195:1203:1211:1218:1225:1232:1239:1246:1253:1260:1267:1274:1281:1288:1295:1302:1309:1316:1323:1330:1337:1344:1351:1358:1365:1372:1379:1386:1393:1400:1407:1414:1421:1428:1435:1442:1449:1456:1463:1470:1477:1484:1491:1498:1505:1512:1519:1526:1533:1540:1547:1554:1561:1568:1575:1582:1589:1596:1603:1610:1617:1624:1631:1638:1645:1652:1659:1665:1671:1683:1689:1695:1701:1707:1713:1719:1725:1731:1751:1757:1763:1769:1775:1781:1787:1793:1799:1805:1811:1817:1823:1829:1835:1841:1847:1853:1859:1860:1131:1684:1788:1792:1796:1800:1804:1808:1812:1816:1820:1823:1826:1829:1832:1834:1836:1837:1838:3:4:3:3:3:5",
+      endOnFailure: true,
+    }
   );
 });
 
