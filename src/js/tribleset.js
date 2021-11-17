@@ -27,16 +27,22 @@ class MemTribleConstraint {
     this.explorationStack = [variableTree];
   }
 
-  propose() {
+  bid(unblocked) {
     const lastExplored =
       this.explorationStack[this.explorationStack.length - 1];
-    return lastExplored.children.map((child) => ({
-      variable: child.variable,
-      costs: child.cursors.map((cursor) => {
-        const count = cursor.segmentCount();
-        return count * inmemoryCosts;
-      }),
-    }));
+    let candidateVariable = null;
+    let candidateCosts = Number.MAX_VALUE;
+    for (const child of lastExplored.children) {
+      for (const cursor of child.cursors) {
+        const costs = cursor.segmentCount() * inmemoryCosts;
+        const variable = child.variable;
+        if (costs <= candidateCosts && unblocked.has(variable)) {
+          candidateVariable = variable;
+          candidateCosts = costs;
+        }
+      }
+    }
+    return [candidateVariable, candidateCosts];
   }
 
   pop(variable) {

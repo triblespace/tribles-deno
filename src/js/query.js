@@ -10,6 +10,8 @@ import {
 } from "./pact.js";
 import { ID_SIZE, VALUE_SIZE } from "./trible.js";
 
+const inmemoryCosts = 1;
+
 // This constraint is used when there is a fixed number of possible values for a variable.
 // As with a collection where items should exist in, or when enumerating attributes from a namespace
 // during a walk.
@@ -20,14 +22,12 @@ class IndexConstraint {
     this.done = false;
   }
 
-  propose() {
-    if (this.done) return [];
-    return [
-      {
-        variable: this.variable,
-        costs: [this.cursor.segmentCount()],
-      },
-    ];
+  bid(unblocked) {
+    if (!this.done && unblocked.has(this.variable)) {
+      const costs = this.cursor.segmentCount() * inmemoryCosts;
+      return [this.variable, costs];
+    }
+    return [null, Number.MAX_VALUE];
   }
 
   push(variable) {
@@ -223,65 +223,85 @@ const constantConstraint = (variable, constant) => {
 };
 
 class OrderByMinCostAndBlockage {
-  constructor(projected, blockedBy = []) {
-    this.blockedBy = blockedBy;
-    this.projected = projected;
-    this.projectCount = projected.size;
-    this.omitCount = 0;
-    this.exploredVariables = new Set();
-    this.isProjection = false;
+  constructor(variableCount, projected, isBlocking = []) {
+    this.isBlocking = new Map();
+    this.shortcircuit = new Set();
+    this.semaphores = new Uint8Array(variableCount);
+    this.unblocked = new Set();
+
+    for (let v = 0; v < variableCount; v++) {
+      if (!projected.has(v)) {
+        for (const p of projected) {
+          const bs = this.isBlocking.get(p) || new Set();
+          bs.add(v);
+          this.isBlocking.set(p, bs);
+        }
+        this.shortcircuit.add(v);
+      }
+    }
+
+    for (const [blocker, blocked] of isBlocking) {
+      const bs = this.isBlocking.get(blocker) || new Set();
+      bs.add(blocked);
+      this.isBlocking.set(blocker, bs);
+    }
+
+    for (const [blocker, bs] of this.isBlocking.entries()) {
+      for (const b of bs) {
+        this.semaphores[b]++;
+      }
+    }
+
+    for (let v = 0; v < variableCount; v++) {
+      if (this.semaphores[v] === 0) {
+        this.unblocked.add(v);
+      }
+    }
   }
 
-  propose(constraints) {
+  next(constraints) {
     let candidateVariable = null;
     let candidateCosts = Number.MAX_VALUE;
     for (const c of constraints) {
-      for (const proposal of c.propose()) {
-        const minCosts = Math.min(...proposal.costs);
-        const variable = proposal.variable;
-        if (
-          minCosts <= candidateCosts &&
-          (this.projectCount === 0 || this.projected.has(variable)) &&
-          this.blockedBy.every(
-            ([blocked, blocker]) =>
-              variable !== blocked || this.exploredVariables.has(blocker)
-          )
-        ) {
-          candidateVariable = variable;
-          candidateCosts = minCosts;
-        }
+      const [variable, costs] = c.bid(this.unblocked);
+      if (costs <= candidateCosts) {
+        candidateVariable = variable;
+        candidateCosts = costs;
       }
+      if (candidateCosts <= 1) break;
     }
     //if (window.debug) console.log(candidateCosts);
     return candidateVariable;
   }
 
-  shortcircuit() {
-    return !this.isProjection;
+  isShortcircuit(variable) {
+    return this.shortcircuit.has(variable);
   }
 
   push(variable) {
-    this.exploredVariables.add(variable);
-    if ((this.isProjection = this.projected.has(variable))) {
-      this.projectCount--;
-    } else {
-      this.omitCount++;
+    const blocked = this.isBlocking.get(variable);
+    if (blocked !== undefined) {
+      for (const v of blocked) {
+        if (--this.semaphores[v] === 0) {
+          this.unblocked.add(v);
+        }
+      }
     }
   }
 
   pop(variable) {
-    this.exploredVariables.delete(variable);
-    if (this.projected.has(variable)) {
-      this.projectCount++;
-    } else {
-      this.omitCount--;
+    const blocked = this.isBlocking.get(variable);
+    if (blocked !== undefined) {
+      for (const v of blocked) {
+        if (this.semaphores[v]++ === 0) {
+          this.unblocked.delete(v);
+        }
+      }
     }
-    this.isProjection = this.omitCount === 0;
   }
 }
 
-function* resolveSegment(shortcircuit, cursors, binding, depth) {
-  let hasResult = false;
+function* resolveSegment(cursors, binding, depth = 0) {
   let failed = false;
   let byte;
   let d = depth;
@@ -289,7 +309,6 @@ function* resolveSegment(shortcircuit, cursors, binding, depth) {
   fastpath: while (true) {
     if (d === 32) {
       yield;
-      hasResult = true;
       break;
     }
 
@@ -327,11 +346,10 @@ function* resolveSegment(shortcircuit, cursors, binding, depth) {
         c.push(bit);
       }
       binding[d] = bit;
-      hasResult = yield* resolveSegment(shortcircuit, cursors, binding, d + 1);
+      yield* resolveSegment(cursors, binding, d + 1);
       for (c of cursors) {
         c.pop();
       }
-      if (shortcircuit && hasResult) break;
     }
   }
 
@@ -340,14 +358,12 @@ function* resolveSegment(shortcircuit, cursors, binding, depth) {
       c.pop();
     }
   }
-
-  return hasResult;
 }
 
 function* resolve(constraints, ordering, ascendingVariables, bindings) {
   //init
   let hasResult = false;
-  const variable = ordering.propose(constraints);
+  const variable = ordering.next(constraints);
   if (variable === null) {
     yield bindings;
     hasResult = true;
@@ -361,13 +377,17 @@ function* resolve(constraints, ordering, ascendingVariables, bindings) {
       cursors.push(...c.push(variable));
     }
 
-    for (const s of resolveSegment(
-      ordering.shortcircuit(),
-      cursors,
-      bindings[variable],
-      0
-    )) {
-      yield* resolve(constraints, ordering, ascendingVariables, bindings);
+    const shortcircuit = ordering.isShortcircuit(variable);
+
+    for (const _iter of resolveSegment(cursors, bindings[variable])) {
+      const r = yield* resolve(
+        constraints,
+        ordering,
+        ascendingVariables,
+        bindings
+      );
+      hasResult = hasResult || r;
+      if (hasResult && shortcircuit) break;
     }
 
     constraints.forEach((c) => c.pop(variable));

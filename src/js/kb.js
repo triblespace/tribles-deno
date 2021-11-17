@@ -119,12 +119,12 @@ class Variable {
       }
       //TODO add omit sanity check.
       potentialCycles = new Set(
-        this.provider.blockedBy
-          .filter(([a, b]) => potentialCycles.has(a))
-          .map(([a, b]) => b)
+        this.provider.isBlocking
+          .filter(([a, b]) => potentialCycles.has(b))
+          .map(([a, b]) => a)
       );
     }
-    this.provider.blockedBy.push([this.index, otherVariable.index]);
+    this.provider.isBlocking.push([otherVariable.index, this.index]);
     return this;
   }
 
@@ -181,7 +181,7 @@ class VariableProvider {
     this.unnamedVariables = [];
     this.namedVariables = new Map();
     this.constantVariables = emptyValuePACT;
-    this.blockedBy = [];
+    this.isBlocking = [];
     this.projected = new Set();
   }
 
@@ -244,7 +244,7 @@ const lookup = (ns, kb, eId, attributeName) => {
       constantConstraint(1, aId),
       kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
     ],
-    new OrderByMinCostAndBlockage(new Set([0, 1, 2])),
+    new OrderByMinCostAndBlockage(3, new Set([0, 1, 2])),
     new Set([0, 1, 2]),
     [
       new Uint8Array(VALUE_SIZE),
@@ -333,7 +333,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
             constantConstraint(1, aId),
             kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
           ],
-          new OrderByMinCostAndBlockage(new Set([0, 1])),
+          new OrderByMinCostAndBlockage(3, new Set([0, 1])),
           new Set([0, 1, 2]),
           [
             new Uint8Array(VALUE_SIZE),
@@ -394,7 +394,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
             indexConstraint(1, ns.forwardAttributeIndex),
             kb.tribleset.constraint(0, 1, 2),
           ],
-          new OrderByMinCostAndBlockage(new Set([0, 1])),
+          new OrderByMinCostAndBlockage(3, new Set([0, 1])),
           new Set([0, 1, 2]),
           [
             new Uint8Array(VALUE_SIZE),
@@ -414,7 +414,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
             kb.tribleset.constraint(2, 1, 0),
             indexConstraint(1, ns.inverseAttributeIndex),
           ],
-          new OrderByMinCostAndBlockage(new Set([0, 1])),
+          new OrderByMinCostAndBlockage(3, new Set([0, 1])),
           new Set([0, 1, 2]),
           [
             new Uint8Array(VALUE_SIZE),
@@ -697,9 +697,9 @@ class KB {
           indexConstraint(1, uniqueAttributeIndex),
           newTribleSet.constraint(0, 1, 2),
         ],
-        new OrderByMinCostAndBlockage(new Set([0, 1, 2]), [
-          [2, 0],
-          [2, 1],
+        new OrderByMinCostAndBlockage(3, new Set([0, 1, 2]), [
+          [0, 2],
+          [1, 2],
         ]),
         new Set([0, 1, 2]),
         [
@@ -734,9 +734,9 @@ class KB {
           indexConstraint(1, uniqueInverseAttributeIndex),
           newTribleSet.constraint(0, 1, 2),
         ],
-        new OrderByMinCostAndBlockage(new Set([0, 1, 2]), [
-          [0, 1],
-          [0, 2],
+        new OrderByMinCostAndBlockage(3, new Set([0, 1, 2]), [
+          [1, 0],
+          [2, 0],
         ]),
         new Set([0, 1, 2]),
         [
@@ -873,11 +873,13 @@ function* find(ns, cfn) {
 
   const namedVariables = [...vars.namedVariables.values()];
 
-  //console.log(vars.blockedBy);
-
   for (const r of resolve(
     constraints,
-    new OrderByMinCostAndBlockage(vars.projected, vars.blockedBy),
+    new OrderByMinCostAndBlockage(
+      vars.variables.length,
+      vars.projected,
+      vars.isBlocking
+    ),
     new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
     vars.variables.map((_) => new Uint8Array(VALUE_SIZE))
   )) {

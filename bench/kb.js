@@ -76,20 +76,22 @@ function kbQuery(b, size) {
   // Add some data.
   let knightskb = new KB(new TribleSet(), new BlobCache());
 
-  knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
-    {
-      [id]: romeo,
-      name: "Romeo",
-      titles: ["fool", "prince"],
-      loves: juliet,
-    },
-    {
-      [id]: juliet,
-      name: "Juliet",
-      titles: ["the lady", "princess"],
-      loves: romeo,
-    },
-  ]);
+  for (let i = 1; i < 1000; i++) {
+    knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
+      {
+        [id]: romeo,
+        name: `RomeoClone${i}`,
+        titles: ["fool", "prince"],
+        loves: juliet,
+      },
+      {
+        [id]: juliet,
+        name: "Juliet",
+        titles: ["the lady", "princess"],
+        loves: romeo,
+      },
+    ]);
+  }
   for (let i = 1; i < size; i++) {
     knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
       {
@@ -107,8 +109,6 @@ function kbQuery(b, size) {
     ]);
   }
   b.start();
-  window.debug = true;
-
   // Query some data.
   const results = [
     ...find(knightsNS, ({ name, title }) => [
@@ -121,7 +121,7 @@ function kbQuery(b, size) {
       ]),
     ]),
   ];
-  //console.log(results.length);
+  console.log(results.length);
   b.stop();
 }
 
@@ -192,6 +192,7 @@ function kbDSQuery(b) {
       ]),
     ]),
   ];
+  console.log(results.length);
   b.stop();
 }
 
