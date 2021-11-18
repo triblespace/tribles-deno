@@ -883,6 +883,9 @@ function* find(ns, cfn) {
     new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
     vars.variables.map((_) => new Uint8Array(VALUE_SIZE))
   )) {
+    // TODO: Use a proxy and make this lazy, so that only
+    // field that get accessed are parsed or loaded from
+    // blob storage and memoized.
     const result = {};
     for (const {
       index,
