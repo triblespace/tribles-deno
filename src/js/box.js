@@ -171,7 +171,7 @@ async function* search(ns, cfn) {
 
     for (const r of resolve(
       constraints,
-      new OrderByMinCostAndBlockage(vars.projected, vars.blockedBy),
+      new OrderByMinCostAndBlockage(vars.projected, vars.isBlocking),
       new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
       vars.variables.map((_) => new Uint8Array(VALUE_SIZE))
     )) {

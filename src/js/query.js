@@ -2,6 +2,7 @@ import {
   emptyValuePACT,
   nextKey,
   bitIterator,
+  seekBit,
   singleBitIntersect,
   bitIntersect,
   setBit,
@@ -301,61 +302,93 @@ class OrderByMinCostAndBlockage {
   }
 }
 
-function* resolveSegment(cursors, binding, depth = 0) {
-  let failed = false;
-  let byte;
-  let d = depth;
+const MODE_PATH = 0;
+const MODE_BRANCH = 1;
+const MODE_BACKTRACK = 2;
+function* resolveSegment(cursors, binding) {
+  let mode = MODE_PATH;
+  let bitset = null;
+  let depth = 0;
+  let byte = 0;
+  const branchStack = [[bitset, byte, depth]];
+
   let c = 0;
-  fastpath: while (true) {
-    if (d === 32) {
-      yield;
-      break;
-    }
+  outer: while (true) {
+    if (mode === MODE_PATH) {
+      while (true) {
+        if (depth === 32) {
+          yield;
+          mode = MODE_BACKTRACK;
+          continue outer;
+        }
 
-    c = 0;
-    byte = cursors[c].peek();
-    if (byte === null) break fastpath;
-    for (c = 1; c < cursors.length; c++) {
-      const other_byte = cursors[c].peek();
-      if (other_byte === null) break fastpath;
-      if (byte !== other_byte) {
-        failed = true;
-        break fastpath;
+        c = 0;
+        byte = cursors[c].peek();
+        if (byte === null) {
+          byte = 0;
+          bitset = new Uint32Array(8);
+          bitset.fill(0xffffffff);
+          for (; c < cursors.length; c++) {
+            cursors[c].propose(bitset);
+          }
+          mode = MODE_BRANCH;
+          continue outer;
+        }
+        for (c = 1; c < cursors.length; c++) {
+          const other_byte = cursors[c].peek();
+          if (other_byte === null) {
+            bitset = new Uint32Array(8);
+            setBit(bitset, byte);
+            for (; c < cursors.length; c++) {
+              cursors[c].propose(bitset);
+            }
+            mode = MODE_BRANCH;
+            continue outer;
+          }
+          if (byte !== other_byte) {
+            mode = MODE_BACKTRACK;
+            continue outer;
+          }
+        }
+
+        binding[depth] = byte;
+        for (c of cursors) {
+          c.push(byte);
+        }
+        depth++;
       }
     }
 
-    binding[d] = byte;
-    for (c of cursors) {
-      c.push(byte);
-    }
-    d++;
-  }
-
-  if (d < 32 && !failed) {
-    const bitset = new Uint32Array(8);
-    if (0 < c) {
-      setBit(bitset, byte);
-    } else {
-      bitset.fill(0xffffffff);
-    }
-    for (; c < cursors.length; c++) {
-      cursors[c].propose(bitset);
-    }
-    for (const bit of bitIterator(bitset)) {
+    if (mode === MODE_BRANCH) {
+      byte = seekBit(byte, bitset);
+      if (byte > 255) {
+        mode = MODE_BACKTRACK;
+        continue outer;
+      }
+      binding[depth] = byte;
+      branchStack.push([bitset, byte + 1, depth]);
       for (c of cursors) {
-        c.push(bit);
+        c.push(byte);
       }
-      binding[d] = bit;
-      yield* resolveSegment(cursors, binding, d + 1);
-      for (c of cursors) {
-        c.pop();
-      }
+      depth++;
+      mode = MODE_PATH;
+      continue outer;
     }
-  }
 
-  for (; depth < d; d--) {
-    for (c of cursors) {
-      c.pop();
+    if (mode === MODE_BACKTRACK) {
+      let branchDepth;
+      [bitset, byte, branchDepth] = branchStack.pop();
+      for (; branchDepth < depth; depth--) {
+        for (c of cursors) {
+          c.pop();
+        }
+      }
+      if (bitset === null) {
+        break outer;
+      } else {
+        mode = MODE_BRANCH;
+        continue outer;
+      }
     }
   }
 }

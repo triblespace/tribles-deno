@@ -48,6 +48,15 @@ function* bitIterator(bitset, ascending = true) {
   }
 }
 
+function seekBit(bitPosition, bitset, ascending = true) {
+  for (let wordPosition = bitPosition >>> 5; wordPosition < 8; wordPosition++) {
+    const mask = ~0 >>> bitPosition;
+    const c = Math.clz32(bitset[wordPosition] & mask);
+    if (c < 32) return (wordPosition << 5) + c;
+  }
+  return 256;
+}
+
 const unsetBit = (bitset, bitPosition) => {
   bitset[bitPosition >>> 5] &= ~(highBit32 >>> bitPosition);
 };
@@ -945,6 +954,7 @@ export {
   nextKey,
   PACTHash,
   bitIterator,
+  seekBit,
   singleBitIntersect,
   bitIntersect,
   setBit,

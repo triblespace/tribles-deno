@@ -80,7 +80,7 @@ function kbQuery(b, size) {
     knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
       {
         [id]: romeo,
-        name: `RomeoClone${i}`,
+        name: `LovingRomeo${i}`,
         titles: ["fool", "prince"],
         loves: juliet,
       },
@@ -92,7 +92,7 @@ function kbQuery(b, size) {
       },
     ]);
   }
-  for (let i = 1; i < size; i++) {
+  for (let i = 0; i < size; i++) {
     knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
       {
         [id]: romeo,
