@@ -286,6 +286,10 @@ class TribleSet {
     });
   }
 
+  count() {
+    return this.EAV.count();
+  }
+
   empty() {
     return new TribleSet();
   }

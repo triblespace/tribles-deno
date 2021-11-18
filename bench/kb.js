@@ -53,7 +53,7 @@ function kbWith(b, size) {
       loves: romeo,
     },
   ]);
-  for (let i = 1; i < size; i++) {
+  for (let i = 0; i < size; i++) {
     knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
       {
         [id]: romeo,
@@ -76,7 +76,7 @@ function kbQuery(b, size) {
   // Add some data.
   let knightskb = new KB(new TribleSet(), new BlobCache());
 
-  for (let i = 1; i < 1000; i++) {
+  for (let i = 0; i < 1000; i++) {
     knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
       {
         [id]: romeo,
@@ -133,7 +133,7 @@ function kbDSQuery(b) {
   // Add some data.
 
   let peoplekb = new KB(new TribleSet(), new BlobCache());
-  for (let i = 1; i < 1250; i++) {
+  for (let i = 0; i < 1250; i++) {
     peoplekb = peoplekb.with(knightsNS, ([ivan]) => [
       {
         [id]: ivan,
@@ -144,7 +144,7 @@ function kbDSQuery(b) {
       },
     ]);
   }
-  for (let i = 1; i < 1250; i++) {
+  for (let i = 0; i < 50000; i++) {
     peoplekb = peoplekb.with(knightsNS, ([ivan]) => [
       {
         [id]: ivan,
@@ -155,7 +155,7 @@ function kbDSQuery(b) {
       },
     ]);
   }
-  for (let i = 1; i < 10000; i++) {
+  for (let i = 0; i < 50000; i++) {
     peoplekb = peoplekb.with(knightsNS, ([bob]) => [
       {
         [id]: bob,
@@ -166,7 +166,7 @@ function kbDSQuery(b) {
       },
     ]);
   }
-  for (let i = 1; i < 10000; i++) {
+  for (let i = 0; i < 50000; i++) {
     peoplekb = peoplekb.with(knightsNS, ([bob]) => [
       {
         [id]: bob,
@@ -192,7 +192,7 @@ function kbDSQuery(b) {
       ]),
     ]),
   ];
-  console.log(results.length);
+  console.log(peoplekb.tribleset.count(), results.length);
   b.stop();
 }
 
