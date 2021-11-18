@@ -39,20 +39,6 @@ function kbWith(b, size) {
   let knightskb = new KB(new TribleSet(), new BlobCache());
 
   b.start();
-  knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
-    {
-      [id]: romeo,
-      name: "Romeo",
-      titles: ["fool", "prince"],
-      loves: juliet,
-    },
-    {
-      [id]: juliet,
-      name: "Juliet",
-      titles: ["the lady", "princess"],
-      loves: romeo,
-    },
-  ]);
   for (let i = 0; i < size; i++) {
     knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
       {
@@ -70,6 +56,7 @@ function kbWith(b, size) {
     ]);
   }
   b.stop();
+  console.log(knightskb.tribleset.count());
 }
 
 function kbQuery(b, size) {
@@ -121,7 +108,7 @@ function kbQuery(b, size) {
       ]),
     ]),
   ];
-  console.log(results.length);
+  console.log(knightskb.tribleset.count(), results.length);
   b.stop();
 }
 
