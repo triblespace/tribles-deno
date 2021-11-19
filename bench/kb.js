@@ -39,22 +39,25 @@ function kbWith(b, size) {
   let knightskb = new KB(new TribleSet(), new BlobCache());
 
   b.start();
-  for (let i = 0; i < size; i++) {
-    knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
-      {
-        [id]: romeo,
-        name: `Romeo${i}`,
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: `Juliet${i}`,
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ]);
-  }
+  knightskb = knightskb.with(knightsNS, function* (ids) {
+    for (let i = 0; i < size; i++) {
+      let [romeo, juliet] = ids;
+      yield* [
+        {
+          [id]: romeo,
+          name: `Romeo${i}`,
+          titles: ["fool", "prince"],
+          loves: juliet,
+        },
+        {
+          [id]: juliet,
+          name: `Juliet${i}`,
+          titles: ["the lady", "princess"],
+          loves: romeo,
+        },
+      ];
+    }
+  });
   b.stop();
   console.log(knightskb.tribleset.count());
 }
@@ -63,38 +66,45 @@ function kbQuery(b, size) {
   // Add some data.
   let knightskb = new KB(new TribleSet(), new BlobCache());
 
-  for (let i = 0; i < 1000; i++) {
-    knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
-      {
-        [id]: romeo,
-        name: `LovingRomeo${i}`,
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: "Juliet",
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ]);
-  }
-  for (let i = 0; i < size; i++) {
-    knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
-      {
-        [id]: romeo,
-        name: `Romeo${i}`,
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: `Juliet${i}`,
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ]);
-  }
+  knightskb = knightskb.with(knightsNS, function* (ids) {
+    for (let i = 0; i < 1000; i++) {
+      const [romeo, juliet] = ids;
+      yield* [
+        {
+          [id]: romeo,
+          name: `LovingRomeo${i}`,
+          titles: ["fool", "prince"],
+          loves: juliet,
+        },
+        {
+          [id]: juliet,
+          name: "Juliet",
+          titles: ["the lady", "princess"],
+          loves: romeo,
+        },
+      ];
+    }
+  });
+
+  knightskb = knightskb.with(knightsNS, function* (ids) {
+    for (let i = 0; i < size; i++) {
+      const [romeo, juliet] = ids;
+      yield* [
+        {
+          [id]: romeo,
+          name: `Romeo${i}`,
+          titles: ["fool", "prince"],
+          loves: juliet,
+        },
+        {
+          [id]: juliet,
+          name: `Juliet${i}`,
+          titles: ["the lady", "princess"],
+          loves: romeo,
+        },
+      ];
+    }
+  });
   b.start();
   // Query some data.
   const results = [
@@ -120,50 +130,47 @@ function kbDSQuery(b) {
   // Add some data.
 
   let peoplekb = new KB(new TribleSet(), new BlobCache());
-  for (let i = 0; i < 1250; i++) {
-    peoplekb = peoplekb.with(knightsNS, ([ivan]) => [
-      {
+  peoplekb = peoplekb.with(knightsNS, function* (ids) {
+    for (let i = 0; i < 1250; i++) {
+      const [ivan] = ids;
+      yield {
         [id]: ivan,
         name: "Ivan",
         lastName: `IvanSon${i}`,
         eyeColor: "blue",
         age: getRandomInt(100),
-      },
-    ]);
-  }
-  for (let i = 0; i < 50000; i++) {
-    peoplekb = peoplekb.with(knightsNS, ([ivan]) => [
-      {
-        [id]: ivan,
-        name: "Ivan",
-        lastName: `IvanSon${i}`,
-        eyeColor: "green",
-        age: getRandomInt(100),
-      },
-    ]);
-  }
-  for (let i = 0; i < 50000; i++) {
-    peoplekb = peoplekb.with(knightsNS, ([bob]) => [
-      {
-        [id]: bob,
-        name: `${i}Bob`,
-        lastName: `${i}Smith`,
-        eyeColor: "green",
-        age: getRandomInt(100),
-      },
-    ]);
-  }
-  for (let i = 0; i < 50000; i++) {
-    peoplekb = peoplekb.with(knightsNS, ([bob]) => [
-      {
-        [id]: bob,
-        name: `${i}Bob`,
-        lastName: `${i}Smith`,
-        eyeColor: "blue",
-        age: getRandomInt(100),
-      },
-    ]);
-  }
+      };
+    }
+  });
+
+  peoplekb = peoplekb.with(knightsNS, function* (ids) {
+    for (let i = 0; i < 50000; i++) {
+      const [ivan, bob, bob2] = ids;
+      yield* [
+        {
+          [id]: ivan,
+          name: "Ivan",
+          lastName: `IvanSon${i}`,
+          eyeColor: "green",
+          age: getRandomInt(100),
+        },
+        {
+          [id]: bob,
+          name: `${i}Bob`,
+          lastName: `${i}Smith`,
+          eyeColor: "green",
+          age: getRandomInt(100),
+        },
+        {
+          [id]: bob2,
+          name: `${i}Bob`,
+          lastName: `${i}Smith`,
+          eyeColor: "blue",
+          age: getRandomInt(100),
+        },
+      ];
+    }
+  });
   b.start();
 
   // Query some data.

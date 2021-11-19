@@ -1,5 +1,100 @@
 import { find } from "./kb.js";
 
+// TODO Add constraint checking to box.
+/*
+if (newTribleSet !== this.tribleset) {
+    let touchedEntities = emptyIdPACT.batch();
+    for (const trible of tribles) {
+      touchedEntities.put(E(trible));
+    }
+    touchedEntities = touchedEntities.complete();
+    let touchedAttributes = emptyIdPACT.batch();
+    for (const trible of tribles) {
+      touchedAttributes.put(A(trible));
+    }
+    touchedAttributes = touchedAttributes.complete();
+    let touchedValues = emptyValuePACT.batch();
+    for (const trible of tribles) {
+      touchedValues.put(V(trible));
+    }
+    touchedValues = touchedValues.complete();
+  
+    let prevE = null;
+    let prevA = null;
+    for (const [e, a] of resolve(
+      [
+        indexConstraint(0, touchedEntities),
+        indexConstraint(1, touchedAttributes),
+        indexConstraint(1, uniqueAttributeIndex),
+        newTribleSet.constraint(0, 1, 2),
+      ],
+      new OrderByMinCostAndBlockage(3, new Set([0, 1, 2]), [
+        [0, 2],
+        [1, 2],
+      ]),
+      new Set([0, 1, 2]),
+      [
+        new Uint8Array(VALUE_SIZE),
+        new Uint8Array(VALUE_SIZE),
+        new Uint8Array(VALUE_SIZE),
+      ]
+    )) {
+      if (
+        prevE !== null &&
+        prevA !== null &&
+        equalValue(prevE, e) &&
+        equalValue(prevA, a)
+      ) {
+        throw Error(
+          `Constraint violation: Unique attribute '${ufoid.decoder(
+            a,
+            () => undefined
+          )}' has multiple values on '${idDecoder(e, () => undefined)}'.`
+        );
+      }
+      prevE = e.slice();
+      prevA = a.slice();
+    }
+  
+    prevA = null;
+    let prevV = null;
+    for (const [e, a, v] of resolve(
+      [
+        indexConstraint(2, touchedValues),
+        indexConstraint(1, touchedAttributes),
+        indexConstraint(1, uniqueInverseAttributeIndex),
+        newTribleSet.constraint(0, 1, 2),
+      ],
+      new OrderByMinCostAndBlockage(3, new Set([0, 1, 2]), [
+        [1, 0],
+        [2, 0],
+      ]),
+      new Set([0, 1, 2]),
+      [
+        new Uint8Array(VALUE_SIZE),
+        new Uint8Array(VALUE_SIZE),
+        new Uint8Array(VALUE_SIZE),
+      ]
+    )) {
+      if (
+        prevA !== null &&
+        prevV !== null &&
+        equalValue(prevA, a) &&
+        equalValue(prevV, v)
+      ) {
+        //TODO make errors pretty.
+        throw Error(
+          `Constraint violation: Unique inverse attribute '${ufoid.decoder(
+            a,
+            () => undefined
+          )}' has multiple entities for '${v}'.`
+        );
+      }
+      prevA = a.slice();
+      prevV = v.slice();
+    }
+  }*/
+
 class Box {
   constructor(kb) {
     this._kb = kb;

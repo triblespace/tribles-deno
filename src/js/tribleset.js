@@ -102,14 +102,14 @@ class TribleSet {
     const EisV = this.EisV.batch();
     const AisV = this.AisV.batch();
 
-    for (const trible of tribles) EAV.put(scrambleEAV(trible));
-    for (const trible of tribles) EVA.put(scrambleEVA(trible));
-    for (const trible of tribles) AEV.put(scrambleAEV(trible));
-    for (const trible of tribles) AVE.put(scrambleAVE(trible));
-    for (const trible of tribles) VEA.put(scrambleVEA(trible));
-    for (const trible of tribles) VAE.put(scrambleVAE(trible));
-
     for (const trible of tribles) {
+      EAV.put(scrambleEAV(trible));
+      EVA.put(scrambleEVA(trible));
+      AEV.put(scrambleAEV(trible));
+      AVE.put(scrambleAVE(trible));
+      VEA.put(scrambleVEA(trible));
+      VAE.put(scrambleVAE(trible));
+
       const e = E(trible);
       const a = A(trible);
       const v1 = V1(trible);

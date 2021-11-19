@@ -441,76 +441,62 @@ const isPojo = (obj) => {
   return Object.getPrototypeOf(obj) === Object.prototype;
 };
 
-const entitiesToTriples = (ns, unknownFactory, root) => {
-  const triples = [];
-  const work = [];
-  const rootIsArray = root instanceof Array;
-  const rootIsObject = typeof root === "object" && root !== null;
-  if (rootIsArray) {
-    for (const [index, entity] of root.entries()) {
-      work.push({ path: [index], value: entity });
-    }
-  } else if (rootIsObject) {
-    work.push({ path: [], value: root });
-  } else throw Error(`Root must be array of entities or entity, got:\n${root}`);
-
-  while (work.length != 0) {
-    const w = work.pop();
-    if (
-      (!w.parentId || w.parentAttributeDescription.isLink) &&
-      isPojo(w.value)
-    ) {
-      const entityId = w.value[id] || unknownFactory();
-      if (w.parentId) {
-        triples.push({
-          path: w.path,
-          triple: [w.parentId, w.parentAttributeDescription.name, entityId],
-        });
-      }
-      for (const [attributeName, value] of Object.entries(w.value)) {
-        assert(
-          ns.attributes.get(attributeName),
-          `Error at path [${w.path}]: No attribute named '${attributeName}' in namespace.`
-        );
-        const attributeDescription = ns.attributes.get(attributeName);
-        if (attributeDescription.expectsArray) {
-          assert(
-            value instanceof Array,
-            `Error at path [${w.path}]: Expected array but found: ${value}`
+function* entityToTriples(
+  ns,
+  unknownFactory,
+  parentId,
+  parentAttributeName,
+  entity
+) {
+  const entityId = entity[id] || unknownFactory();
+  if (parentId !== null) {
+    yield [parentId, parentAttributeName, entityId];
+  }
+  for (const [attributeName, value] of Object.entries(entity)) {
+    const attributeDescription = ns.attributes.get(attributeName);
+    assert(
+      attributeDescription,
+      `No attribute named '${attributeName}' in namespace.`
+    );
+    if (attributeDescription.expectsArray) {
+      for (const v of value) {
+        if (attributeDescription.isLink && isPojo(v)) {
+          yield* entityToTriples(
+            ns,
+            unknownFactory,
+            entityId,
+            attributeName,
+            v
           );
-          for (const [i, v] of value.entries()) {
-            work.push({
-              path: [...w.path, attributeName, i],
-              value: v,
-              parentId: entityId,
-              parentAttributeDescription: attributeDescription,
-            });
-          }
         } else {
-          work.push({
-            path: [...w.path, attributeName],
-            value,
-            parentId: entityId,
-            parentAttributeDescription: attributeDescription,
-          });
+          yield [entityId, attributeName, v];
         }
       }
     } else {
-      triples.push({
-        path: w.path,
-        triple: [w.parentId, w.parentAttributeDescription.name, w.value],
-      });
+      if (attributeDescription.isLink && isPojo(value)) {
+        yield* entityToTriples(
+          ns,
+          unknownFactory,
+          entityId,
+          attributeName,
+          value
+        );
+      } else {
+        yield [entityId, attributeName, value];
+      }
     }
   }
-  return triples;
-};
+}
 
-const triplesToTribles = function (ns, triples, tribles = [], blobs = []) {
+function* entitiesToTriples(ns, unknownFactory, entities) {
+  for (const entity of entities) {
+    yield* entityToTriples(ns, unknownFactory, null, null, entity);
+  }
+}
+
+function* triplesToTribles(ns, triples, blobFn = (key, blob) => {}) {
   const idEncoder = ns.attributes.get(id).encoder;
-  for (const {
-    path,
-    triple: [e, attributeName, v],
-  } of triples) {
+  for (const [e, attributeName, v] of triples) {
     const attributeDescription = ns.attributes.get(attributeName);
     let entityId, value;
     if (!attributeDescription.isInverse) {
@@ -528,33 +514,27 @@ const triplesToTribles = function (ns, triples, tribles = [], blobs = []) {
       blob = encoder(value, encodedValue);
     } catch (err) {
       throw Error(
-        `Error at path [${path}]:Couldn't encode '${value}' as value for attribute '${attributeName}':\n${err}`
+        `Couldn't encode '${value}' as value for attribute '${attributeName}':\n${err}`
       );
     }
     try {
       idEncoder(entityId, E(trible));
     } catch (err) {
-      throw Error(
-        `Error at path[${path}]:Couldn't encode '${entityId}' as entity id:\n${err}`
-      );
+      throw Error(`Couldn't encode '${entityId}' as entity id:\n${err}`);
     }
     A(trible).set(attributeDescription.encodedId);
 
-    tribles.push(trible);
     if (blob) {
-      blobs.push([encodedValue, blob]);
+      blobFn(encodedValue, blob);
     }
+    yield trible;
   }
-  return { tribles, blobs };
-};
+}
 
 const precompileTriples = (ns, vars, triples) => {
   const { encoder: idEncoder, decoder: idDecoder } = ns.attributes.get(id);
   const precompiledTriples = [];
-  for (const {
-    path,
-    triple: [e, attributeName, v],
-  } of triples) {
+  for (const [e, attributeName, v] of triples) {
     const attributeDescription = ns.attributes.get(attributeName);
     let entity, value;
     if (!attributeDescription.isInverse) {
@@ -570,14 +550,10 @@ const precompileTriples = (ns, vars, triples) => {
 
     // Entity
     if (entity instanceof Variable) {
-      entity.paths.push(path.slice(0, -1));
       !entity.decoder ||
         assert(
           entity.decoder === idDecoder && entity.encoder === idEncoder,
-          `Error at paths ${entity.paths} and [${path.slice(
-            0,
-            -1
-          )}]:\n Variables at positions use incompatible types.`
+          `Variables use incompatible types.`
         );
       entity.decoder = idDecoder;
       entity.encoder = idEncoder;
@@ -587,9 +563,7 @@ const precompileTriples = (ns, vars, triples) => {
       try {
         idEncoder(entity, b);
       } catch (error) {
-        throw Error(
-          `Error encoding entity at [${path.slice(0, -1)}]: ${error.message}`
-        );
+        throw Error(`Error encoding entity: ${error.message}`);
       }
       entityVar = vars.constant(b);
     }
@@ -601,12 +575,11 @@ const precompileTriples = (ns, vars, triples) => {
 
     // Value
     if (value instanceof Variable) {
-      value.paths.push([...path]);
       const { decoder, encoder } = attributeDescription;
       !value.decoder ||
         assert(
           value.decoder === decoder && value.encoder === encoder,
-          `Error at paths ${value.paths} and [${path}]:\n Variables at positions use incompatible types.`
+          `Variables at positions use incompatible types.`
         );
       value.decoder = decoder;
       value.encoder = encoder;
@@ -617,7 +590,7 @@ const precompileTriples = (ns, vars, triples) => {
       try {
         encoder(value, b);
       } catch (error) {
-        throw Error(`Error encoding value at [${path}]: ${error.message}`);
+        throw Error(`Error encoding value: ${error.message}`);
       }
       valueVar = vars.constant(b);
     }
@@ -669,104 +642,12 @@ class KB {
     } = ns.attributes.get(id);
     const entities = efn(new IDSequence(idFactory));
     const triples = entitiesToTriples(ns, idFactory, entities);
-    const { tribles, blobs } = triplesToTribles(ns, triples);
+    let newBlobCache = this.blobcache;
+    const tribles = triplesToTribles(ns, triples, (key, blob) => {
+      newBlobCache = newBlobCache.put(key, blob);
+    });
     const newTribleSet = this.tribleset.with(tribles);
-    if (newTribleSet !== this.tribleset) {
-      let touchedEntities = emptyIdPACT.batch();
-      for (const trible of tribles) {
-        touchedEntities.put(E(trible));
-      }
-      touchedEntities = touchedEntities.complete();
-      let touchedAttributes = emptyIdPACT.batch();
-      for (const trible of tribles) {
-        touchedAttributes.put(A(trible));
-      }
-      touchedAttributes = touchedAttributes.complete();
-      let touchedValues = emptyValuePACT.batch();
-      for (const trible of tribles) {
-        touchedValues.put(V(trible));
-      }
-      touchedValues = touchedValues.complete();
-
-      let prevE = null;
-      let prevA = null;
-      for (const [e, a] of resolve(
-        [
-          indexConstraint(0, touchedEntities),
-          indexConstraint(1, touchedAttributes),
-          indexConstraint(1, uniqueAttributeIndex),
-          newTribleSet.constraint(0, 1, 2),
-        ],
-        new OrderByMinCostAndBlockage(3, new Set([0, 1, 2]), [
-          [0, 2],
-          [1, 2],
-        ]),
-        new Set([0, 1, 2]),
-        [
-          new Uint8Array(VALUE_SIZE),
-          new Uint8Array(VALUE_SIZE),
-          new Uint8Array(VALUE_SIZE),
-        ]
-      )) {
-        if (
-          prevE !== null &&
-          prevA !== null &&
-          equalValue(prevE, e) &&
-          equalValue(prevA, a)
-        ) {
-          throw Error(
-            `Constraint violation: Unique attribute '${ufoid.decoder(
-              a,
-              () => undefined
-            )}' has multiple values on '${idDecoder(e, () => undefined)}'.`
-          );
-        }
-        prevE = e.slice();
-        prevA = a.slice();
-      }
-
-      prevA = null;
-      let prevV = null;
-      for (const [e, a, v] of resolve(
-        [
-          indexConstraint(2, touchedValues),
-          indexConstraint(1, touchedAttributes),
-          indexConstraint(1, uniqueInverseAttributeIndex),
-          newTribleSet.constraint(0, 1, 2),
-        ],
-        new OrderByMinCostAndBlockage(3, new Set([0, 1, 2]), [
-          [1, 0],
-          [2, 0],
-        ]),
-        new Set([0, 1, 2]),
-        [
-          new Uint8Array(VALUE_SIZE),
-          new Uint8Array(VALUE_SIZE),
-          new Uint8Array(VALUE_SIZE),
-        ]
-      )) {
-        if (
-          prevA !== null &&
-          prevV !== null &&
-          equalValue(prevA, a) &&
-          equalValue(prevV, v)
-        ) {
-          //TODO make errors pretty.
-          throw Error(
-            `Constraint violation: Unique inverse attribute '${ufoid.decoder(
-              a,
-              () => undefined
-            )}' has multiple entities for '${v}'.`
-          );
-        }
-        prevA = a.slice();
-        prevV = v.slice();
-      }
-
-      const newBlobCache = this.blobcache.put(blobs);
-      return new KB(newTribleSet, newBlobCache);
-    }
-    return this;
+    return new KB(newTribleSet, newBlobCache);
   }
 
   where(entities) {

@@ -7,14 +7,8 @@ class BlobCache {
     this.missHandlers = missHandlers;
   }
 
-  put(blobs) {
-    let nblobs = this.blobs.batch();
-    for (let b = 0; b < blobs.length; b++) {
-      const [key, blob] = blobs[b];
-      nblobs = nblobs.put(key, blob);
-    }
-
-    return new BlobCache(nblobs.complete());
+  put(key, blob) {
+    return new BlobCache(this.blobs.put(key, blob));
   }
 
   async get(key) {
