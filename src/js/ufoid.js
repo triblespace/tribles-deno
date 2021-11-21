@@ -10,19 +10,31 @@ class ufoidSequence {
 }
 
 export const UFOID = {
-  now() {
-    return UFOID.withTime(Date.now());
+  rotor: (() => {
+    let a = new Uint32Array(1);
+    crypto.getRandomValues(a);
+    return a;
+  })(),
+  now(arr = new Uint8Array(16)) {
+    return UFOID.withTime(Date.now(), arr);
   },
 
-  withTime(time) {
-    const arr = new Uint8Array(16);
-    crypto.getRandomValues(arr.subarray(4, 16));
-    new DataView(arr.buffer).setUint32(0, time & 0xffffffff, false);
-    return [...arr].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  withTime(time, arr = new Uint8Array(16)) {
+    crypto.getRandomValues(arr.subarray(8, 16));
+    const view = new DataView(arr.buffer);
+    view.setUint32(0, time & 0xffffffff, false);
+    view.setUint32(1, this.rotor[0]++, false);
+
+    return arr;
   },
 
   validate(id) {
-    return /[0-9A-Fa-f]{16}/g.test(id);
+    if (id instanceof Uint8Array && id.length === 16) {
+      for (const e of id) {
+        if (e !== 0) return true;
+      }
+    }
+    return false;
   },
 
   anon() {

@@ -32,10 +32,7 @@ let invariantIndex = emptyIdPACT;
 let uniqueAttributeIndex = emptyIdPACT;
 let uniqueInverseAttributeIndex = emptyIdPACT;
 
-function getInvariant(attributeId) {
-  const encodedId = new Uint8Array(16);
-  ufoid.encoder(attributeId, encodedId);
-
+function getInvariant(encodedId) {
   return invariantIndex.get(encodedId);
 }
 
@@ -44,34 +41,33 @@ function globalInvariants(invariants) {
   const newUniqueAttributeIndex = uniqueAttributeIndex.batch();
   const newUniqueInverseAttributeIndex = uniqueInverseAttributeIndex.batch();
 
-  for (const [
-    attributeId,
-    { isLink, isUnique, isUniqueInverse },
-  ] of Object.entries(invariants)) {
-    const encodedId = new Uint8Array(16);
-    ufoid.encoder(attributeId, encodedId);
-
+  for (const {
+    id: encodedId,
+    isLink,
+    isUnique,
+    isUniqueInverse,
+  } of invariants) {
     const existing = newInvariantIndex.get(encodedId);
     if (existing) {
       if (Boolean(existing.isLink) !== Boolean(isLink)) {
         throw Error(
-          `Can't register inconsistent invariant"${attributeId}": isLink:${existing.isLink} !== isLink:${novel.isLink}`
+          `Can't register inconsistent invariant"${encodedId}": isLink:${existing.isLink} !== isLink:${novel.isLink}`
         );
       }
       if (Boolean(existing.isUnique) !== Boolean(isUnique)) {
         throw Error(
-          `Can't register inconsistent invariant"${attributeId}": isUnique:${existing.isUnique} !== isUnique:${novel.isUnique}`
+          `Can't register inconsistent invariant"${encodedId}": isUnique:${existing.isUnique} !== isUnique:${novel.isUnique}`
         );
       }
       if (Boolean(existing.isUniqueInverse) !== Boolean(isUniqueInverse)) {
         throw Error(
-          `Can't register inconsistent invariant "${attributeId}": isUniqueInverse:${existing.isUniqueInverse} !== isUniqueInverse:${novel.isUniqueInverse}`
+          `Can't register inconsistent invariant "${encodedId}": isUniqueInverse:${existing.isUniqueInverse} !== isUniqueInverse:${novel.isUniqueInverse}`
         );
       }
     } else {
       if (isUniqueInverse && !isLink) {
         throw Error(
-          `Can't register inconsistent invariant "${attributeId}": Only links can be inverse unique.`
+          `Can't register inconsistent invariant "${encodedId}": Only links can be inverse unique.`
         );
       }
       if (isUnique) {
@@ -798,6 +794,7 @@ const namespace = (...namespaces) => {
   let forwardAttributeIndex = emptyIdPACT; // non inverse attribute id -> [attribute description]
   let inverseAttributeIndex = emptyIdPACT; // inverse attribute id -> [attribute description],
 
+  // TODO Use id decoder in NS for ids in NS. esp. for equality checks
   for (const namespace of namespaces) {
     if (namespace[id]) {
       if (attributes.has(id)) {

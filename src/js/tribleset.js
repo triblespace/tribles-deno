@@ -68,6 +68,58 @@ class MemTribleConstraint {
   }
 }
 
+function flush_trible_buffer(
+  buffer,
+  EAV,
+  EVA,
+  AEV,
+  AVE,
+  VEA,
+  VAE,
+  EisA,
+  EisV,
+  AisV
+) {
+  for (const trible of buffer) {
+    EAV.put(scrambleEAV(trible));
+  }
+  for (const trible of buffer) {
+    EVA.put(scrambleEVA(trible));
+  }
+  for (const trible of buffer) {
+    AEV.put(scrambleAEV(trible));
+  }
+  for (const trible of buffer) {
+    AVE.put(scrambleAVE(trible));
+  }
+  for (const trible of buffer) {
+    VEA.put(scrambleVEA(trible));
+  }
+  for (const trible of buffer) {
+    VAE.put(scrambleVAE(trible));
+  }
+  for (const trible of buffer) {
+    const e = E(trible);
+    const a = A(trible);
+    const v1 = V1(trible);
+    const v2 = V2(trible);
+    const eIsA = equalId(e, a);
+    const eIsV = zero(v1) && equalId(e, v2);
+    const aIsV = zero(v1) && equalId(a, v2);
+
+    if (eIsA) {
+      EisA.put(scrambleEAV(trible));
+    }
+    if (eIsV) {
+      EisV.put(scrambleEAV(trible));
+    }
+    if (aIsV) {
+      AisV.put(scrambleAEV(trible));
+    }
+  }
+}
+
+const BUFFER_SIZE = 64;
 class TribleSet {
   constructor(
     EAV = emptyIdIdValueTriblePACT,
@@ -102,32 +154,27 @@ class TribleSet {
     const EisV = this.EisV.batch();
     const AisV = this.AisV.batch();
 
-    for (const trible of tribles) {
-      EAV.put(scrambleEAV(trible));
-      EVA.put(scrambleEVA(trible));
-      AEV.put(scrambleAEV(trible));
-      AVE.put(scrambleAVE(trible));
-      VEA.put(scrambleVEA(trible));
-      VAE.put(scrambleVAE(trible));
-
-      const e = E(trible);
-      const a = A(trible);
-      const v1 = V1(trible);
-      const v2 = V2(trible);
-      const eIsA = equalId(e, a);
-      const eIsV = zero(v1) && equalId(e, v2);
-      const aIsV = zero(v1) && equalId(a, v2);
-
-      if (eIsA) {
-        EisA.put(scrambleEAV(trible));
-      }
-      if (eIsV) {
-        EisV.put(scrambleEAV(trible));
-      }
-      if (aIsV) {
-        AisV.put(scrambleAEV(trible));
+    const buffer = new Array(BUFFER_SIZE);
+    buffer.length = 0;
+    for (const t of tribles) {
+      buffer.push(t);
+      if (buffer.length === BUFFER_SIZE) {
+        flush_trible_buffer(
+          buffer,
+          EAV,
+          EVA,
+          AEV,
+          AVE,
+          VEA,
+          VAE,
+          EisA,
+          EisV,
+          AisV
+        );
+        buffer.length = 0;
       }
     }
+    flush_trible_buffer(buffer, EAV, EVA, AEV, AVE, VEA, VAE, EisA, EisV, AisV);
 
     return new TribleSet(
       EAV.complete(),

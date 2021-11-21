@@ -5,6 +5,7 @@ import {
   PACTHash,
 } from "../src/js/pact.js";
 import { A, E, TRIBLE_SIZE, V1, V2 } from "../src/js/trible.js";
+import { UFOID } from "../mod.js";
 
 const variants = [
   {
@@ -48,19 +49,18 @@ function generate_sample(size, sharing_prob = 0.1) {
   const a = A(trible);
   const v1 = V1(trible);
   const v2 = V2(trible);
-  crypto.getRandomValues(trible);
   for (let i = 0; i < size; i++) {
     if (sharing_prob < Math.random()) {
-      crypto.getRandomValues(e);
+      UFOID.now(e);
     }
     if (sharing_prob < Math.random()) {
-      crypto.getRandomValues(a);
+      UFOID.now(a);
     }
     if (sharing_prob < Math.random()) {
-      crypto.getRandomValues(v1);
+      UFOID.now(v1);
     }
     if (sharing_prob < Math.random()) {
-      crypto.getRandomValues(v2);
+      UFOID.now(v2);
     }
     tribles.push(Uint8Array.from(trible));
   }
@@ -79,6 +79,26 @@ function persistentPut(b, pactType, size) {
 benchAllPACT({
   name: "put",
   func: persistentPut,
+});
+
+function putPrehashed(b, pactType, size) {
+  const sample = generate_sample(size);
+
+  for (const t of sample) {
+    PACTHash(t);
+  }
+
+  let pact = pactType;
+  b.start();
+  for (const t of sample) {
+    pact = pact.put(t);
+  }
+  b.stop();
+}
+
+benchAllPACT({
+  name: "putPrecompHash",
+  func: putPrehashed,
 });
 
 function batchedPut(b, pactType, size) {

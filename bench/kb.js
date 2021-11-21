@@ -14,14 +14,14 @@ import {
 const { nameId, lastNameId, ageId, eyeColorId, lovesId, titlesId } =
   UFOID.namedCache();
 
-globalInvariants({
-  [nameId]: { isUnique: true },
-  [lastNameId]: { isUnique: true },
-  [lovesId]: { isLink: true, isUnique: true },
-  [titlesId]: {},
-  [eyeColorId]: { isUnique: true },
-  [ageId]: { isUnique: true },
-});
+globalInvariants([
+  { id: nameId, isUnique: true },
+  { id: lastNameId, isUnique: true },
+  { id: lovesId, isLink: true, isUnique: true },
+  { id: titlesId },
+  { id: eyeColorId, isUnique: true },
+  { id: ageId, isUnique: true },
+]);
 
 const knightsNS = namespace({
   [id]: { ...types.ufoid },
