@@ -38,12 +38,23 @@ const ctz32 = (n) => {
 const highBit32 = 1 << 31;
 
 function* bitIterator(bitset, ascending = true) {
-  for (let wordPosition = 0; wordPosition < 8; wordPosition++) {
-    for (let mask = 0xffffffff; ; ) {
-      const c = Math.clz32(bitset[wordPosition] & mask);
-      if (c === 32) break;
-      yield (wordPosition << 5) + c;
-      mask &= ~(highBit32 >>> c);
+  if (ascending) {
+    for (let wordPosition = 0; wordPosition < 8; wordPosition++) {
+      for (let mask = 0xffffffff; ; ) {
+        const c = Math.clz32(bitset[wordPosition] & mask);
+        if (c === 32) break;
+        yield (wordPosition << 5) + c;
+        mask &= ~(highBit32 >>> c);
+      }
+    }
+  } else {
+    for (let wordPosition = 7; wordPosition >= 0; wordPosition--) {
+      for (let mask = 0xffffffff; ; ) {
+        const c = Math.clz32(bitset[wordPosition] & mask);
+        if (c === 32) break;
+        yield (wordPosition << 5) + c;
+        mask &= ~(highBit32 >>> c);
+      }
     }
   }
 }
@@ -212,7 +223,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       if ((depth & 0b10000000) !== 0) {
         return 0;
       }
-      return this.pathNodes[depth]?.peek(depth);
+      return this.pathNodes[depth].peek(depth);
     }
 
     propose(bitset) {
@@ -245,13 +256,20 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
   };
 
-  function _union(leftNode, rightNode, depth = 0) {
+  function _union(
+    leftNode,
+    rightNode,
+    depth = 0,
+    key = new Uint8Array(KEY_LENGTH)
+  ) {
     if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
       return leftNode;
     }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
-      if (leftNode.peek(depth) !== rightNode.peek(depth)) break;
+      const leftByte = leftNode.peek(depth);
+      if (leftByte !== rightNode.peek(depth)) break;
+      key[depth] = leftByte;
     }
     if (depth === KEY_LENGTH) return leftNode;
 
@@ -290,10 +308,12 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     for (let index of bitIterator(intersectChildbits)) {
+      key[depth] = index;
       const leftChild = leftNode.get(depth, index);
       const rightChild = rightNode.get(depth, index);
 
-      const union = _union(leftChild, rightChild, depth + 1);
+      key[depth] = index;
+      const union = _union(leftChild, rightChild, depth + 1, key);
       children[index] = union;
       hash = hash_combine(hash, union.hash);
       count += union.count();
@@ -301,7 +321,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
 
     return new PACTNode(
-      leftNode.key,
+      key.slice(),
       depth,
       unionChildbits,
       children,
@@ -312,14 +332,21 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     );
   }
 
-  function _subtract(leftNode, rightNode, depth = 0) {
+  function _subtract(
+    leftNode,
+    rightNode,
+    depth = 0,
+    key = new Uint8Array(KEY_LENGTH)
+  ) {
     if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH)
       return null;
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
-      if (leftNode.peek(depth) !== rightNode.peek(depth)) {
+      const leftByte = leftNode.peek(depth);
+      if (leftByte !== rightNode.peek(depth)) {
         return leftNode;
       }
+      key[depth] = leftByte;
     }
     if (depth === KEY_LENGTH) return null;
 
@@ -349,6 +376,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const leftChild = leftNode.get(depth, index);
       const rightChild = rightNode.get(depth, index);
 
+      key[depth] = index;
       const diff = _subtract(leftChild, rightChild, depth + 1);
       if (diff !== null) {
         setBit(leftChildbits, index);
@@ -360,7 +388,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     }
     if (noBit(leftChildbits)) return null;
     return new PACTNode(
-      leftNode.key,
+      key.slice(),
       depth,
       leftChildbits,
       children,
@@ -371,13 +399,20 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     );
   }
 
-  function _intersect(leftNode, rightNode, depth = 0) {
+  function _intersect(
+    leftNode,
+    rightNode,
+    depth = 0,
+    key = new Uint8Array(KEY_LENGTH)
+  ) {
     if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
       return leftNode;
     }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
-      if (leftNode.peek(depth) !== rightNode.peek(depth)) return null;
+      const leftByte = leftNode.peek(depth);
+      if (leftByte !== rightNode.peek(depth)) return null;
+      key[depth] = leftByte;
     }
     if (depth === KEY_LENGTH) return leftNode;
 
@@ -395,6 +430,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const leftChild = leftNode.get(depth, index);
       const rightChild = rightNode.get(depth, index);
 
+      key[depth] = index;
       const intersection = _intersect(leftChild, rightChild, depth + 1);
       if (intersection === null) {
         unsetBit(intersectChildbits, index);
@@ -408,7 +444,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     if (noBit(intersectChildbits)) return null;
 
     return new PACTNode(
-      leftNode.key,
+      key.slice(),
       depth,
       intersectChildbits,
       children,
@@ -419,12 +455,19 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     );
   }
 
-  function _difference(leftNode, rightNode, depth = 0) {
+  function _difference(
+    leftNode,
+    rightNode,
+    depth = 0,
+    key = new Uint8Array(KEY_LENGTH)
+  ) {
     if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH)
       return null;
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
-      if (leftNode.peek(depth) !== rightNode.peek(depth)) break;
+      const leftByte = leftNode.peek(depth);
+      if (leftByte !== rightNode.peek(depth)) break;
+      key[depth] = leftByte;
     }
     if (depth === KEY_LENGTH) return null;
 
@@ -466,6 +509,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const leftChild = leftNode.get(depth, index);
       const rightChild = rightNode.get(depth, index);
 
+      key[depth] = index;
       const difference = _difference(leftChild, rightChild, depth + 1);
       if (difference !== null) {
         setBit(diffChildbits, index);
@@ -478,7 +522,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
     if (noBit(diffChildbits)) return null;
 
     return new PACTNode(
-      leftNode.key,
+      key.slice(),
       depth,
       diffChildbits,
       children,

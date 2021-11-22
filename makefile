@@ -6,3 +6,6 @@ bench: build
 
 test: build
 	deno test --unstable --allow-env --allow-read ./test/*
+	
+test-ff: build
+	deno test --unstable --allow-env --allow-read --fail-fast ./test/*

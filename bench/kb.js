@@ -144,7 +144,7 @@ function kbDSQuery(b) {
   });
 
   peoplekb = peoplekb.with(knightsNS, function* (ids) {
-    for (let i = 0; i < 50000; i++) {
+    for (let i = 0; i < 20000; i++) {
       const [ivan, bob, bob2] = ids;
       yield* [
         {
@@ -190,6 +190,49 @@ function kbDSQuery(b) {
   b.stop();
 }
 
+function kbWithPeople(b, size) {
+  b.start();
+  let peoplekb = new KB(new TribleSet(), new BlobCache());
+  peoplekb = peoplekb.with(knightsNS, function* (ids) {});
+
+  peoplekb = peoplekb.with(knightsNS, function* (ids) {
+    for (let i = 0; i < size; i++) {
+      const [ivan, ivan2, bob, bob2] = ids;
+      yield* [
+        {
+          [id]: ivan,
+          name: "Ivan",
+          lastName: `IvanSon${i}`,
+          eyeColor: "blue",
+          age: getRandomInt(100),
+        },
+        {
+          [id]: ivan2,
+          name: "Ivan",
+          lastName: `IvanSon${i}`,
+          eyeColor: "green",
+          age: getRandomInt(100),
+        },
+        {
+          [id]: bob,
+          name: `${i}Bob`,
+          lastName: `${i}Smith`,
+          eyeColor: "green",
+          age: getRandomInt(100),
+        },
+        {
+          [id]: bob2,
+          name: `${i}Bob`,
+          lastName: `${i}Smith`,
+          eyeColor: "blue",
+          age: getRandomInt(100),
+        },
+      ];
+    }
+  });
+  b.stop();
+  console.log(peoplekb.tribleset.count());
+}
 bench({
   name: "kbWith1e4",
   runs: 3,
@@ -211,6 +254,14 @@ bench({
   runs: 3,
   func(b) {
     kbDSQuery(b);
+  },
+});
+
+bench({
+  name: "kbWithPeople20k",
+  runs: 3,
+  func(b) {
+    kbWithPeople(b, 20000);
   },
 });
 

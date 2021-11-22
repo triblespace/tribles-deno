@@ -305,6 +305,7 @@ class OrderByMinCostAndBlockage {
 const MODE_PATH = 0;
 const MODE_BRANCH = 1;
 const MODE_BACKTRACK = 2;
+
 function* resolveSegment(cursors, binding) {
   let mode = MODE_PATH;
   let bitset = null;
@@ -317,13 +318,23 @@ function* resolveSegment(cursors, binding) {
     if (mode === MODE_PATH) {
       while (true) {
         if (depth === 32) {
-          yield;
+          if (yield) {
+            let branchDepth;
+            [bitset, byte, branchDepth] = branchStack[0];
+            for (; branchDepth < depth; depth--) {
+              for (c of cursors) {
+                c.pop();
+              }
+            }
+            return;
+          }
           mode = MODE_BACKTRACK;
           continue outer;
         }
 
         c = 0;
         byte = cursors[c].peek();
+        if (byte === undefined) debugger;
         if (byte === null) {
           byte = 0;
           bitset = new Uint32Array(8);
@@ -352,7 +363,7 @@ function* resolveSegment(cursors, binding) {
         }
 
         binding[depth] = byte;
-        for (c of cursors) {
+        for (const c of cursors) {
           c.push(byte);
         }
         depth++;
@@ -412,7 +423,8 @@ function* resolve(constraints, ordering, ascendingVariables, bindings) {
 
     const shortcircuit = ordering.isShortcircuit(variable);
 
-    for (const _iter of resolveSegment(cursors, bindings[variable])) {
+    const segments = resolveSegment(cursors, bindings[variable]);
+    for (const _ of segments) {
       const r = yield* resolve(
         constraints,
         ordering,
@@ -420,7 +432,9 @@ function* resolve(constraints, ordering, ascendingVariables, bindings) {
         bindings
       );
       hasResult = hasResult || r;
-      if (hasResult && shortcircuit) break;
+      if (hasResult && shortcircuit) {
+        segments.next(true);
+      }
     }
 
     constraints.forEach((c) => c.pop(variable));

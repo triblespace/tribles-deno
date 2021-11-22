@@ -30,16 +30,16 @@ import {
 
 const { nameId, lovesId, titlesId, motherOfId, romeoId } = UFOID.namedCache();
 
-globalInvariants({
-  [nameId]: { isUnique: true },
-  [lovesId]: { isLink: true, isUnique: true },
-  [titlesId]: {},
-});
+globalInvariants([
+  { id: nameId, isUnique: true },
+  { id: lovesId, isLink: true, isUnique: true },
+  { id: titlesId },
+]);
 
-globalInvariants({
-  [nameId]: { isUnique: true },
-  [motherOfId]: { isLink: true, isUniqueInverse: true },
-});
+globalInvariants([
+  { id: nameId, isUnique: true },
+  { id: motherOfId, isLink: true, isUniqueInverse: true },
+]);
 
 Deno.test("KB Find", () => {
   const knightsNS = namespace({
@@ -53,7 +53,6 @@ Deno.test("KB Find", () => {
   // Add some data.
   const memkb = new KB(new TribleSet(), new BlobCache());
 
-  debugger;
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
       [id]: romeo,
@@ -72,40 +71,37 @@ Deno.test("KB Find", () => {
   // Query some data.
   const results = [
     ...find(knightsNS, ({ name, title }) => [
-      knightskb.where({ name: name.ascend(), titles: [title] }),
+      knightskb.where([{ name: name.ascend(), titles: [title.groupBy(name)] }]),
     ]),
   ];
   assertEquals(results, [
-    { name: "Juliet", title: "princess" },
-    { name: "Juliet", title: "the lady" },
     { name: "Romeo", title: "fool" },
     { name: "Romeo", title: "prince" },
+    { name: "Juliet", title: "princess" },
+    { name: "Juliet", title: "the lady" },
   ]);
 });
 
 Deno.test("KB Find Single", () => {
-  const arbitraryIdHex = fc.hexaString({ minLength: 32, maxLength: 32 });
+  const arbitraryId = fc.uint8Array({ minLength: 16, maxLength: 16 });
   const arbitraryValueHex = fc.hexaString({ minLength: 64, maxLength: 64 });
   const arbitraryTitles = fc.array(arbitraryValueHex, {
     minLength: 1,
     maxLength: 1,
   });
   const arbitraryPerson = fc.record({
-    id: arbitraryIdHex,
+    id: arbitraryId,
     name: arbitraryValueHex,
     titles: arbitraryTitles,
   });
 
   fc.assert(
     fc.property(
-      arbitraryIdHex,
-      arbitraryIdHex,
+      arbitraryId,
+      arbitraryId,
       arbitraryPerson,
       (nameId, titlesId, person) => {
-        globalInvariants({
-          [nameId]: { isUnique: true },
-          [titlesId]: {},
-        });
+        globalInvariants([{ id: nameId, isUnique: true }, { id: titlesId }]);
         const knightsNS = namespace({
           [id]: { ...types.ufoid },
           name: { id: nameId, ...types.hex },
@@ -120,7 +116,7 @@ Deno.test("KB Find Single", () => {
         /// Query some data.
         const results = [
           ...find(knightsNS, ({ name, title }) => [
-            knightskb.where({ name, titles: [title] }),
+            knightskb.where([{ name, titles: [title] }]),
           ]),
         ];
         assertEquals(results, [{ name: person.name, title: person.titles[0] }]);
@@ -158,17 +154,15 @@ Deno.test("Find Ascending", () => {
 
   // Query some data.
   const results = [
-    ...find(
-      knightsNS,
-      ({ person, name, title }) => [
-        knightskb.where({
+    ...find(knightsNS, ({ person, name, title }) => [
+      knightskb.where([
+        {
           [id]: person.groupBy(name.ascend()).omit(),
           name,
           titles: [title],
-        }),
-      ],
-      knightskb.blobcache
-    ),
+        },
+      ]),
+    ]),
   ];
   assertEquals(results, [
     { name: "Juliet", title: "princess" },
@@ -420,7 +414,6 @@ Deno.test("KB Walk", () => {
     },
   ]);
   // Query some data.
-  debugger;
   const [{ romeo }] = [
     ...find(knightsNS, ({ romeo }) => [
       knightskb.where({ [id]: romeo.walk(knightskb), name: "Romeo" }),
@@ -456,7 +449,6 @@ Deno.test("KB Walk ownKeys", () => {
     },
   ]);
   // Query some data.
-  debugger;
   const [{ romeo }] = [
     ...find(knightsNS, ({ romeo }) => [
       knightskb.where({ [id]: romeo.walk(knightskb), name: "Romeo" }),
