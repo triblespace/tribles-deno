@@ -37,24 +37,13 @@ const ctz32 = (n) => {
 
 const highBit32 = 1 << 31;
 
-function* bitIterator(bitset, ascending = true) {
-  if (ascending) {
-    for (let wordPosition = 0; wordPosition < 8; wordPosition++) {
-      for (let mask = 0xffffffff; ; ) {
-        const c = Math.clz32(bitset[wordPosition] & mask);
-        if (c === 32) break;
-        yield (wordPosition << 5) + c;
-        mask &= ~(highBit32 >>> c);
-      }
-    }
-  } else {
-    for (let wordPosition = 7; wordPosition >= 0; wordPosition--) {
-      for (let mask = 0xffffffff; ; ) {
-        const c = Math.clz32(bitset[wordPosition] & mask);
-        if (c === 32) break;
-        yield (wordPosition << 5) + c;
-        mask &= ~(highBit32 >>> c);
-      }
+function* bitIterator(bitset) {
+  for (let wordPosition = 0; wordPosition < 8; wordPosition++) {
+    for (let mask = 0xffffffff; ; ) {
+      const c = Math.clz32(bitset[wordPosition] & mask);
+      if (c === 32) break;
+      yield (wordPosition << 5) + c;
+      mask &= ~(highBit32 >>> c);
     }
   }
 }
@@ -77,6 +66,23 @@ const unsetBit = (bitset, bitPosition) => {
 
 const setBit = (bitset, bitPosition) => {
   bitset[bitPosition >>> 5] |= highBit32 >>> bitPosition;
+};
+
+const intersectBitRange = (bitset, fromBitPosition, toBitPosition) => {
+  let fromWordPosition = fromBitPosition >>> 5;
+  let toWordPosition = toBitPosition >>> 5;
+  for (let wordPosition = 0; wordPosition < fromWordPosition; wordPosition++) {
+    bitset[wordPosition] = 0;
+  }
+  bitset[fromWordPosition] &= ~0 >>> fromBitPosition;
+  bitset[toWordPosition] &= ~(~highBit32 >>> toBitPosition);
+  for (
+    let wordPosition = toWordPosition + 1;
+    wordPosition < 8;
+    wordPosition++
+  ) {
+    bitset[wordPosition] = 0;
+  }
 };
 
 const hasBit = (bitset, bitPosition) => {
@@ -1039,6 +1045,7 @@ export {
   seekBit,
   singleBitIntersect,
   bitIntersect,
+  intersectBitRange,
   setBit,
   unsetAllBit,
   setAllBit,
