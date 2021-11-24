@@ -172,7 +172,7 @@ Deno.test("Find Ascending", () => {
   ]);
 });
 
-Deno.test("find lower bound", () => {
+Deno.test("find lower range", () => {
   const knightsNS = namespace({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
@@ -198,16 +198,17 @@ Deno.test("find lower bound", () => {
       loves: romeo,
     },
   ]);
-
   // Query some data.
   const results = [
     ...find(
       knightsNS,
       ({ name, title }) => [
-        knightskb.where({
-          name: name.lower("R"),
-          titles: [title],
-        }),
+        knightskb.where([
+          {
+            name: name.ranged({ lower: "K" }),
+            titles: [title],
+          },
+        ]),
       ],
       knightskb.blobcache
     ),
@@ -246,14 +247,18 @@ Deno.test("find upper bound", () => {
   ]);
 
   // Query some data.
+  debugger;
+
   const results = [
     ...find(
       knightsNS,
       ({ name, title }) => [
-        knightskb.where({
-          name: name.upper("R"),
-          titles: [title],
-        }),
+        knightskb.where([
+          {
+            name: name.ranged({ upper: "K" }),
+            titles: [title],
+          },
+        ]),
       ],
       knightskb.blobcache
     ),
@@ -296,11 +301,13 @@ Deno.test("Find Descending", () => {
     ...find(
       knightsNS,
       ({ person, name, title }) => [
-        knightskb.where({
-          [id]: person.groupBy(name.descend()).omit(),
-          name,
-          titles: [title],
-        }),
+        knightskb.where([
+          {
+            [id]: person.groupBy(name.descend()).omit(),
+            name,
+            titles: [title],
+          },
+        ]),
       ],
       knightskb.blobcache
     ),
@@ -416,7 +423,7 @@ Deno.test("KB Walk", () => {
   // Query some data.
   const [{ romeo }] = [
     ...find(knightsNS, ({ romeo }) => [
-      knightskb.where({ [id]: romeo.walk(knightskb), name: "Romeo" }),
+      knightskb.where([{ [id]: romeo.walk(knightskb), name: "Romeo" }]),
     ]),
   ];
   assertEquals(romeo.loves.name, "Juliet");
@@ -451,7 +458,7 @@ Deno.test("KB Walk ownKeys", () => {
   // Query some data.
   const [{ romeo }] = [
     ...find(knightsNS, ({ romeo }) => [
-      knightskb.where({ [id]: romeo.walk(knightskb), name: "Romeo" }),
+      knightskb.where([{ [id]: romeo.walk(knightskb), name: "Romeo" }]),
     ]),
   ];
   assertEquals(

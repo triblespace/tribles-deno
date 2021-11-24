@@ -61,11 +61,13 @@ const collectionConstraint = (variable, collection) => {
   return new IndexConstraint(variable, index);
 };
 
-class BoundsCursor {
+class RangeCursor {
   constructor(lowerBound, upperBound) {
     this.lowerBound = lowerBound;
     this.upperBound = upperBound;
     this.depth = 0;
+    this.lowerFringe = 0;
+    this.upperFringe = 0;
   }
 
   peek() {
@@ -73,26 +75,43 @@ class BoundsCursor {
   }
 
   propose(bitset) {
-    const lowerByte = this.lowerBound[depth];
-    const upperByte = this.upperBound[depth];
+    const lowerByte =
+      this.depth === this.lowerFringe ? this.lowerBound[this.depth] : 0;
+    const upperByte =
+      this.depth === this.upperFringe ? this.upperBound[this.depth] : 255;
     intersectBitRange(bitset, lowerByte, upperByte);
   }
 
   pop() {
+    if (this.depth === this.lowerFringe) {
+      this.lowerFringe--;
+    }
+    if (this.depth === this.upperFringe) {
+      this.upperFringe--;
+    }
     this.depth--;
   }
 
   push(byte) {
+    if (
+      this.depth === this.lowerFringe &&
+      byte === this.lowerBound[this.depth]
+    ) {
+      this.lowerFringe++;
+    }
+    if (
+      this.depth === this.upperFringe &&
+      byte === this.upperBound[this.depth]
+    ) {
+      this.upperFringe++;
+    }
     this.depth++;
     return true;
   }
 }
 
-const MIN_KEY = new Uint32Array(8).fill(0);
-const MAX_KEY = new Uint32Array(8).fill(~0);
-
-class BoundsConstraint {
-  constructor(variable, { lowerBound = MIN_KEY, upperBound = MAX_KEY }) {
+class RangeConstraint {
+  constructor(variable, lowerBound, upperBound) {
     this.lowerBound = lowerBound;
     this.upperBound = upperBound;
     this.variable = variable;
@@ -109,7 +128,7 @@ class BoundsConstraint {
   push(variable) {
     if (variable === this.variable) {
       this.done = true;
-      return [new BoundsCursor(this.lowerBound, this.upperBound)];
+      return [new RangeCursor(this.lowerBound, this.upperBound)];
     }
     return [];
   }
@@ -121,8 +140,14 @@ class BoundsConstraint {
   }
 }
 
-const boundsConstraint = (variable, lowerBound) =>
-  new BoundsConstraint(variable, lowerBound);
+const MIN_KEY = new Uint8Array(32).fill(0);
+const MAX_KEY = new Uint8Array(32).fill(~0);
+
+const rangeConstraint = (
+  variable,
+  lowerBound = MIN_KEY,
+  upperBound = MAX_KEY
+) => new RangeConstraint(variable, lowerBound, upperBound);
 
 const constantConstraint = (variable, constant) => {
   let value;
@@ -359,8 +384,7 @@ export {
   collectionConstraint,
   constantConstraint,
   indexConstraint,
-  lowerBoundConstraint,
+  rangeConstraint,
   OrderByMinCostAndBlockage,
   resolve,
-  upperBoundConstraint,
 };

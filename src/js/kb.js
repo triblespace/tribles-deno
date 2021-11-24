@@ -2,10 +2,9 @@ import { emptyIdPACT, emptyValuePACT } from "./pact.js";
 import {
   constantConstraint,
   indexConstraint,
-  lowerBoundConstraint,
   OrderByMinCostAndBlockage,
   resolve,
-  upperBoundConstraint,
+  rangeConstraint,
 } from "./query.js";
 import {
   A,
@@ -124,16 +123,15 @@ class Variable {
     return this;
   }
 
-  upper(u) {
-    this.upperBound = u;
+  ranged({ lower, upper }) {
+    this.lowerBound = lower;
+    this.upperBound = upper;
     return this;
   }
-
-  lower(l) {
-    this.lowerBound = l;
-    return this;
-  }
-
+  // TODO: rework to 'ordered(o)' method that takes one of
+  // ascending, descending, concentric
+  // where concentric is relative to another variable that must be
+  // bound before this variable
   ascend() {
     this.ascending = true;
     return this;
@@ -736,15 +734,20 @@ function* find(ns, cfn) {
   }
 
   for (const { upperBound, lowerBound, encoder, index } of vars.variables) {
-    if (upperBound !== undefined) {
-      const encodedBound = new Uint8Array(VALUE_SIZE);
-      encoder(upperBound, encodedBound);
-      constraints.push(upperBoundConstraint(index, encodedBound));
-    }
+    let encodedLower = undefined;
+    let encodedUpper = undefined;
+
     if (lowerBound !== undefined) {
-      const encodedBound = new Uint8Array(VALUE_SIZE);
-      encoder(lowerBound, encodedBound);
-      constraints.push(lowerBoundConstraint(index, encodedBound));
+      encodedLower = new Uint8Array(VALUE_SIZE);
+      encoder(lowerBound, encodedLower);
+    }
+    if (upperBound !== undefined) {
+      encodedUpper = new Uint8Array(VALUE_SIZE);
+      encoder(upperBound, encodedUpper);
+    }
+
+    if (encodedLower !== undefined || encodedUpper !== undefined) {
+      constraints.push(rangeConstraint(index, encodedLower, encodedUpper));
     }
   }
 
