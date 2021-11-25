@@ -1,9 +1,5 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
-import {
-  emptyTriblePACT as baseline,
-  nextKey,
-  PACTHash,
-} from "../src/js/pact.js";
+import { emptyTriblePACT as baseline, PACTHash } from "../src/js/pact.js";
 import { A, E, TRIBLE_SIZE, V1, V2 } from "../src/js/trible.js";
 import { UFOID } from "../mod.js";
 

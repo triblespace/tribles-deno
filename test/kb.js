@@ -250,18 +250,14 @@ Deno.test("find upper bound", () => {
   debugger;
 
   const results = [
-    ...find(
-      knightsNS,
-      ({ name, title }) => [
-        knightskb.where([
-          {
-            name: name.ranged({ upper: "K" }),
-            titles: [title],
-          },
-        ]),
-      ],
-      knightskb.blobcache
-    ),
+    ...find(knightsNS, ({ name, title }) => [
+      knightskb.where([
+        {
+          name: name.ranged({ upper: "K" }),
+          titles: [title],
+        },
+      ]),
+    ]),
   ];
   assertEquals(results, [
     { name: "Juliet", title: "princess" },
@@ -281,7 +277,7 @@ Deno.test("Find Descending", () => {
 
   // Add some data.
   const memkb = new KB(new TribleSet(), new BlobCache());
-
+  debugger;
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
       [id]: romeo,
@@ -298,19 +294,15 @@ Deno.test("Find Descending", () => {
   ]);
   // Query some data.
   const results = [
-    ...find(
-      knightsNS,
-      ({ person, name, title }) => [
-        knightskb.where([
-          {
-            [id]: person.groupBy(name.descend()).omit(),
-            name,
-            titles: [title],
-          },
-        ]),
-      ],
-      knightskb.blobcache
-    ),
+    ...find(knightsNS, ({ person, name, title }) => [
+      knightskb.where([
+        {
+          [id]: person.groupBy(name.descend()).omit(),
+          name,
+          titles: [title],
+        },
+      ]),
+    ]),
   ];
   assertEquals(results, [
     { name: "Romeo", title: "fool" },

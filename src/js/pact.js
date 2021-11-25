@@ -5,35 +5,12 @@ import { hash_digest, hash_combine, hash_equal, hash_update } from "./wasm.js";
 
 //TODO Variadic set operations that use cursor jumping for more efficiency on multiple inputs.
 
-const nextKey = (key, ascending = true) => {
-  for (let i = key.length - 1; 0 <= i; i--) {
-    if (key[i] === (ascending ? 255 : 0)) {
-      key[i] = ascending ? 0 : 255;
-    } else {
-      key[i] += ascending ? 1 : -1;
-      return true;
-    }
-  }
-  return false;
-};
-
 function PACTHash(key) {
   if (key.__cached_hash === undefined) {
     key.__cached_hash = hash_digest(key);
   }
   return key.__cached_hash;
 }
-
-const ctz32 = (n) => {
-  // pos trailing zeros
-  n |= n << 16;
-  n |= n << 8;
-  n |= n << 4;
-  n |= n << 2;
-  n |= n << 1;
-  // 2. Now, inversing the bits reveals the lowest bits
-  return 32 - Math.clz32(~n);
-};
 
 const highBit32 = 1 << 31;
 
@@ -48,7 +25,7 @@ function* bitIterator(bitset) {
   }
 }
 
-function seekBit(bitPosition, bitset, ascending = true) {
+function nextBit(bitPosition, bitset) {
   let wordPosition = bitPosition >>> 5;
   const mask = ~0 >>> bitPosition;
   const c = Math.clz32(bitset[wordPosition] & mask);
@@ -58,6 +35,29 @@ function seekBit(bitPosition, bitset, ascending = true) {
     if (c < 32) return (wordPosition << 5) + c;
   }
   return 256;
+}
+
+const ctz32 = (n) => {
+  // pos trailing zeros
+  n |= n << 16;
+  n |= n << 8;
+  n |= n << 4;
+  n |= n << 2;
+  n |= n << 1;
+  // 2. Now, inversing the bits reveals the lowest bits
+  return 32 - Math.clz32(~n);
+};
+
+function prevBit(bitPosition, bitset) {
+  let wordPosition = bitPosition >>> 5;
+  const mask = ~(~0 >>> bitPosition);
+  const c = ctz32(bitset[wordPosition] & mask);
+  if (c < 32) return (wordPosition << 5) + (31 - c);
+  for (wordPosition--; wordPosition > 0; wordPosition--) {
+    const c = ctz32(bitset[wordPosition]);
+    if (c < 32) return (wordPosition << 5) + (31 - c);
+  }
+  return -1;
 }
 
 const unsetBit = (bitset, bitPosition) => {
@@ -1039,10 +1039,10 @@ export {
   emptyValueIdIdTriblePACT,
   emptyValuePACT,
   makePACT,
-  nextKey,
   PACTHash,
   bitIterator,
-  seekBit,
+  nextBit,
+  prevBit,
   singleBitIntersect,
   bitIntersect,
   intersectBitRange,
