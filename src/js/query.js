@@ -7,6 +7,7 @@ import {
   intersectBitRange,
   bitIntersect,
   setBit,
+  unsetBit,
   unsetAllBit,
   setAllBit,
 } from "./pact.js";
@@ -239,16 +240,19 @@ class OrderByMinCostAndBlockage {
   }
 }
 
+function branchBitmap(branchBuffer, depth) {
+  return branchBuffer.subarray(depth, depth + 8);
+}
+
 const MODE_PATH = 0;
 const MODE_BRANCH = 1;
 const MODE_BACKTRACK = 2;
 
-function* resolveSegmentAscending(cursors, binding) {
+function* resolveSegmentAscending(cursors, binding, branchPath) {
   let mode = MODE_PATH;
   let bitset = null;
   let depth = 0;
-  let byte = 0;
-  const branchStack = [[bitset, byte, depth]];
+  let branchPoints = 0;
 
   let c = 0;
   outer: while (true) {
@@ -257,39 +261,45 @@ function* resolveSegmentAscending(cursors, binding) {
         while (true) {
           if (depth === 32) {
             if (yield) {
-              let branchDepth;
-              [bitset, byte, branchDepth] = branchStack[0];
-              for (; branchDepth < depth; depth--) {
+              for (; 0 < depth; depth--) {
                 for (c of cursors) {
                   c.pop();
                 }
               }
               return;
             }
+            for (c of cursors) {
+              c.pop();
+            }
+            depth--;
             mode = MODE_BACKTRACK;
             continue outer;
           }
 
           c = 0;
-          byte = cursors[c].peek();
+          const byte = cursors[c].peek();
           if (byte === null) {
-            byte = 0;
-            bitset = new Uint32Array(8);
-            bitset.fill(0xffffffff);
+            if (branchPath[depth] === null)
+              branchPath[depth] = new Uint32Array(8);
+            branchPath[depth].fill(~0);
             for (; c < cursors.length; c++) {
-              cursors[c].propose(bitset);
+              cursors[c].propose(branchPath[depth]);
             }
+            branchPoints = branchPoints | (1 << depth);
             mode = MODE_BRANCH;
             continue outer;
           }
           for (c = 1; c < cursors.length; c++) {
             const other_byte = cursors[c].peek();
             if (other_byte === null) {
-              bitset = new Uint32Array(8);
-              setBit(bitset, byte);
+              if (branchPath[depth] === null)
+                branchPath[depth] = new Uint32Array(8);
+              branchPath[depth].fill(0);
+              setBit(branchPath[depth], byte);
               for (; c < cursors.length; c++) {
-                cursors[c].propose(bitset);
+                cursors[c].propose(branchPath[depth]);
               }
+              branchPoints = branchPoints | (1 << depth);
               mode = MODE_BRANCH;
               continue outer;
             }
@@ -309,16 +319,17 @@ function* resolveSegmentAscending(cursors, binding) {
         break;
 
       case MODE_BRANCH:
-        byte = nextBit(byte, bitset);
+        const byte = nextBit(0, branchPath[depth]);
         if (byte > 255) {
+          branchPoints = branchPoints & ~(1 << depth);
           mode = MODE_BACKTRACK;
           continue outer;
         }
         binding[depth] = byte;
-        branchStack.push([bitset, byte + 1, depth]);
         for (c of cursors) {
           c.push(byte);
         }
+        unsetBit(branchPath[depth], byte);
         depth++;
         mode = MODE_PATH;
         continue outer;
@@ -326,19 +337,14 @@ function* resolveSegmentAscending(cursors, binding) {
         break;
 
       case MODE_BACKTRACK:
-        let branchDepth;
-        [bitset, byte, branchDepth] = branchStack.pop();
-        for (; branchDepth < depth; depth--) {
+        for (; (branchPoints & (1 << depth)) === 0 && 0 < depth; depth--) {
           for (c of cursors) {
             c.pop();
           }
         }
-        if (bitset === null) {
-          break outer;
-        } else {
-          mode = MODE_BRANCH;
-          continue outer;
-        }
+        if ((branchPoints & (1 << depth)) === 0) return;
+        mode = MODE_BRANCH;
+        continue outer;
 
         break;
     }
@@ -447,7 +453,15 @@ function* resolveSegmentDescending(cursors, binding) {
   }
 }
 
-function* resolve(constraints, ordering, ascendingVariables, bindings) {
+function* resolve(
+  constraints,
+  ordering,
+  ascendingVariables,
+  bindings,
+  branchPointCache = new Array(bindings.length)
+    .fill(null)
+    .map(() => new Array(32).fill(null))
+) {
   //init
   let hasResult = false;
   const variable = ordering.next(constraints);
@@ -468,7 +482,11 @@ function* resolve(constraints, ordering, ascendingVariables, bindings) {
 
     let segments;
     if (ascending) {
-      segments = resolveSegmentAscending(cursors, bindings[variable]);
+      segments = resolveSegmentAscending(
+        cursors,
+        bindings[variable],
+        branchPointCache[variable]
+      );
     } else {
       segments = resolveSegmentDescending(cursors, bindings[variable]);
     }
@@ -477,7 +495,8 @@ function* resolve(constraints, ordering, ascendingVariables, bindings) {
         constraints,
         ordering,
         ascendingVariables,
-        bindings
+        bindings,
+        branchPointCache
       );
       hasResult = hasResult || r;
       if (hasResult && shortcircuit) {

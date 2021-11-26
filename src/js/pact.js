@@ -211,54 +211,54 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
   PACTCursor = class {
     constructor(pact) {
       this.pact = pact;
-      this.depth = 0;
-      this.pathNodes = new Array(KEY_LENGTH + 1).fill(null);
+      this.pushDepth = 0;
+      this.nodePath = new Array(KEY_LENGTH + 1).fill(null);
 
-      this.pathNodes[0] = pact.child;
-    }
-
-    segmentCount() {
-      const depth = DEPTH_MAPPING[this.depth] & 0b01111111;
-      const node = this.pathNodes[depth];
-      if (node === null) return 0;
-      return node.segmentCount(depth);
+      this.nodePath[0] = pact.child;
     }
 
     peek() {
-      const depth = DEPTH_MAPPING[this.depth];
-      if ((depth & 0b10000000) !== 0) {
+      const pathDepth = DEPTH_MAPPING[this.pushDepth];
+      if ((pathDepth & 0b10000000) !== 0) {
         return 0;
       }
-      return this.pathNodes[depth].peek(depth);
+      return this.nodePath[pathDepth].peek(pathDepth);
     }
 
     propose(bitset) {
-      let depth = DEPTH_MAPPING[this.depth];
-      if ((depth & 0b10000000) !== 0) {
+      let pathDepth = DEPTH_MAPPING[this.pushDepth];
+      if ((pathDepth & 0b10000000) !== 0) {
         singleBitIntersect(bitset, 0);
       } else {
-        const node = this.pathNodes[depth];
+        const node = this.nodePath[pathDepth];
         if (node === null) {
           unsetAllBit(bitset);
         } else {
-          node.propose(depth, bitset);
+          node.propose(pathDepth, bitset);
         }
       }
     }
 
     pop() {
-      this.depth--;
+      this.pushDepth--;
     }
 
     push(byte) {
-      let depth = DEPTH_MAPPING[this.depth];
-      if ((depth & 0b10000000) === 0) {
-        const node = this.pathNodes[depth].getFast(depth, byte);
+      let pathDepth = DEPTH_MAPPING[this.pushDepth];
+      if ((pathDepth & 0b10000000) === 0) {
+        const node = this.nodePath[pathDepth].getFast(pathDepth, byte);
         if (node == null) return false;
-        this.pathNodes[depth + 1] = node;
+        this.nodePath[pathDepth + 1] = node;
       }
-      this.depth++;
+      this.pushDepth++;
       return true;
+    }
+
+    segmentCount() {
+      const pathDepth = DEPTH_MAPPING[this.pushDepth] & 0b01111111;
+      const node = this.nodePath[pathDepth];
+      if (node === null) return 0;
+      return node.segmentCount(pathDepth);
     }
   };
 
@@ -1047,6 +1047,7 @@ export {
   bitIntersect,
   intersectBitRange,
   setBit,
+  unsetBit,
   unsetAllBit,
   setAllBit,
 };
