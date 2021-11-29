@@ -1004,7 +1004,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const segmentCount =
         SEGMENT_LUT[depth] === SEGMENT_LUT[this.branchDepth]
           ? this._segmentCount + 1
-          : 1;
+          : 2;
       const hash = hash_combine(this.hash, nchild.hash);
 
       return new PACTNode(
