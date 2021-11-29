@@ -777,15 +777,25 @@ function* find(ns, cfn) {
       isOmit,
       blobcache,
     } of namedVariables) {
+      const encoded = r[index].slice(0);
       if (!isOmit) {
-        const encoded = r[index];
-        const decoded = decoder(
-          encoded.slice(0),
-          async () => await blobcache.get(encoded)
-        );
-        result[name] = isWalked
-          ? walkedKB.walk(walkedNS || ns, decoded)
-          : decoded;
+        Object.defineProperty(result, name, {
+          configurable: true,
+          enumerable: true,
+          get: function () {
+            delete this[name];
+            const decoded = decoder(
+              encoded,
+              // Note that there is a potential attack vector here, if we ever want to do query level access control.
+              // An attacker could change the encoder to point to an change the encoded array to request a different blob.
+              // This would be solved by freezing the Array, but since it's typed and the spec designers unimaginative...
+              async () => await blobcache.get(encoded)
+            );
+            return (this[name] = isWalked
+              ? walkedKB.walk(walkedNS || ns, decoded)
+              : decoded);
+          },
+        });
       }
     }
     yield result;
