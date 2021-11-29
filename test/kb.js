@@ -69,17 +69,20 @@ Deno.test("KB Find", () => {
   ]);
 
   // Query some data.
-  const results = [
+  const results = new Set([
     ...find(knightsNS, ({ name, title }) => [
-      knightskb.where([{ name: name.ascend(), titles: [title.groupBy(name)] }]),
+      knightskb.where([{ name: name, titles: [title] }]),
     ]),
-  ];
-  assertEquals(results, [
-    { name: "Romeo", title: "fool" },
-    { name: "Romeo", title: "prince" },
-    { name: "Juliet", title: "princess" },
-    { name: "Juliet", title: "the lady" },
   ]);
+  assertEquals(
+    results,
+    new Set([
+      { name: "Romeo", title: "fool" },
+      { name: "Romeo", title: "prince" },
+      { name: "Juliet", title: "princess" },
+      { name: "Juliet", title: "the lady" },
+    ])
+  );
 });
 
 Deno.test("KB Find Single", () => {
@@ -114,12 +117,15 @@ Deno.test("KB Find Single", () => {
         );
 
         /// Query some data.
-        const results = [
+        const results = new Set([
           ...find(knightsNS, ({ name, title }) => [
             knightskb.where([{ name, titles: [title] }]),
           ]),
-        ];
-        assertEquals(results, [{ name: person.name, title: person.titles[0] }]);
+        ]);
+        assertEquals(
+          results,
+          new Set([{ name: person.name, title: person.titles[0] }])
+        );
       }
     )
   );
