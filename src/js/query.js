@@ -244,58 +244,124 @@ function branchBitmap(branchBuffer, depth) {
   return branchBuffer.subarray(depth, depth + 8);
 }
 
+const MODE_PATH = 0;
+const MODE_BRANCH = 1;
+const MODE_BACKTRACK = 2;
+
 function* resolveSegmentAscending(cursors, variable, bindings, branchPoints) {
   const branchOffset = variable * BITSET_VALUE_SIZE;
   const bindingOffset = variable * VALUE_SIZE;
 
+  let mode = MODE_PATH;
   let depth = 0;
+  let branchPositions = 0;
 
-  setAllBit(branchPoints, branchOffset);
-  for (const cursor of cursors) {
-    cursor.propose(branchPoints, branchOffset);
-  }
-  debugger;
-  while (true) {
-    const byte = nextBit(
-      0,
-      branchPoints,
-      branchOffset + depth * BRANCH_BITSET_SIZE
-    );
+  let c = 0;
+  outer: while (true) {
+    switch (mode) {
+      case MODE_PATH:
+        while (true) {
+          if (depth === 32) {
+            if (yield) {
+              for (; 0 < depth; depth--) {
+                for (c of cursors) {
+                  c.pop();
+                }
+              }
+              return;
+            }
+            for (c of cursors) {
+              c.pop();
+            }
+            depth--;
+            mode = MODE_BACKTRACK;
+            continue outer;
+          }
 
-    if (byte > 255) {
-      if (0 === depth--) return;
-      for (const cursor of cursors) {
-        cursor.pop();
-      }
-    } else {
-      bindings[bindingOffset + depth] = byte;
-      for (const cursor of cursors) {
-        cursor.push(byte);
-      }
-      unsetBit(branchPoints, byte, branchOffset + depth * BRANCH_BITSET_SIZE);
-      depth++;
-      if (depth === 32) {
-        if (yield) {
-          for (; 0 < depth; depth--) {
-            for (const cursor of cursors) {
-              cursor.pop();
+          c = 0;
+          const byte = cursors[c].peek();
+          if (byte === null) {
+            setAllBit(branchPoints, branchOffset + depth * BRANCH_BITSET_SIZE);
+            for (; c < cursors.length; c++) {
+              cursors[c].propose(
+                branchPoints,
+                branchOffset + depth * BRANCH_BITSET_SIZE
+              );
+            }
+            branchPositions = branchPositions | (1 << depth);
+            mode = MODE_BRANCH;
+            continue outer;
+          }
+          for (c = 1; c < cursors.length; c++) {
+            const other_byte = cursors[c].peek();
+            if (other_byte === null) {
+              unsetAllBit(
+                branchPoints,
+                branchOffset + depth * BRANCH_BITSET_SIZE
+              );
+              setBit(
+                branchPoints,
+                byte,
+                branchOffset + depth * BRANCH_BITSET_SIZE
+              );
+              for (; c < cursors.length; c++) {
+                cursors[c].propose(
+                  branchPoints,
+                  branchOffset + depth * BRANCH_BITSET_SIZE
+                );
+              }
+              branchPositions = branchPositions | (1 << depth);
+              mode = MODE_BRANCH;
+              continue outer;
+            }
+            if (byte !== other_byte) {
+              mode = MODE_BACKTRACK;
+              continue outer;
             }
           }
-          return;
+
+          bindings[bindingOffset + depth] = byte;
+          for (const c of cursors) {
+            c.push(byte);
+          }
+          depth++;
         }
-        for (const cursor of cursors) {
-          cursor.pop();
+
+        break;
+
+      case MODE_BRANCH:
+        const byte = nextBit(
+          0,
+          branchPoints,
+          branchOffset + depth * BRANCH_BITSET_SIZE
+        );
+        if (byte > 255) {
+          branchPositions = branchPositions & ~(1 << depth);
+          mode = MODE_BACKTRACK;
+          continue outer;
         }
-        depth--;
-      } else {
-        setAllBit(branchPoints, branchOffset + depth * BRANCH_BITSET_SIZE);
-        for (const cursor of cursors) {
-          cursor.propose(
-            branchPoints,
-            branchOffset + depth * BRANCH_BITSET_SIZE
-          );
+        bindings[bindingOffset + depth] = byte;
+        for (c of cursors) {
+          c.push(byte);
         }
-      }
+        unsetBit(branchPoints, byte, branchOffset + depth * BRANCH_BITSET_SIZE);
+        depth++;
+        mode = MODE_PATH;
+        continue outer;
+
+        break;
+
+      case MODE_BACKTRACK:
+        for (; (branchPositions & (1 << depth)) === 0 && 0 < depth; depth--) {
+          for (c of cursors) {
+            c.pop();
+          }
+        }
+        if ((branchPositions & (1 << depth)) === 0) return;
+        mode = MODE_BRANCH;
+        continue outer;
+
+        break;
     }
   }
 }
