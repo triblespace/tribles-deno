@@ -25,13 +25,13 @@ function* bitIterator(bitset) {
   }
 }
 
-function nextBit(bitPosition, bitset) {
+function nextBit(bitPosition, bitset, offset = 0) {
   let wordPosition = bitPosition >>> 5;
   const mask = ~0 >>> bitPosition;
-  const c = Math.clz32(bitset[wordPosition] & mask);
+  const c = Math.clz32(bitset[offset + wordPosition] & mask);
   if (c < 32) return (wordPosition << 5) + c;
   for (wordPosition++; wordPosition < 8; wordPosition++) {
-    const c = Math.clz32(bitset[wordPosition]);
+    const c = Math.clz32(bitset[offset + wordPosition]);
     if (c < 32) return (wordPosition << 5) + c;
   }
   return 256;
@@ -48,24 +48,24 @@ const ctz32 = (n) => {
   return 32 - Math.clz32(~n);
 };
 
-function prevBit(bitPosition, bitset) {
+function prevBit(bitPosition, bitset, offset = 0) {
   let wordPosition = bitPosition >>> 5;
   const mask = ~(~0 >>> bitPosition);
-  const c = ctz32(bitset[wordPosition] & mask);
+  const c = ctz32(bitset[offset + wordPosition] & mask);
   if (c < 32) return (wordPosition << 5) + (31 - c);
   for (wordPosition--; wordPosition > 0; wordPosition--) {
-    const c = ctz32(bitset[wordPosition]);
+    const c = ctz32(bitset[offset + wordPosition]);
     if (c < 32) return (wordPosition << 5) + (31 - c);
   }
   return -1;
 }
 
-const unsetBit = (bitset, bitPosition) => {
-  bitset[bitPosition >>> 5] &= ~(highBit32 >>> bitPosition);
+const unsetBit = (bitset, bitPosition, offset = 0) => {
+  bitset[offset + (bitPosition >>> 5)] &= ~(highBit32 >>> bitPosition);
 };
 
-const setBit = (bitset, bitPosition) => {
-  bitset[bitPosition >>> 5] |= highBit32 >>> bitPosition;
+const setBit = (bitset, bitPosition, offset = 0) => {
+  bitset[offset + (bitPosition >>> 5)] |= highBit32 >>> bitPosition;
 };
 
 const intersectBitRange = (bitset, fromBitPosition, toBitPosition) => {
@@ -85,8 +85,10 @@ const intersectBitRange = (bitset, fromBitPosition, toBitPosition) => {
   }
 };
 
-const hasBit = (bitset, bitPosition) => {
-  return (bitset[bitPosition >>> 5] & (highBit32 >>> bitPosition)) !== 0;
+const hasBit = (bitset, bitPosition, offset = 0) => {
+  return (
+    (bitset[offset + (bitPosition >>> 5)] & (highBit32 >>> bitPosition)) !== 0
+  );
 };
 
 const fullSet = () => new Uint32Array(8).fill(~0);
@@ -102,37 +104,37 @@ const noBit = (bitset) =>
   bitset[6] === 0 &&
   bitset[7] === 0;
 
-const setAllBit = (bitset) => {
-  bitset[0] = ~0;
-  bitset[1] = ~0;
-  bitset[2] = ~0;
-  bitset[3] = ~0;
-  bitset[4] = ~0;
-  bitset[5] = ~0;
-  bitset[6] = ~0;
-  bitset[7] = ~0;
+const setAllBit = (bitset, offset) => {
+  bitset[offset + 0] = ~0;
+  bitset[offset + 1] = ~0;
+  bitset[offset + 2] = ~0;
+  bitset[offset + 3] = ~0;
+  bitset[offset + 4] = ~0;
+  bitset[offset + 5] = ~0;
+  bitset[offset + 6] = ~0;
+  bitset[offset + 7] = ~0;
 };
 
-const unsetAllBit = (bitset) => {
-  bitset[0] = 0;
-  bitset[1] = 0;
-  bitset[2] = 0;
-  bitset[3] = 0;
-  bitset[4] = 0;
-  bitset[5] = 0;
-  bitset[6] = 0;
-  bitset[7] = 0;
+const unsetAllBit = (bitset, offset) => {
+  bitset[offset + 0] = 0;
+  bitset[offset + 1] = 0;
+  bitset[offset + 2] = 0;
+  bitset[offset + 3] = 0;
+  bitset[offset + 4] = 0;
+  bitset[offset + 5] = 0;
+  bitset[offset + 6] = 0;
+  bitset[offset + 7] = 0;
 };
 
-const bitIntersect = (left, right, out = left) => {
-  out[0] = left[0] & right[0];
-  out[1] = left[1] & right[1];
-  out[2] = left[2] & right[2];
-  out[3] = left[3] & right[3];
-  out[4] = left[4] & right[4];
-  out[5] = left[5] & right[5];
-  out[6] = left[6] & right[6];
-  out[7] = left[7] & right[7];
+const bitIntersect = (left, right, out = left, offset = 0) => {
+  out[offset + 0] = left[offset + 0] & right[0];
+  out[offset + 1] = left[offset + 1] & right[1];
+  out[offset + 2] = left[offset + 2] & right[2];
+  out[offset + 3] = left[offset + 3] & right[3];
+  out[offset + 4] = left[offset + 4] & right[4];
+  out[offset + 5] = left[offset + 5] & right[5];
+  out[offset + 6] = left[offset + 6] & right[6];
+  out[offset + 7] = left[offset + 7] & right[7];
 };
 
 const bitUnion = (left, right, out = left) => {
@@ -168,10 +170,10 @@ const bitDiff = (left, right, out = left) => {
   out[7] = left[7] ^ right[7];
 };
 
-const singleBitIntersect = (bitset, bit) => {
-  const hadBit = hasBit(bitset, bit);
-  unsetAllBit(bitset);
-  if (hadBit) setBit(bitset, bit);
+const singleBitIntersect = (bitset, bit, offset = 0) => {
+  const hadBit = hasBit(bitset, bit, offset);
+  unsetAllBit(bitset, offset);
+  if (hadBit) setBit(bitset, bit, offset);
 };
 
 const makePACT = function (segmentCompression, segmentSize = 32) {
@@ -225,16 +227,16 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       return this.nodePath[pathDepth].peek(pathDepth);
     }
 
-    propose(bitset) {
+    propose(bitset, offset) {
       let pathDepth = DEPTH_MAPPING[this.pushDepth];
       if ((pathDepth & 0b10000000) !== 0) {
-        singleBitIntersect(bitset, 0);
+        singleBitIntersect(bitset, 0, offset);
       } else {
         const node = this.nodePath[pathDepth];
         if (node === null) {
-          unsetAllBit(bitset);
+          unsetAllBit(bitset, offset);
         } else {
-          node.propose(pathDepth, bitset);
+          node.propose(pathDepth, bitset, offset);
         }
       }
     }
@@ -806,8 +808,8 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       return this.key[depth - this.depth];
     }
 
-    propose(depth, bitset) {
-      singleBitIntersect(bitset, this.key[depth - this.depth]);
+    propose(depth, bitset, offset) {
+      singleBitIntersect(bitset, this.key[depth - this.depth], offset);
     }
 
     get(depth, v) {
@@ -897,11 +899,11 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       }
     }
 
-    propose(depth, bitset) {
+    propose(depth, bitset, offset) {
       if (depth < this.branchDepth) {
-        singleBitIntersect(bitset, this.key[depth]);
+        singleBitIntersect(bitset, this.key[depth], offset);
       } else {
-        bitIntersect(bitset, this.childbits);
+        bitIntersect(bitset, this.childbits, bitset, offset);
       }
     }
 
