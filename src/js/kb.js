@@ -4,6 +4,8 @@ import {
   indexConstraint,
   OrderByMinCostAndBlockage,
   resolve,
+  variableBindings,
+  branchState,
   rangeConstraint,
 } from "./query.js";
 import {
@@ -240,11 +242,8 @@ const lookup = (ns, kb, eId, attributeName) => {
     ],
     new OrderByMinCostAndBlockage(3, new Set([0, 1, 2])),
     new Set([0, 1, 2]),
-    [
-      new Uint8Array(VALUE_SIZE),
-      new Uint8Array(VALUE_SIZE),
-      new Uint8Array(VALUE_SIZE),
-    ]
+    variableBindings(3),
+    branchState(3)
   );
 
   if ((!isInverse && isUnique) || (isInverse && isUniqueInverse)) {
@@ -329,11 +328,8 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           ],
           new OrderByMinCostAndBlockage(3, new Set([0, 1])),
           new Set([0, 1, 2]),
-          [
-            new Uint8Array(VALUE_SIZE),
-            new Uint8Array(VALUE_SIZE),
-            new Uint8Array(VALUE_SIZE),
-          ]
+          variableBindings(3),
+          branchState(3)
         ).next();
         return !done;
       },
@@ -390,11 +386,8 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           ],
           new OrderByMinCostAndBlockage(3, new Set([0, 1])),
           new Set([0, 1, 2]),
-          [
-            new Uint8Array(VALUE_SIZE),
-            new Uint8Array(VALUE_SIZE),
-            new Uint8Array(VALUE_SIZE),
-          ]
+          variableBindings(3),
+          branchState(3)
         )) {
           attrs.push(
             ...ns.forwardAttributeIndex
@@ -410,11 +403,8 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           ],
           new OrderByMinCostAndBlockage(3, new Set([0, 1])),
           new Set([0, 1, 2]),
-          [
-            new Uint8Array(VALUE_SIZE),
-            new Uint8Array(VALUE_SIZE),
-            new Uint8Array(VALUE_SIZE),
-          ]
+          variableBindings(3),
+          branchState(3)
         )) {
           attrs.push(
             ...ns.inverseAttributeIndex
@@ -761,11 +751,9 @@ function* find(ns, cfn) {
       vars.isBlocking
     ),
     new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
-    vars.variables.map((_) => new Uint8Array(VALUE_SIZE))
+    variableBindings(vars.variables.length),
+    branchState(vars.variables.length)
   )) {
-    // TODO: Use a proxy and make this lazy, so that only
-    // field that get accessed are parsed or loaded from
-    // blob storage and memoized.
     const result = {};
     for (const {
       index,
@@ -777,8 +765,8 @@ function* find(ns, cfn) {
       isOmit,
       blobcache,
     } of namedVariables) {
-      const encoded = r[index].slice(0);
       if (!isOmit) {
+        const encoded = r.slice(index * VALUE_SIZE, (index + 1) * VALUE_SIZE);
         Object.defineProperty(result, name, {
           configurable: true,
           enumerable: true,
