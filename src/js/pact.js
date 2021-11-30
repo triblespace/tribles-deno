@@ -48,13 +48,13 @@ const ctz32 = (n) => {
   return 32 - Math.clz32(~n);
 };
 
-function prevBit(bitPosition, bitset) {
+function prevBit(bitPosition, bitset, offset = 0) {
   let wordPosition = bitPosition >>> 5;
   const mask = ~(~0 >>> bitPosition);
-  const c = ctz32(bitset[wordPosition] & mask);
+  const c = ctz32(bitset[offset + wordPosition] & mask);
   if (c < 32) return (wordPosition << 5) + (31 - c);
   for (wordPosition--; wordPosition > 0; wordPosition--) {
-    const c = ctz32(bitset[wordPosition]);
+    const c = ctz32(bitset[offset + wordPosition]);
     if (c < 32) return (wordPosition << 5) + (31 - c);
   }
   return -1;

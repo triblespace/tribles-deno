@@ -249,19 +249,20 @@ const lookup = (ns, kb, eId, attributeName) => {
   if ((!isInverse && isUnique) || (isInverse && isUniqueInverse)) {
     const { done, value } = res.next();
     if (done) return { found: false };
-    const [_e, _a, v] = value;
+    const v = value.slice(VALUE_SIZE * 2, VALUE_SIZE * 3);
     return {
       found: true,
       result: isLink
-        ? entityProxy(ns, kb, v.slice())
+        ? entityProxy(ns, kb, v)
         : decoder(v.slice(), async () => await kb.blobcache.get(v)),
     };
   } else {
     const results = [];
-    for (const [_e, _a, v] of res) {
+    for (const r of res) {
+      const v = r.slice(VALUE_SIZE * 2, VALUE_SIZE * 3);
       results.push(
         isLink
-          ? entityProxy(ns, kb, v.slice())
+          ? entityProxy(ns, kb, v)
           : decoder(v.slice(), async () => await kb.blobcache.get(v))
       );
     }
@@ -378,7 +379,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
       },
       ownKeys: function (_) {
         const attrs = [id];
-        for (const [_e, a, _v] of resolve(
+        for (const r of resolve(
           [
             constantConstraint(0, eId),
             indexConstraint(1, ns.forwardAttributeIndex),
@@ -389,13 +390,12 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           variableBindings(3),
           branchState(3)
         )) {
+          const a = r.slice(VALUE_SIZE + 16, VALUE_SIZE * 2);
           attrs.push(
-            ...ns.forwardAttributeIndex
-              .get(a.subarray(16))
-              .map((attr) => attr.name)
+            ...ns.forwardAttributeIndex.get(a).map((attr) => attr.name)
           );
         }
-        for (const [_e, a, _v] of resolve(
+        for (const r of resolve(
           [
             constantConstraint(0, eId),
             kb.tribleset.constraint(2, 1, 0),
@@ -406,10 +406,9 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           variableBindings(3),
           branchState(3)
         )) {
+          const a = r.slice(VALUE_SIZE + 16, VALUE_SIZE * 2);
           attrs.push(
-            ...ns.inverseAttributeIndex
-              .get(a.subarray(16))
-              .map((attr) => attr.name)
+            ...ns.inverseAttributeIndex.get(a).map((attr) => attr.name)
           );
         }
         return attrs;
