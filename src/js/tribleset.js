@@ -26,6 +26,11 @@ class MemTribleConstraint {
   constructor(variableTree) {
     this.explorationStack = [variableTree];
   }
+  toString() {
+    return `MemTribleConstraint{variables:${this.explorationStack[0].children.map(
+      (t) => t.variable
+    )}}`;
+  }
 
   bid(unblocked) {
     const lastExplored =

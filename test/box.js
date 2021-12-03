@@ -38,6 +38,79 @@ globalInvariants({
   [motherOfId]: { isLink: true, isUniqueInverse: true },
 });
 
+Deno.test("unique constraint", () => {
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    loves: { id: lovesId },
+    lovedBy: { id: lovesId, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring },
+  });
+
+  // Add some data.
+  const memkb = new KB(new TribleSet(), new BlobCache());
+
+  const knightskb = memkb.with(knightsNS, ([juliet]) => [
+    {
+      [id]: romeoId,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    },
+    {
+      [id]: romeoId,
+      name: "Bob",
+    },
+    {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeoId,
+    },
+  ]);
+  assertThrows(
+    () => {
+      knightskb.with(knightsNS, () => [,]);
+    },
+    Error,
+    ""
+  );
+});
+
+Deno.test("unique inverse constraint", () => {
+  const knightsNS = namespace({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    motherOf: { id: motherOfId },
+  });
+
+  // Add some data.
+  const memkb = new KB(new TribleSet(), new BlobCache());
+
+  const knightskb = memkb.with(knightsNS, () => [
+    {
+      [id]: romeoId,
+      name: "Romeo",
+    },
+    {
+      name: "Lady Montague",
+      motherOf: [romeoId],
+    },
+  ]);
+  assertThrows(
+    () => {
+      knightskb.with(knightsNS, () => [
+        {
+          name: "Lady Impostor",
+          motherOf: [romeoId],
+        },
+      ]);
+    },
+    Error,
+    ""
+  );
+});
+
 Deno.test({
   name: "Check loopback.",
   fn: async () => {
@@ -106,78 +179,4 @@ Deno.test({
     assert(inbox.get().tribleset.isEqual(outbox.get().tribleset));
   },
   // https://github.com/denoland/deno/issues/7457
-});
-
-Deno.test("unique constraint", () => {
-  const knightsNS = namespace({
-    [id]: { ...types.ufoid },
-    name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId },
-    lovedBy: { id: lovesId, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring },
-  });
-
-  // Add some data.
-  const memkb = new KB(new TribleSet(), new BlobCache());
-
-  const knightskb = memkb.with(knightsNS, ([juliet]) => [
-    {
-      [id]: romeoId,
-      name: "Romeo",
-      titles: ["fool", "prince"],
-      loves: juliet,
-    },
-    {
-      [id]: juliet,
-      name: "Juliet",
-      titles: ["the lady", "princess"],
-      loves: romeoId,
-    },
-  ]);
-  assertThrows(
-    () => {
-      knightskb.with(knightsNS, () => [
-        {
-          [id]: romeoId,
-          name: "Bob",
-        },
-      ]);
-    },
-    Error,
-    ""
-  );
-});
-
-Deno.test("unique inverse constraint", () => {
-  const knightsNS = namespace({
-    [id]: { ...types.ufoid },
-    name: { id: nameId, ...types.shortstring },
-    motherOf: { id: motherOfId },
-  });
-
-  // Add some data.
-  const memkb = new KB(new TribleSet(), new BlobCache());
-
-  const knightskb = memkb.with(knightsNS, () => [
-    {
-      [id]: romeoId,
-      name: "Romeo",
-    },
-    {
-      name: "Lady Montague",
-      motherOf: [romeoId],
-    },
-  ]);
-  assertThrows(
-    () => {
-      knightskb.with(knightsNS, () => [
-        {
-          name: "Lady Impostor",
-          motherOf: [romeoId],
-        },
-      ]);
-    },
-    Error,
-    ""
-  );
 });

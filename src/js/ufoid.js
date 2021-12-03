@@ -15,26 +15,33 @@ export const UFOID = {
     crypto.getRandomValues(a);
     return a;
   })(),
-  now(arr = new Uint8Array(16)) {
+  now(arr = new Uint8Array(32)) {
     return UFOID.withTime(Date.now(), arr);
   },
 
-  withTime(time, arr = new Uint8Array(16)) {
-    crypto.getRandomValues(arr.subarray(8, 16));
+  withTime(time, arr = new Uint8Array(32)) {
     const view = new DataView(arr.buffer);
-    view.setUint32(0, time & 0xffffffff, false);
-    view.setUint32(1, this.rotor[0]++, false);
+    view.setUint32(0, 0, false);
+    view.setUint32(4, 0, false);
+    view.setUint32(8, 0, false);
+    view.setUint32(12, 0, false);
+    view.setUint32(16, time & 0xffffffff, false);
+    view.setUint32(20, this.rotor[0]++, false);
+    crypto.getRandomValues(arr.subarray(24, 32));
 
     return arr;
   },
 
   validate(id) {
-    if (id instanceof Uint8Array && id.length === 16) {
-      for (const e of id) {
-        if (e !== 0) return true;
-      }
-    }
-    return false;
+    if (!(id instanceof Uint8Array && id.length === 32)) return false;
+    const a = new Uint32Array(id.buffer, id.byteOffset, 8);
+    return (
+      a[0] === 0 &&
+      a[1] === 0 &&
+      a[2] === 0 &&
+      a[3] === 0 &&
+      (a[4] !== 0 || a[5] !== 0 || a[6] !== 0 || a[7] !== 0)
+    );
   },
 
   anon() {

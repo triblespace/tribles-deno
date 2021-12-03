@@ -52,7 +52,7 @@ Deno.test("KB Find", () => {
 
   // Add some data.
   const memkb = new KB(new TribleSet(), new BlobCache());
-
+  debugger;
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
       [id]: romeo,
@@ -86,7 +86,13 @@ Deno.test("KB Find", () => {
 });
 
 Deno.test("KB Find Single", () => {
-  const arbitraryId = fc.uint8Array({ minLength: 16, maxLength: 16 });
+  const arbitraryId = fc
+    .uint8Array({ minLength: 16, maxLength: 16 })
+    .map((id) => {
+      const r = new Uint8Array(32);
+      r.set(id, 16);
+      return r;
+    });
   const arbitraryValueHex = fc.hexaString({ minLength: 64, maxLength: 64 });
   const arbitraryTitles = fc.array(arbitraryValueHex, {
     minLength: 1,

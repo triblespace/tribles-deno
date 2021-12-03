@@ -25,6 +25,12 @@ class IndexConstraint {
     this.done = false;
   }
 
+  toString() {
+    return `IndexConstraint{variable:${
+      this.variable
+    }, size:${this.cursor.pact.count()}}`;
+  }
+
   bid(unblocked) {
     if (!this.done && unblocked.has(this.variable)) {
       const costs = this.cursor.segmentCount() * inmemoryCosts;
@@ -75,12 +81,12 @@ class RangeCursor {
     return null;
   }
 
-  propose(bitset) {
+  propose(bitset, offset) {
     const lowerByte =
       this.depth === this.lowerFringe ? this.lowerBound[this.depth] : 0;
     const upperByte =
       this.depth === this.upperFringe ? this.upperBound[this.depth] : 255;
-    intersectBitRange(bitset, lowerByte, upperByte);
+    intersectBitRange(bitset, lowerByte, upperByte, offset);
   }
 
   pop() {
@@ -118,6 +124,9 @@ class RangeConstraint {
     this.variable = variable;
     this.done = false;
   }
+  toString() {
+    return `RangeConstraint{variable:${this.variable}}`;
+  }
 
   bid(unblocked) {
     if (!this.done && unblocked.has(this.variable)) {
@@ -150,6 +159,62 @@ const rangeConstraint = (
   upperBound = MAX_KEY
 ) => new RangeConstraint(variable, lowerBound, upperBound);
 
+class ConstantCursor {
+  constructor(constant) {
+    this.constant = constant;
+    this.depth = 0;
+  }
+
+  peek() {
+    return this.constant[this.depth];
+  }
+
+  propose(bitset, offset) {
+    singleBitIntersect(bitset, this.constant[this.depth], offset);
+  }
+
+  pop() {
+    this.depth--;
+  }
+
+  push(byte) {
+    this.depth++;
+    return true;
+  }
+}
+
+class ConstantConstraint {
+  constructor(variable, constant) {
+    this.cursor = new ConstantCursor(constant);
+    this.variable = variable;
+    this.done = false;
+  }
+  toString() {
+    return `ConstantConstraint{variable:${this.variable}}`;
+  }
+
+  bid(unblocked) {
+    if (!this.done && unblocked.has(this.variable)) {
+      return [this.variable, 1];
+    }
+    return [null, Number.MAX_VALUE];
+  }
+
+  push(variable) {
+    if (variable === this.variable) {
+      this.done = true;
+      return [this.cursor];
+    }
+    return [];
+  }
+
+  pop(variable) {
+    if (variable === this.variable) {
+      this.done = false;
+    }
+  }
+}
+
 const constantConstraint = (variable, constant) => {
   let value;
   if (constant.length === ID_SIZE) {
@@ -158,11 +223,12 @@ const constantConstraint = (variable, constant) => {
   } else {
     value = constant;
   }
-  return new IndexConstraint(variable, emptyValuePACT.put(value));
+  return new ConstantConstraint(variable, value);
 };
 
 class OrderByMinCostAndBlockage {
   constructor(variableCount, projected, isBlocking = []) {
+    this.variablesLeft = variableCount;
     this.isBlocking = new Map();
     this.shortcircuit = new Set();
     this.semaphores = new Uint8Array(variableCount);
@@ -199,6 +265,7 @@ class OrderByMinCostAndBlockage {
   }
 
   next(constraints) {
+    if (this.variablesLeft === 0) return null;
     let candidateVariable = null;
     let candidateCosts = Number.MAX_VALUE;
     for (const c of constraints) {
@@ -209,7 +276,7 @@ class OrderByMinCostAndBlockage {
       }
       if (candidateCosts <= 1) break;
     }
-    //if (window.debug) console.log(candidateCosts);
+    //console.log("next:", candidateVariable, candidateCosts);
     return candidateVariable;
   }
 
@@ -218,6 +285,7 @@ class OrderByMinCostAndBlockage {
   }
 
   push(variable) {
+    this.variablesLeft--;
     const blocked = this.isBlocking.get(variable);
     if (blocked !== undefined) {
       for (const v of blocked) {
@@ -229,6 +297,7 @@ class OrderByMinCostAndBlockage {
   }
 
   pop(variable) {
+    this.variablesLeft++;
     const blocked = this.isBlocking.get(variable);
     if (blocked !== undefined) {
       for (const v of blocked) {
@@ -470,6 +539,8 @@ function* resolveSegmentDescending(cursors, variable, bindings, branchPoints) {
         break;
 
       case MODE_BACKTRACK:
+        //console.log("backtrack", variable);
+
         for (; (branchPositions & (1 << depth)) === 0 && 0 < depth; depth--) {
           for (c of cursors) {
             c.pop();
@@ -536,6 +607,7 @@ function* resolve(
       );
     }
     for (const _ of segments) {
+      //console.log("variable", variable);
       const r = yield* resolve(
         constraints,
         ordering,

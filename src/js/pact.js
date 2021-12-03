@@ -68,20 +68,25 @@ const setBit = (bitset, bitPosition, offset = 0) => {
   bitset[offset + (bitPosition >>> 5)] |= highBit32 >>> bitPosition;
 };
 
-const intersectBitRange = (bitset, fromBitPosition, toBitPosition) => {
+const intersectBitRange = (
+  bitset,
+  fromBitPosition,
+  toBitPosition,
+  offset = 0
+) => {
   let fromWordPosition = fromBitPosition >>> 5;
   let toWordPosition = toBitPosition >>> 5;
   for (let wordPosition = 0; wordPosition < fromWordPosition; wordPosition++) {
-    bitset[wordPosition] = 0;
+    bitset[offset + wordPosition] = 0;
   }
-  bitset[fromWordPosition] &= ~0 >>> fromBitPosition;
-  bitset[toWordPosition] &= ~(~highBit32 >>> toBitPosition);
+  bitset[offset + fromWordPosition] &= ~0 >>> fromBitPosition;
+  bitset[offset + toWordPosition] &= ~(~highBit32 >>> toBitPosition);
   for (
     let wordPosition = toWordPosition + 1;
     wordPosition < 8;
     wordPosition++
   ) {
-    bitset[wordPosition] = 0;
+    bitset[offset + wordPosition] = 0;
   }
 };
 
@@ -104,7 +109,7 @@ const noBit = (bitset) =>
   bitset[6] === 0 &&
   bitset[7] === 0;
 
-const setAllBit = (bitset, offset) => {
+const setAllBit = (bitset, offset = 0) => {
   bitset[offset + 0] = ~0;
   bitset[offset + 1] = ~0;
   bitset[offset + 2] = ~0;
@@ -115,7 +120,7 @@ const setAllBit = (bitset, offset) => {
   bitset[offset + 7] = ~0;
 };
 
-const unsetAllBit = (bitset, offset) => {
+const unsetAllBit = (bitset, offset = 0) => {
   bitset[offset + 0] = 0;
   bitset[offset + 1] = 0;
   bitset[offset + 2] = 0;
