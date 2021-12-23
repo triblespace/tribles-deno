@@ -34,6 +34,8 @@ class IndexConstraint {
     }, size:${this.cursor.pact.count()}}`;
   }
 
+  dependencies(dependsOnSets) {}
+
   bid(isUnblocked) {
     if (!this.done && isUnblocked(this.variable)) {
       const costs = this.cursor.segmentCount() * inmemoryCosts;
@@ -131,6 +133,8 @@ class RangeConstraint {
     return `RangeConstraint{variable:${this.variable}}`;
   }
 
+  dependencies(dependsOnSets) {}
+
   bid(isUnblocked) {
     if (!this.done && isUnblocked(this.variable)) {
       return [this.variable, Number.MAX_VALUE];
@@ -195,6 +199,8 @@ class ConstantConstraint {
   toString() {
     return `ConstantConstraint{variable:${this.variable}}`;
   }
+
+  dependencies(dependsOnSets) {}
 
   bid(isUnblocked) {
     if (!this.done && isUnblocked(this.variable)) {

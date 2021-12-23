@@ -32,6 +32,17 @@ class MemTribleConstraint {
     )}}`;
   }
 
+  dependencies(dependsOn) {
+    const variables = this.explorationStack[0].children.map((t) => t.variable);
+    for (const v of variables) {
+      for (const u of variables) {
+        if (v !== u) {
+          setBit(dependsOn, u, v * 8);
+        }
+      }
+    }
+  }
+
   bid(isUnblocked) {
     const lastExplored =
       this.explorationStack[this.explorationStack.length - 1];
