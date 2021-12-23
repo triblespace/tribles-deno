@@ -1,17 +1,19 @@
+import { emptyValuePACT } from "./pact.js";
+import { ID_SIZE, VALUE_SIZE } from "./trible.js";
 import {
-  emptyValuePACT,
+  bitIntersect,
   bitIterator,
+  intersectBitRange,
   nextBit,
   prevBit,
-  singleBitIntersect,
-  intersectBitRange,
-  bitIntersect,
-  setBit,
-  unsetBit,
-  unsetAllBit,
   setAllBit,
-} from "./pact.js";
-import { ID_SIZE, VALUE_SIZE } from "./trible.js";
+  unsetAllBit,
+  unsetBit,
+  setBit,
+  hasBit,
+  singleBitIntersect,
+  emptySet,
+} from "./bitset.js";
 
 const inmemoryCosts = 1;
 
