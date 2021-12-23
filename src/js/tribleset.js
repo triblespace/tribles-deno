@@ -32,7 +32,7 @@ class MemTribleConstraint {
     )}}`;
   }
 
-  bid(unblocked) {
+  bid(isUnblocked) {
     const lastExplored =
       this.explorationStack[this.explorationStack.length - 1];
     let candidateVariable = null;
@@ -41,7 +41,7 @@ class MemTribleConstraint {
       for (const cursor of child.cursors) {
         const costs = cursor.segmentCount() * inmemoryCosts;
         const variable = child.variable;
-        if (costs <= candidateCosts && unblocked.has(variable)) {
+        if (costs <= candidateCosts && isUnblocked(variable)) {
           candidateVariable = variable;
           candidateCosts = costs;
         }

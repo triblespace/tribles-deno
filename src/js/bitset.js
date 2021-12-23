@@ -89,16 +89,42 @@ export function emptySet() {
   return new Uint32Array(8);
 }
 
-export function noBit(bitset) {
+export function noBit(bitset, offset = 0) {
   return (
-    bitset[0] === 0 &&
-    bitset[1] === 0 &&
-    bitset[2] === 0 &&
-    bitset[3] === 0 &&
-    bitset[4] === 0 &&
-    bitset[5] === 0 &&
-    bitset[6] === 0 &&
-    bitset[7] === 0
+    bitset[offset + 0] === 0 &&
+    bitset[offset + 1] === 0 &&
+    bitset[offset + 2] === 0 &&
+    bitset[offset + 3] === 0 &&
+    bitset[offset + 4] === 0 &&
+    bitset[offset + 5] === 0 &&
+    bitset[offset + 6] === 0 &&
+    bitset[offset + 7] === 0
+  );
+}
+
+export function isSupersetOf(left, right, offset = 0) {
+  return (
+    (left[offset + 0] & right[0]) === right[0] &&
+    (left[offset + 1] & right[1]) === right[1] &&
+    (left[offset + 2] & right[2]) === right[2] &&
+    (left[offset + 3] & right[3]) === right[3] &&
+    (left[offset + 4] & right[4]) === right[4] &&
+    (left[offset + 5] & right[5]) === right[5] &&
+    (left[offset + 6] & right[6]) === right[6] &&
+    (left[offset + 7] & right[7]) === right[7]
+  );
+}
+
+export function isSubsetOf(left, right, offset = 0) {
+  return (
+    (left[offset + 0] & right[0]) === left[offset + 0] &&
+    (left[offset + 1] & right[1]) === left[offset + 1] &&
+    (left[offset + 2] & right[2]) === left[offset + 2] &&
+    (left[offset + 3] & right[3]) === left[offset + 3] &&
+    (left[offset + 4] & right[4]) === left[offset + 4] &&
+    (left[offset + 5] & right[5]) === left[offset + 5] &&
+    (left[offset + 6] & right[6]) === left[offset + 6] &&
+    (left[offset + 7] & right[7]) === left[offset + 7]
   );
 }
 

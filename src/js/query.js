@@ -13,6 +13,7 @@ import {
   hasBit,
   singleBitIntersect,
   emptySet,
+  isSubsetOf,
 } from "./bitset.js";
 
 const inmemoryCosts = 1;
@@ -33,8 +34,8 @@ class IndexConstraint {
     }, size:${this.cursor.pact.count()}}`;
   }
 
-  bid(unblocked) {
-    if (!this.done && unblocked.has(this.variable)) {
+  bid(isUnblocked) {
+    if (!this.done && isUnblocked(this.variable)) {
       const costs = this.cursor.segmentCount() * inmemoryCosts;
       return [this.variable, costs];
     }
@@ -130,8 +131,8 @@ class RangeConstraint {
     return `RangeConstraint{variable:${this.variable}}`;
   }
 
-  bid(unblocked) {
-    if (!this.done && unblocked.has(this.variable)) {
+  bid(isUnblocked) {
+    if (!this.done && isUnblocked(this.variable)) {
       return [this.variable, Number.MAX_VALUE];
     }
     return [null, Number.MAX_VALUE];
@@ -195,8 +196,8 @@ class ConstantConstraint {
     return `ConstantConstraint{variable:${this.variable}}`;
   }
 
-  bid(unblocked) {
-    if (!this.done && unblocked.has(this.variable)) {
+  bid(isUnblocked) {
+    if (!this.done && isUnblocked(this.variable)) {
       return [this.variable, 1];
     }
     return [null, Number.MAX_VALUE];
@@ -231,38 +232,23 @@ const constantConstraint = (variable, constant) => {
 class OrderByMinCostAndBlockage {
   constructor(variableCount, projected, isBlocking = []) {
     this.variablesLeft = variableCount;
-    this.isBlocking = new Map();
-    this.shortcircuit = new Set();
-    this.semaphores = new Uint8Array(variableCount);
-    this.unblocked = new Set();
+    this.explored = emptySet();
+    this.blockedBy = new Uint32Array(variableCount * 8);
+    this.dependencies = new Uint32Array(variableCount * 8);
+    this.shortcircuit = emptySet();
+    this.unblocked = emptySet();
 
     for (let v = 0; v < variableCount; v++) {
       if (!projected.has(v)) {
         for (const p of projected) {
-          const bs = this.isBlocking.get(p) || new Set();
-          bs.add(v);
-          this.isBlocking.set(p, bs);
+          setBit(this.blockedBy, p, v * 8);
         }
-        this.shortcircuit.add(v);
+        setBit(this.shortcircuit, v);
       }
     }
 
     for (const [blocker, blocked] of isBlocking) {
-      const bs = this.isBlocking.get(blocker) || new Set();
-      bs.add(blocked);
-      this.isBlocking.set(blocker, bs);
-    }
-
-    for (const [blocker, bs] of this.isBlocking.entries()) {
-      for (const b of bs) {
-        this.semaphores[b]++;
-      }
-    }
-
-    for (let v = 0; v < variableCount; v++) {
-      if (this.semaphores[v] === 0) {
-        this.unblocked.add(v);
-      }
+      setBit(this.blockedBy, blocker, blocked * 8);
     }
   }
 
@@ -271,7 +257,9 @@ class OrderByMinCostAndBlockage {
     let candidateVariable = null;
     let candidateCosts = Number.MAX_VALUE;
     for (const c of constraints) {
-      const [variable, costs] = c.bid(this.unblocked);
+      const [variable, costs] = c.bid((v) =>
+        isSubsetOf(this.blockedBy, this.explored, v * 8)
+      );
       if (costs <= candidateCosts) {
         candidateVariable = variable;
         candidateCosts = costs;
@@ -283,31 +271,17 @@ class OrderByMinCostAndBlockage {
   }
 
   isShortcircuit(variable) {
-    return this.shortcircuit.has(variable);
+    return hasBit(this.shortcircuit, variable);
   }
 
   push(variable) {
     this.variablesLeft--;
-    const blocked = this.isBlocking.get(variable);
-    if (blocked !== undefined) {
-      for (const v of blocked) {
-        if (--this.semaphores[v] === 0) {
-          this.unblocked.add(v);
-        }
-      }
-    }
+    setBit(this.explored, variable);
   }
 
   pop(variable) {
     this.variablesLeft++;
-    const blocked = this.isBlocking.get(variable);
-    if (blocked !== undefined) {
-      for (const v of blocked) {
-        if (this.semaphores[v]++ === 0) {
-          this.unblocked.delete(v);
-        }
-      }
-    }
+    unsetBit(this.explored, variable);
   }
 }
 
