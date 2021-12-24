@@ -107,19 +107,21 @@ function kbQuery(b, size) {
   });
   b.start();
   // Query some data.
-  const results = [
-    ...find(knightsNS, ({ name, title }) => [
-      knightskb.where([
-        {
-          name,
-          titles: [title],
-          loves: { name: "Juliet" },
-        },
+  for (let i = 0; i < 1000; i++) {
+    const results = [
+      ...find(knightsNS, ({ name, title }) => [
+        knightskb.where([
+          {
+            name,
+            titles: [title],
+            loves: { name: "Juliet" },
+          },
+        ]),
       ]),
-    ]),
-  ];
-  console.log(knightskb.tribleset.count(), results.length);
+    ];
+  }
   b.stop();
+  console.log(knightskb.tribleset.count());
 }
 
 function getRandomInt(max) {
@@ -173,21 +175,23 @@ function kbDSQuery(b) {
   });
   b.start();
 
-  // Query some data.
-  const results = [
-    ...find(knightsNS, ({ age, lastName }) => [
-      peoplekb.where([
-        {
-          name: "Ivan",
-          eyeColor: "blue",
-          age,
-          lastName,
-        },
+  for (let i = 0; i < 1000; i++) {
+    // Query some data.
+    const results = [
+      ...find(knightsNS, ({ age, lastName }) => [
+        peoplekb.where([
+          {
+            name: "Ivan",
+            eyeColor: "blue",
+            age,
+            lastName,
+          },
+        ]),
       ]),
-    ]),
-  ];
-  console.log(peoplekb.tribleset.count(), results.length);
+    ];
+  }
   b.stop();
+  console.log(peoplekb.tribleset.count());
 }
 
 function kbWithPeople(b, size) {
