@@ -60,18 +60,18 @@ class IndexConstraint {
   }
 }
 
-const indexConstraint = (variable, index) => {
+export function indexConstraint(variable, index) {
   return new IndexConstraint(variable, index);
-};
+}
 
-const collectionConstraint = (variable, collection) => {
+export function collectionConstraint(variable, collection) {
   const indexBatch = emptyValuePACT.batch();
   for (const c of collection) {
     indexBatch.put(c);
   }
   const index = indexBatch.complete();
   return new IndexConstraint(variable, index);
-};
+}
 
 class RangeCursor {
   constructor(lowerBound, upperBound) {
@@ -160,11 +160,13 @@ class RangeConstraint {
 const MIN_KEY = new Uint8Array(32).fill(0);
 const MAX_KEY = new Uint8Array(32).fill(~0);
 
-const rangeConstraint = (
+export function rangeConstraint(
   variable,
   lowerBound = MIN_KEY,
   upperBound = MAX_KEY
-) => new RangeConstraint(variable, lowerBound, upperBound);
+) {
+  return new RangeConstraint(variable, lowerBound, upperBound);
+}
 
 class ConstantCursor {
   constructor(constant) {
@@ -224,7 +226,7 @@ class ConstantConstraint {
   }
 }
 
-const constantConstraint = (variable, constant) => {
+export function constantConstraint(variable, constant) {
   let value;
   if (constant.length === ID_SIZE) {
     value = new Uint8Array(VALUE_SIZE);
@@ -233,9 +235,9 @@ const constantConstraint = (variable, constant) => {
     value = constant;
   }
   return new ConstantConstraint(variable, value);
-};
+}
 
-class OrderByMinCostAndBlockage {
+export class OrderByMinCostAndBlockage {
   constructor(variableCount, projected, isBlocking = []) {
     this.variablesLeft = variableCount;
     this.explored = emptySet();
@@ -540,15 +542,19 @@ function* resolveSegmentDescending(cursors, variable, bindings, branchPoints) {
 const BRANCH_BITSET_SIZE = 8;
 // TODO: Simply make 256-elements the default Bitset size everywhere.
 const BITSET_VALUE_SIZE = VALUE_SIZE * BRANCH_BITSET_SIZE;
-function branchState(varCount) {
+export function branchState(varCount) {
   return new Uint32Array(varCount * BITSET_VALUE_SIZE);
 }
 
-function variableBindings(varCount) {
+export function biasState(varCount) {
+  return new Uint32Array(varCount * BITSET_VALUE_SIZE).fill(~0);
+}
+
+export function variableBindings(varCount) {
   return new Uint8Array(varCount * VALUE_SIZE);
 }
 
-function dependencyState(varCount, constraints) {
+export function dependencyState(varCount, constraints) {
   const dependsOnSets = new Uint32Array(varCount * 8);
   for (const c of constraints) {
     c.dependencies(dependsOnSets);
@@ -556,7 +562,7 @@ function dependencyState(varCount, constraints) {
   return dependsOnSets;
 }
 
-function* resolve(
+export function* resolve(
   constraints,
   ordering,
   ascendingVariables,
@@ -621,15 +627,3 @@ function* resolve(
   }
   return hasResult;
 }
-
-export {
-  collectionConstraint,
-  constantConstraint,
-  indexConstraint,
-  rangeConstraint,
-  OrderByMinCostAndBlockage,
-  resolve,
-  branchState,
-  dependencyState,
-  variableBindings,
-};

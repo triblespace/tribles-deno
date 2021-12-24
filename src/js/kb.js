@@ -7,6 +7,7 @@ import {
   variableBindings,
   branchState,
   dependencyState,
+  biasState,
   rangeConstraint,
 } from "./query.js";
 import {
@@ -247,7 +248,7 @@ const lookup = (ns, kb, eId, attributeName) => {
     variableBindings(3),
     branchState(3),
     dependencyState(3, constraints),
-    branchState(3)
+    biasState(3)
   );
 
   if ((!isInverse && isUnique) || (isInverse && isUniqueInverse)) {
@@ -337,7 +338,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           variableBindings(3),
           branchState(3),
           dependencyState(3, constraints),
-          branchState(3)
+          biasState(3)
         ).next();
         return !done;
       },
@@ -398,7 +399,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           variableBindings(3),
           branchState(3),
           dependencyState(3, forwardConstraints),
-          branchState(3)
+          biasState(3)
         )) {
           const a = r.slice(VALUE_SIZE, VALUE_SIZE * 2);
           attrs.push(
@@ -418,7 +419,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           variableBindings(3),
           branchState(3),
           dependencyState(3, inverseConstraints),
-          branchState(3)
+          biasState(3)
         )) {
           const a = r.slice(VALUE_SIZE, VALUE_SIZE * 2);
           attrs.push(
@@ -746,8 +747,8 @@ function* find(ns, cfn) {
     new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
     variableBindings(vars.variables.length),
     branchState(vars.variables.length),
-    dependencyState(3, constraints),
-    branchState(3)
+    dependencyState(vars.variables.length, constraints),
+    biasState(vars.variables.length)
   )) {
     const result = {};
     for (const {
