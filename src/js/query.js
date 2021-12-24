@@ -538,6 +538,7 @@ function* resolveSegmentDescending(cursors, variable, bindings, branchPoints) {
 }
 
 const BRANCH_BITSET_SIZE = 8;
+// TODO: Simply make 256-elements the default Bitset size everywhere.
 const BITSET_VALUE_SIZE = VALUE_SIZE * BRANCH_BITSET_SIZE;
 function branchState(varCount) {
   return new Uint32Array(varCount * BITSET_VALUE_SIZE);
@@ -547,12 +548,22 @@ function variableBindings(varCount) {
   return new Uint8Array(varCount * VALUE_SIZE);
 }
 
+function dependencyState(varCount, constraints) {
+  const dependsOnSets = new Uint32Array(varCount * 8);
+  for (const c of constraints) {
+    c.dependencies(dependsOnSets);
+  }
+  return dependsOnSets;
+}
+
 function* resolve(
   constraints,
   ordering,
   ascendingVariables,
   bindings,
-  branchPoints
+  branchPoints,
+  dependencies,
+  bias
 ) {
   //init
   let hasResult = false;
@@ -595,7 +606,9 @@ function* resolve(
         ordering,
         ascendingVariables,
         bindings,
-        branchPoints
+        branchPoints,
+        dependencies,
+        bias
       );
       hasResult = hasResult || r;
       if (hasResult && shortcircuit) {
@@ -617,5 +630,6 @@ export {
   OrderByMinCostAndBlockage,
   resolve,
   branchState,
+  dependencyState,
   variableBindings,
 };

@@ -18,6 +18,7 @@ import {
   V2,
   zero,
 } from "./trible.js";
+import { setBit } from "./bitset.js";
 
 const inmemoryCosts = 1; //TODO estimate and change to microseconds.
 // TODO return both count and latency. Cost = min count * max latency;

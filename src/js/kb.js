@@ -6,6 +6,7 @@ import {
   resolve,
   variableBindings,
   branchState,
+  dependencyState,
   rangeConstraint,
 } from "./query.js";
 import {
@@ -234,15 +235,18 @@ const lookup = (ns, kb, eId, attributeName) => {
     isUniqueInverse,
   } = ns.attributes.get(attributeName);
 
+  const constraints = [
+    constantConstraint(0, eId),
+    constantConstraint(1, aId),
+    kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
+  ];
   const res = resolve(
-    [
-      constantConstraint(0, eId),
-      constantConstraint(1, aId),
-      kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
-    ],
+    constraints,
     new OrderByMinCostAndBlockage(3, new Set([0, 1, 2])),
     new Set([0, 1, 2]),
     variableBindings(3),
+    branchState(3),
+    dependencyState(3, constraints),
     branchState(3)
   );
 
@@ -321,15 +325,18 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         ) {
           return true;
         }
+        const constraints = [
+          constantConstraint(0, eId),
+          constantConstraint(1, aId),
+          kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
+        ];
         const { done } = resolve(
-          [
-            constantConstraint(0, eId),
-            constantConstraint(1, aId),
-            kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
-          ],
+          constraints,
           new OrderByMinCostAndBlockage(3, new Set([0, 1])),
           new Set([0, 1, 2]),
           variableBindings(3),
+          branchState(3),
+          dependencyState(3, constraints),
           branchState(3)
         ).next();
         return !done;
@@ -379,15 +386,18 @@ const entityProxy = function entityProxy(ns, kb, eId) {
       },
       ownKeys: function (_) {
         const attrs = [id];
+        const forwardConstraints = [
+          constantConstraint(0, eId),
+          indexConstraint(1, ns.forwardAttributeIndex),
+          kb.tribleset.constraint(0, 1, 2),
+        ];
         for (const r of resolve(
-          [
-            constantConstraint(0, eId),
-            indexConstraint(1, ns.forwardAttributeIndex),
-            kb.tribleset.constraint(0, 1, 2),
-          ],
+          forwardConstraints,
           new OrderByMinCostAndBlockage(3, new Set([0, 1])),
           new Set([0, 1, 2]),
           variableBindings(3),
+          branchState(3),
+          dependencyState(3, forwardConstraints),
           branchState(3)
         )) {
           const a = r.slice(VALUE_SIZE, VALUE_SIZE * 2);
@@ -395,15 +405,19 @@ const entityProxy = function entityProxy(ns, kb, eId) {
             ...ns.forwardAttributeIndex.get(a).map((attr) => attr.name)
           );
         }
+
+        const inverseConstraints = [
+          constantConstraint(0, eId),
+          kb.tribleset.constraint(2, 1, 0),
+          indexConstraint(1, ns.inverseAttributeIndex),
+        ];
         for (const r of resolve(
-          [
-            constantConstraint(0, eId),
-            kb.tribleset.constraint(2, 1, 0),
-            indexConstraint(1, ns.inverseAttributeIndex),
-          ],
+          inverseConstraints,
           new OrderByMinCostAndBlockage(3, new Set([0, 1])),
           new Set([0, 1, 2]),
           variableBindings(3),
+          branchState(3),
+          dependencyState(3, inverseConstraints),
           branchState(3)
         )) {
           const a = r.slice(VALUE_SIZE, VALUE_SIZE * 2);
@@ -731,7 +745,9 @@ function* find(ns, cfn) {
     ),
     new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
     variableBindings(vars.variables.length),
-    branchState(vars.variables.length)
+    branchState(vars.variables.length),
+    dependencyState(3, constraints),
+    branchState(3)
   )) {
     const result = {};
     for (const {
