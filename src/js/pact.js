@@ -91,8 +91,8 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       }
     }
 
-    pop() {
-      this.pushDepth--;
+    pop(times = 1) {
+      this.pushDepth -= times;
     }
 
     push(byte) {

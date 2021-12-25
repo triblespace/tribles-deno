@@ -94,12 +94,14 @@ class RangeCursor {
     intersectBitRange(bitset, lowerByte, upperByte, offset);
   }
 
-  pop() {
-    if (this.depth === this.lowerFringe) {
-      this.lowerFringe--;
+  pop(times = 1) {
+    this.depth -= times;
+
+    if (this.depth < this.lowerFringe) {
+      this.lowerFringe = this.depth;
     }
-    if (this.depth === this.upperFringe) {
-      this.upperFringe--;
+    if (this.depth < this.upperFringe) {
+      this.upperFringe = this.depth;
     }
     this.depth--;
   }
@@ -182,8 +184,8 @@ class ConstantCursor {
     singleBitIntersect(bitset, this.constant[this.depth], offset);
   }
 
-  pop() {
-    this.depth--;
+  pop(times = 1) {
+    this.depth -= times;
   }
 
   push(byte) {
@@ -301,76 +303,66 @@ const MODE_PATH = 0;
 const MODE_BRANCH = 1;
 const MODE_BACKTRACK = 2;
 
-function* resolveSegmentAscending(cursors, variable, bindings, branchPoints) {
+function* resolveSegmentAscending(
+  cursors,
+  variable,
+  bindings,
+  branchPoints,
+  bias
+) {
   const branchOffset = variable * BITSET_VALUE_SIZE;
   const bindingOffset = variable * VALUE_SIZE;
 
   let mode = MODE_PATH;
   let depth = 0;
   let branchPositions = 0;
+  let offset = 0;
 
-  let c = 0;
   outer: while (true) {
+    offset = branchOffset + depth * BRANCH_BITSET_SIZE;
     switch (mode) {
       case MODE_PATH:
         while (true) {
           if (depth === 32) {
             if (yield) {
-              for (; 0 < depth; depth--) {
-                for (c of cursors) {
-                  c.pop();
-                }
+              for (const c of cursors) {
+                c.pop(depth);
               }
               return;
             }
-            for (c of cursors) {
-              c.pop();
-            }
-            depth--;
             mode = MODE_BACKTRACK;
             continue outer;
           }
+          offset = branchOffset + depth * BRANCH_BITSET_SIZE;
 
-          c = 0;
-          const byte = cursors[c].peek();
-          if (byte === null) {
-            setAllBit(branchPoints, branchOffset + depth * BRANCH_BITSET_SIZE);
-            for (; c < cursors.length; c++) {
-              cursors[c].propose(
-                branchPoints,
-                branchOffset + depth * BRANCH_BITSET_SIZE
-              );
+          let byte = null;
+          let noProposals = true;
+
+          for (const cursor of cursors) {
+            const peeked = cursor.peek();
+            if (peeked === null) {
+              if (noProposals) {
+                noProposals = false;
+                branchPoints.set(bias.subarray(offset, offset + 8), offset);
+              }
+              cursor.propose(branchPoints, offset);
+            } else {
+              byte ??= peeked;
+              if (byte !== peeked) {
+                mode = MODE_BACKTRACK;
+                continue outer;
+              }
             }
+          }
+
+          if (byte === null) {
             branchPositions = branchPositions | (1 << depth);
             mode = MODE_BRANCH;
             continue outer;
           }
-          for (c = 1; c < cursors.length; c++) {
-            const other_byte = cursors[c].peek();
-            if (other_byte === null) {
-              unsetAllBit(
-                branchPoints,
-                branchOffset + depth * BRANCH_BITSET_SIZE
-              );
-              setBit(
-                branchPoints,
-                byte,
-                branchOffset + depth * BRANCH_BITSET_SIZE
-              );
-              for (; c < cursors.length; c++) {
-                cursors[c].propose(
-                  branchPoints,
-                  branchOffset + depth * BRANCH_BITSET_SIZE
-                );
-              }
-              branchPositions = branchPositions | (1 << depth);
-              mode = MODE_BRANCH;
-              continue outer;
-            }
-            if (byte !== other_byte) {
-              mode = MODE_BACKTRACK;
-              continue outer;
-            }
+          if (!hasBit(noProposals ? bias : branchPoints, byte, offset)) {
+            mode = MODE_BACKTRACK;
+            continue outer;
           }
 
           bindings[bindingOffset + depth] = byte;
@@ -383,21 +375,17 @@ function* resolveSegmentAscending(cursors, variable, bindings, branchPoints) {
         break;
 
       case MODE_BRANCH:
-        const byte = nextBit(
-          0,
-          branchPoints,
-          branchOffset + depth * BRANCH_BITSET_SIZE
-        );
+        const byte = nextBit(0, branchPoints, offset);
         if (byte > 255) {
           branchPositions = branchPositions & ~(1 << depth);
           mode = MODE_BACKTRACK;
           continue outer;
         }
         bindings[bindingOffset + depth] = byte;
-        for (c of cursors) {
+        for (const c of cursors) {
           c.push(byte);
         }
-        unsetBit(branchPoints, byte, branchOffset + depth * BRANCH_BITSET_SIZE);
+        unsetBit(branchPoints, byte, offset);
         depth++;
         mode = MODE_PATH;
         continue outer;
@@ -405,12 +393,20 @@ function* resolveSegmentAscending(cursors, variable, bindings, branchPoints) {
         break;
 
       case MODE_BACKTRACK:
-        for (; (branchPositions & (1 << depth)) === 0 && 0 < depth; depth--) {
-          for (c of cursors) {
-            c.pop();
+        const newDepth = 31 - Math.clz32(branchPositions);
+        if (newDepth < 0) {
+          for (const c of cursors) {
+            c.pop(depth);
           }
+          return;
+        } else {
+          const pops = depth - newDepth;
+          for (const c of cursors) {
+            c.pop(pops);
+          }
+          depth = newDepth;
         }
-        if ((branchPositions & (1 << depth)) === 0) return;
+
         mode = MODE_BRANCH;
         continue outer;
 
@@ -595,14 +591,16 @@ export function* resolve(
         cursors,
         variable,
         bindings,
-        branchPoints
+        branchPoints,
+        bias
       );
     } else {
       segments = resolveSegmentDescending(
         cursors,
         variable,
         bindings,
-        branchPoints
+        branchPoints,
+        bias
       );
     }
     for (const _ of segments) {
