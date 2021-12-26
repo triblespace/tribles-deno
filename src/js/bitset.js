@@ -194,6 +194,17 @@ export function bitDiff(left, right, out = left) {
   out[7] = left[7] ^ right[7];
 }
 
+export function bitComplement(bitset, out = bitset) {
+  out[0] = ~bitset[0];
+  out[1] = ~bitset[1];
+  out[2] = ~bitset[2];
+  out[3] = ~bitset[3];
+  out[4] = ~bitset[4];
+  out[5] = ~bitset[5];
+  out[6] = ~bitset[6];
+  out[7] = ~bitset[7];
+}
+
 export function singleBitIntersect(bitset, bit, offset = 0) {
   const hadBit = hasBit(bitset, bit, offset);
   unsetAllBit(bitset, offset);

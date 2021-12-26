@@ -3,6 +3,8 @@ import { ID_SIZE, VALUE_SIZE } from "./trible.js";
 import {
   bitIntersect,
   bitIterator,
+  bitComplement,
+  bitSubtract,
   intersectBitRange,
   nextBit,
   prevBit,
@@ -244,7 +246,6 @@ export class OrderByMinCostAndBlockage {
     this.variablesLeft = variableCount;
     this.explored = emptySet();
     this.blockedBy = new Uint32Array(variableCount * 8);
-    this.dependencies = new Uint32Array(variableCount * 8);
     this.shortcircuit = emptySet();
     this.unblocked = emptySet();
 
@@ -308,7 +309,8 @@ function* resolveSegmentAscending(
   variable,
   bindings,
   branchPoints,
-  bias
+  bias,
+  biased
 ) {
   const branchOffset = variable * BITSET_VALUE_SIZE;
   const bindingOffset = variable * VALUE_SIZE;
@@ -343,7 +345,11 @@ function* resolveSegmentAscending(
             if (peeked === null) {
               if (noProposals) {
                 noProposals = false;
-                branchPoints.set(bias.subarray(offset, offset + 8), offset);
+                if (biased) {
+                  branchPoints.set(bias.subarray(offset, offset + 8), offset);
+                } else {
+                  setAllBit(branchPoints, offset);
+                }
               }
               cursor.propose(branchPoints, offset);
             } else {
@@ -360,7 +366,10 @@ function* resolveSegmentAscending(
             mode = MODE_BRANCH;
             continue outer;
           }
-          if (!hasBit(noProposals ? bias : branchPoints, byte, offset)) {
+          if (
+            (noProposals && biased && !hasBit(bias, byte, offset)) ||
+            (!noProposals && !hasBit(branchPoints, byte, offset))
+          ) {
             mode = MODE_BACKTRACK;
             continue outer;
           }
@@ -415,7 +424,14 @@ function* resolveSegmentAscending(
   }
 }
 
-function* resolveSegmentDescending(cursors, variable, bindings, branchPoints) {
+function* resolveSegmentDescending(
+  cursors,
+  variable,
+  bindings,
+  branchPoints,
+  bias,
+  biased
+) {
   const branchOffset = variable * BITSET_VALUE_SIZE;
   const bindingOffset = variable * VALUE_SIZE;
 
@@ -565,7 +581,8 @@ export function* resolve(
   bindings,
   branchPoints,
   dependencies,
-  bias
+  bias,
+  biasedVariables = emptySet()
 ) {
   //init
   let hasResult = false;
@@ -584,6 +601,7 @@ export function* resolve(
     }
 
     const shortcircuit = ordering.isShortcircuit(variable);
+    const biased = hasBit(biasedVariables, variable);
 
     let segments;
     if (ascending) {
@@ -592,7 +610,8 @@ export function* resolve(
         variable,
         bindings,
         branchPoints,
-        bias
+        bias,
+        biased
       );
     } else {
       segments = resolveSegmentDescending(
@@ -600,11 +619,39 @@ export function* resolve(
         variable,
         bindings,
         branchPoints,
-        bias
+        bias,
+        biased
       );
     }
+
+    const bindingOffset = variable * VALUE_SIZE;
+    const biasOffset = variable * BITSET_VALUE_SIZE;
+    if (!biased) {
+      bias.subarray(biasOffset, biasOffset + BITSET_VALUE_SIZE).fill(0);
+    }
+
+    const biasedVariableScratch = ordering.explored.slice();
+    bitComplement(biasedVariableScratch);
+    bitIntersect(
+      biasedVariableScratch,
+      dependencies.subarray(
+        variable * BRANCH_BITSET_SIZE,
+        (variable + 1) * BRANCH_BITSET_SIZE
+      )
+    );
+
     for (const _ of segments) {
       //console.log("variable", variable);
+      if (!biased) {
+        for (let d = 0; d < VALUE_SIZE; d++) {
+          setBit(
+            bias,
+            bindings[bindingOffset + d],
+            biasOffset + d * BRANCH_BITSET_SIZE
+          );
+        }
+      }
+      bitSubtract(biasedVariables, biasedVariableScratch);
       const r = yield* resolve(
         constraints,
         ordering,
@@ -612,7 +659,9 @@ export function* resolve(
         bindings,
         branchPoints,
         dependencies,
-        bias
+        bias,
+        biasedVariables,
+        biasedVariableScratch
       );
       hasResult = hasResult || r;
       if (hasResult && shortcircuit) {
@@ -620,6 +669,9 @@ export function* resolve(
       }
     }
 
+    if (!biased) {
+      setBit(biasedVariables, variable);
+    }
     constraints.forEach((c) => c.pop(variable));
     ordering.pop(variable);
   }
