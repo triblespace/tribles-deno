@@ -199,7 +199,6 @@ function kbDSQuery(b) {
 function kbWithPeople(b, size) {
   b.start();
   let peoplekb = new KB(new TribleSet(), new BlobCache());
-  peoplekb = peoplekb.with(knightsNS, function* (ids) {});
 
   peoplekb = peoplekb.with(knightsNS, function* (ids) {
     for (let i = 0; i < size; i++) {
