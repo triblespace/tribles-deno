@@ -72,7 +72,7 @@ function kbQuery(b, size) {
       yield* [
         {
           [id]: romeo,
-          name: `LovingRomeo${i}`,
+          name: `${i}LovingRomeo`,
           titles: ["fool", "prince"],
           loves: juliet,
         },
@@ -92,33 +92,34 @@ function kbQuery(b, size) {
       yield* [
         {
           [id]: romeo,
-          name: `Romeo${i}`,
+          name: `${i}Romeo`,
           titles: ["fool", "prince"],
           loves: juliet,
         },
         {
           [id]: juliet,
-          name: `Juliet${i}`,
+          name: `${i}Juliet`,
           titles: ["the lady", "princess"],
           loves: romeo,
         },
       ];
     }
   });
-  b.start();
   // Query some data.
+  const q = find(knightsNS, ({ name, title }) => [
+    knightskb.where([
+      {
+        name,
+        titles: [title],
+        loves: { name: "Juliet" },
+      },
+    ]),
+  ]);
+  q.run();
+  b.start();
+
   for (let i = 0; i < 1000; i++) {
-    const results = [
-      ...find(knightsNS, ({ name, title }) => [
-        knightskb.where([
-          {
-            name,
-            titles: [title],
-            loves: { name: "Juliet" },
-          },
-        ]),
-      ]),
-    ];
+    const results = [...q.run()];
   }
   b.stop();
   console.log(knightskb.tribleset.count());
@@ -173,22 +174,23 @@ function kbDSQuery(b) {
       ];
     }
   });
+
+  // Query some data.
+  const q = find(knightsNS, ({ age, lastName }) => [
+    peoplekb.where([
+      {
+        name: "Ivan",
+        eyeColor: "blue",
+        age,
+        lastName,
+      },
+    ]),
+  ]);
+  q.run();
   b.start();
 
   for (let i = 0; i < 1000; i++) {
-    // Query some data.
-    const results = [
-      ...find(knightsNS, ({ age, lastName }) => [
-        peoplekb.where([
-          {
-            name: "Ivan",
-            eyeColor: "blue",
-            age,
-            lastName,
-          },
-        ]),
-      ]),
-    ];
+    const results = [...q.run()];
   }
   b.stop();
   console.log(peoplekb.tribleset.count());

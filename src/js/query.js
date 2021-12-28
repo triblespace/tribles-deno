@@ -286,11 +286,13 @@ export class OrderByMinCostAndBlockage {
   }
 
   push(variable) {
+    //console.log("push:", variable);
     this.variablesLeft--;
     setBit(this.explored, variable);
   }
 
   pop(variable) {
+    //console.log("pop:", variable);
     this.variablesLeft++;
     unsetBit(this.explored, variable);
   }
@@ -309,8 +311,8 @@ function* resolveSegmentAscending(
   variable,
   bindings,
   branchPoints,
-  bias,
-  biased
+  cache,
+  cached
 ) {
   const branchOffset = variable * BITSET_VALUE_SIZE;
   const bindingOffset = variable * VALUE_SIZE;
@@ -345,8 +347,8 @@ function* resolveSegmentAscending(
             if (peeked === null) {
               if (noProposals) {
                 noProposals = false;
-                if (biased) {
-                  branchPoints.set(bias.subarray(offset, offset + 8), offset);
+                if (cached) {
+                  branchPoints.set(cache.subarray(offset, offset + 8), offset);
                 } else {
                   setAllBit(branchPoints, offset);
                 }
@@ -367,7 +369,7 @@ function* resolveSegmentAscending(
             continue outer;
           }
           if (
-            (noProposals && biased && !hasBit(bias, byte, offset)) ||
+            (noProposals && cached && !hasBit(cache, byte, offset)) ||
             (!noProposals && !hasBit(branchPoints, byte, offset))
           ) {
             mode = MODE_BACKTRACK;
@@ -402,6 +404,8 @@ function* resolveSegmentAscending(
         break;
 
       case MODE_BACKTRACK:
+        //console.count(`backtracking:${variable}`);
+
         const newDepth = 31 - Math.clz32(branchPositions);
         if (newDepth < 0) {
           for (const c of cursors) {
@@ -429,8 +433,8 @@ function* resolveSegmentDescending(
   variable,
   bindings,
   branchPoints,
-  bias,
-  biased
+  cache,
+  cached
 ) {
   const branchOffset = variable * BITSET_VALUE_SIZE;
   const bindingOffset = variable * VALUE_SIZE;
@@ -535,7 +539,7 @@ function* resolveSegmentDescending(
         break;
 
       case MODE_BACKTRACK:
-        //console.log("backtrack", variable);
+        //console.log("backtracking ", variable);
 
         for (; (branchPositions & (1 << depth)) === 0 && 0 < depth; depth--) {
           for (c of cursors) {
@@ -558,10 +562,6 @@ export function branchState(varCount) {
   return new Uint32Array(varCount * BITSET_VALUE_SIZE);
 }
 
-export function biasState(varCount) {
-  return new Uint32Array(varCount * BITSET_VALUE_SIZE).fill(~0);
-}
-
 export function variableBindings(varCount) {
   return new Uint8Array(varCount * VALUE_SIZE);
 }
@@ -574,106 +574,97 @@ export function dependencyState(varCount, constraints) {
   return dependsOnSets;
 }
 
-export function* resolve(
-  constraints,
-  ordering,
-  ascendingVariables,
-  bindings,
-  branchPoints,
-  dependencies,
-  bias,
-  biasedVariables = emptySet()
-) {
-  //init
-  let hasResult = false;
-  const variable = ordering.next(constraints);
-  if (variable === null) {
-    yield bindings;
-    hasResult = true;
-  } else {
-    const ascending = ascendingVariables.has(variable);
-
-    ordering.push(variable);
-
-    const cursors = [];
-    for (const c of constraints) {
-      cursors.push(...c.push(variable));
+export class Query {
+  constructor(
+    varCount,
+    constraints,
+    ordering,
+    ascendingVariables,
+    postProcessing = (r) => r
+  ) {
+    this.constraints = constraints;
+    this.ordering = ordering;
+    this.ascendingVariables = ascendingVariables;
+    this.postProcessing = postProcessing;
+    this.bindings = variableBindings(varCount);
+    this.branchPoints = branchState(varCount);
+    this.dependencies = dependencyState(varCount, constraints);
+    this.cache = branchState(varCount);
+    this.cachedVariables = emptySet();
+  }
+  *run(caching = true) {
+    for (const r of this.__resolve(caching)) {
+      yield this.postProcessing(r);
     }
+    if (caching) {
+      setAllBit(this.cachedVariables);
+    }
+  }
 
-    const shortcircuit = ordering.isShortcircuit(variable);
-    const biased = hasBit(biasedVariables, variable);
-
-    let segments;
-    if (ascending) {
-      segments = resolveSegmentAscending(
-        cursors,
-        variable,
-        bindings,
-        branchPoints,
-        bias,
-        biased
-      );
+  *__resolve(caching) {
+    //init
+    let hasResult = false;
+    const variable = this.ordering.next(this.constraints);
+    if (variable === null) {
+      yield this.bindings;
+      hasResult = true;
     } else {
-      segments = resolveSegmentDescending(
-        cursors,
-        variable,
-        bindings,
-        branchPoints,
-        bias,
-        biased
-      );
-    }
+      const ascending = this.ascendingVariables.has(variable);
 
-    const bindingOffset = variable * VALUE_SIZE;
-    const biasOffset = variable * BITSET_VALUE_SIZE;
-    if (!biased) {
-      bias.subarray(biasOffset, biasOffset + BITSET_VALUE_SIZE).fill(0);
-    }
+      this.ordering.push(variable);
 
-    const biasedVariableScratch = ordering.explored.slice();
-    bitComplement(biasedVariableScratch);
-    bitIntersect(
-      biasedVariableScratch,
-      dependencies.subarray(
-        variable * BRANCH_BITSET_SIZE,
-        (variable + 1) * BRANCH_BITSET_SIZE
-      )
-    );
+      const cursors = [];
+      for (const c of this.constraints) {
+        cursors.push(...c.push(variable));
+      }
 
-    for (const _ of segments) {
-      //console.log("variable", variable);
-      if (!biased) {
-        for (let d = 0; d < VALUE_SIZE; d++) {
-          setBit(
-            bias,
-            bindings[bindingOffset + d],
-            biasOffset + d * BRANCH_BITSET_SIZE
-          );
+      const shortcircuit = this.ordering.isShortcircuit(variable);
+      const cached = hasBit(this.cachedVariables, variable);
+      //if (cached) console.log("cached ", variable);
+      let segments;
+      if (ascending) {
+        segments = resolveSegmentAscending(
+          cursors,
+          variable,
+          this.bindings,
+          this.branchPoints,
+          this.cache,
+          cached
+        );
+      } else {
+        segments = resolveSegmentDescending(
+          cursors,
+          variable,
+          this.bindings,
+          this.branchPoints,
+          this.cache,
+          cached
+        );
+      }
+
+      const bindingOffset = variable * VALUE_SIZE;
+      const cacheOffset = variable * BITSET_VALUE_SIZE;
+
+      for (const _ of segments) {
+        //console.log("variable", variable);
+        const r = yield* this.__resolve(caching);
+        hasResult = hasResult || r;
+        if (caching && !cached && r) {
+          for (let d = 0; d < VALUE_SIZE; d++) {
+            setBit(
+              this.cache,
+              this.bindings[bindingOffset + d],
+              cacheOffset + d * BRANCH_BITSET_SIZE
+            );
+          }
+        }
+        if (hasResult && shortcircuit) {
+          segments.next(true);
         }
       }
-      bitSubtract(biasedVariables, biasedVariableScratch);
-      const r = yield* resolve(
-        constraints,
-        ordering,
-        ascendingVariables,
-        bindings,
-        branchPoints,
-        dependencies,
-        bias,
-        biasedVariables,
-        biasedVariableScratch
-      );
-      hasResult = hasResult || r;
-      if (hasResult && shortcircuit) {
-        segments.next(true);
-      }
+      this.constraints.forEach((c) => c.pop(variable));
+      this.ordering.pop(variable);
     }
-
-    if (!biased) {
-      setBit(biasedVariables, variable);
-    }
-    constraints.forEach((c) => c.pop(variable));
-    ordering.pop(variable);
+    return hasResult;
   }
-  return hasResult;
 }

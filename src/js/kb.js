@@ -3,11 +3,7 @@ import {
   constantConstraint,
   indexConstraint,
   OrderByMinCostAndBlockage,
-  resolve,
-  variableBindings,
-  branchState,
-  dependencyState,
-  biasState,
+  Query,
   rangeConstraint,
 } from "./query.js";
 import {
@@ -241,34 +237,30 @@ const lookup = (ns, kb, eId, attributeName) => {
     constantConstraint(1, aId),
     kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
   ];
-  const res = resolve(
+  const res = new Query(
+    3,
     constraints,
     new OrderByMinCostAndBlockage(3, new Set([0, 1, 2])),
     new Set([0, 1, 2]),
-    variableBindings(3),
-    branchState(3),
-    dependencyState(3, constraints),
-    biasState(3)
-  );
+    (r) => r.slice(VALUE_SIZE * 2, VALUE_SIZE * 3)
+  ).run();
 
   if ((!isInverse && isUnique) || (isInverse && isUniqueInverse)) {
     const { done, value } = res.next();
     if (done) return { found: false };
-    const v = value.slice(VALUE_SIZE * 2, VALUE_SIZE * 3);
     return {
       found: true,
       result: isLink
-        ? entityProxy(ns, kb, v)
-        : decoder(v.slice(), async () => await kb.blobcache.get(v)),
+        ? entityProxy(ns, kb, value)
+        : decoder(value.slice(), async () => await kb.blobcache.get(value)),
     };
   } else {
     const results = [];
-    for (const r of res) {
-      const v = r.slice(VALUE_SIZE * 2, VALUE_SIZE * 3);
+    for (const value of res) {
       results.push(
         isLink
-          ? entityProxy(ns, kb, v)
-          : decoder(v.slice(), async () => await kb.blobcache.get(v))
+          ? entityProxy(ns, kb, value)
+          : decoder(value.slice(), async () => await kb.blobcache.get(value))
       );
     }
     return {
@@ -331,15 +323,14 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           constantConstraint(1, aId),
           kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
         ];
-        const { done } = resolve(
+        const { done } = new Query(
+          3,
           constraints,
           new OrderByMinCostAndBlockage(3, new Set([0, 1])),
-          new Set([0, 1, 2]),
-          variableBindings(3),
-          branchState(3),
-          dependencyState(3, constraints),
-          biasState(3)
-        ).next();
+          new Set([0, 1, 2])
+        )
+          .run()
+          .next();
         return !done;
       },
       deleteProperty: function (_, attr) {
@@ -392,15 +383,12 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           indexConstraint(1, ns.forwardAttributeIndex),
           kb.tribleset.constraint(0, 1, 2),
         ];
-        for (const r of resolve(
+        for (const r of new Query(
+          3,
           forwardConstraints,
           new OrderByMinCostAndBlockage(3, new Set([0, 1])),
-          new Set([0, 1, 2]),
-          variableBindings(3),
-          branchState(3),
-          dependencyState(3, forwardConstraints),
-          biasState(3)
-        )) {
+          new Set([0, 1, 2])
+        ).run()) {
           const a = r.slice(VALUE_SIZE, VALUE_SIZE * 2);
           attrs.push(
             ...ns.forwardAttributeIndex.get(a).map((attr) => attr.name)
@@ -412,15 +400,12 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           kb.tribleset.constraint(2, 1, 0),
           indexConstraint(1, ns.inverseAttributeIndex),
         ];
-        for (const r of resolve(
+        for (const r of new Query(
+          3,
           inverseConstraints,
           new OrderByMinCostAndBlockage(3, new Set([0, 1])),
-          new Set([0, 1, 2]),
-          variableBindings(3),
-          branchState(3),
-          dependencyState(3, inverseConstraints),
-          biasState(3)
-        )) {
+          new Set([0, 1, 2])
+        ).run()) {
           const a = r.slice(VALUE_SIZE, VALUE_SIZE * 2);
           attrs.push(
             ...ns.inverseAttributeIndex.get(a).map((attr) => attr.name)
@@ -632,15 +617,12 @@ class KB {
     return (ns, vars) => {
       const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
       const triplesWithVars = precompileTriples(ns, vars, triples);
-      return {
-        isStatic: true,
-        constraints: [
-          ...triplesWithVars.map(([e, a, v]) => {
-            v.proposeBlobCache(this.blobcache);
-            return this.tribleset.constraint(e.index, a.index, v.index);
-          }),
-        ],
-      };
+      return [
+        ...triplesWithVars.map(([e, a, v]) => {
+          v.proposeBlobCache(this.blobcache);
+          return this.tribleset.constraint(e.index, a.index, v.index);
+        }),
+      ];
     };
   }
 
@@ -693,17 +675,12 @@ class KB {
   }
 }
 
-function* find(ns, cfn) {
+function find(ns, cfn) {
   const vars = new VariableProvider();
   const constraints = [];
   for (const constraintBuilder of cfn(vars.namedCache())) {
     const constraintGroup = constraintBuilder(ns, vars);
-    if (!constraintGroup.isStatic) {
-      throw Error(
-        `Can only use static constraint groups in find. Use either subscribe, or a static value like box.get().`
-      );
-    }
-    for (const constraint of constraintGroup.constraints) {
+    for (const constraint of constraintGroup) {
       constraints.push(constraint);
     }
   }
@@ -736,20 +713,7 @@ function* find(ns, cfn) {
 
   //console.log(namedVariables.map((v) => [v.name, v.index]));
   //console.log(constraints.map((c) => c.toString()));
-
-  for (const r of resolve(
-    constraints,
-    new OrderByMinCostAndBlockage(
-      vars.variables.length,
-      vars.projected,
-      vars.isBlocking
-    ),
-    new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
-    variableBindings(vars.variables.length),
-    branchState(vars.variables.length),
-    dependencyState(vars.variables.length, constraints),
-    biasState(vars.variables.length)
-  )) {
+  const postProcessing = (r) => {
     const result = {};
     for (const {
       index,
@@ -782,8 +746,20 @@ function* find(ns, cfn) {
         });
       }
     }
-    yield result;
-  }
+    return result;
+  };
+
+  return new Query(
+    vars.variables.length,
+    constraints,
+    new OrderByMinCostAndBlockage(
+      vars.variables.length,
+      vars.projected,
+      vars.isBlocking
+    ),
+    new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
+    postProcessing
+  );
 }
 
 const namespace = (ns) => {

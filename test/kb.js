@@ -72,7 +72,7 @@ Deno.test("KB Find", () => {
   const results = new Set([
     ...find(knightsNS, ({ name, title }) => [
       knightskb.where([{ name: name, titles: [title] }]),
-    ]),
+    ]).run(),
   ]);
   assertEquals(
     results,
@@ -126,7 +126,7 @@ Deno.test("KB Find Single", () => {
         const results = new Set([
           ...find(knightsNS, ({ name, title }) => [
             knightskb.where([{ name, titles: [title] }]),
-          ]),
+          ]).run(),
         ]);
         assertEquals(
           results,
@@ -174,7 +174,7 @@ Deno.test("Find Ascending", () => {
           titles: [title],
         },
       ]),
-    ]),
+    ]).run(),
   ];
   assertEquals(results, [
     { name: "Juliet", title: "princess" },
@@ -223,7 +223,7 @@ Deno.test("find lower range", () => {
         ]),
       ],
       knightskb.blobcache
-    ),
+    ).run(),
   ];
   assertEquals(results, [
     { name: "Romeo", title: "fool" },
@@ -269,7 +269,7 @@ Deno.test("find upper bound", () => {
           titles: [title],
         },
       ]),
-    ]),
+    ]).run(),
   ];
   assertEquals(results, [
     { name: "Juliet", title: "princess" },
@@ -314,7 +314,7 @@ Deno.test("Find Descending", () => {
           titles: [title],
         },
       ]),
-    ]),
+    ]).run(),
   ];
   assertEquals(results, [
     { name: "Romeo", title: "fool" },
@@ -354,7 +354,7 @@ Deno.test("KB Walk", () => {
   const [{ romeo }] = [
     ...find(knightsNS, ({ romeo }) => [
       knightskb.where([{ [id]: romeo.walk(knightskb), name: "Romeo" }]),
-    ]),
+    ]).run(),
   ];
   assertEquals(romeo.loves.name, "Juliet");
 });
@@ -389,7 +389,7 @@ Deno.test("KB Walk ownKeys", () => {
   const [{ romeo }] = [
     ...find(knightsNS, ({ romeo }) => [
       knightskb.where([{ [id]: romeo.walk(knightskb), name: "Romeo" }]),
-    ]),
+    ]).run(),
   ];
   assertEquals(
     new Set(Reflect.ownKeys(romeo)),
