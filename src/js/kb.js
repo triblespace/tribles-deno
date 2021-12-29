@@ -5,6 +5,8 @@ import {
   OrderByMinCostAndBlockage,
   Query,
   rangeConstraint,
+  VariableProvider,
+  Variable,
 } from "./query.js";
 import {
   A,
@@ -25,202 +27,7 @@ const assert = (test, message) => {
   }
 };
 
-const id = Symbol("id");
-
-let invariantIndex = emptyValuePACT;
-let uniqueAttributeIndex = emptyValuePACT;
-let uniqueInverseAttributeIndex = emptyValuePACT;
-
-function getInvariant(encodedId) {
-  return invariantIndex.get(encodedId);
-}
-
-function globalInvariants(invariants) {
-  let newInvariantIndex = invariantIndex;
-  const newUniqueAttributeIndex = uniqueAttributeIndex.batch();
-  const newUniqueInverseAttributeIndex = uniqueInverseAttributeIndex.batch();
-
-  for (const {
-    id: encodedId,
-    isLink,
-    isUnique,
-    isUniqueInverse,
-  } of invariants) {
-    const existing = newInvariantIndex.get(encodedId);
-    if (existing) {
-      if (Boolean(existing.isLink) !== Boolean(isLink)) {
-        throw Error(
-          `Can't register inconsistent invariant"${encodedId}": isLink:${existing.isLink} !== isLink:${novel.isLink}`
-        );
-      }
-      if (Boolean(existing.isUnique) !== Boolean(isUnique)) {
-        throw Error(
-          `Can't register inconsistent invariant"${encodedId}": isUnique:${existing.isUnique} !== isUnique:${novel.isUnique}`
-        );
-      }
-      if (Boolean(existing.isUniqueInverse) !== Boolean(isUniqueInverse)) {
-        throw Error(
-          `Can't register inconsistent invariant "${encodedId}": isUniqueInverse:${existing.isUniqueInverse} !== isUniqueInverse:${novel.isUniqueInverse}`
-        );
-      }
-    } else {
-      if (isUniqueInverse && !isLink) {
-        throw Error(
-          `Can't register inconsistent invariant "${encodedId}": Only links can be inverse unique.`
-        );
-      }
-      if (isUnique) {
-        newUniqueAttributeIndex.put(encodedId);
-      }
-      if (isUniqueInverse) {
-        newUniqueInverseAttributeIndex.put(encodedId);
-      }
-      newInvariantIndex = newInvariantIndex.put(encodedId, {
-        isLink,
-        isUnique,
-        isUniqueInverse,
-      });
-    }
-  }
-
-  invariantIndex = newInvariantIndex;
-  uniqueAttributeIndex = newUniqueAttributeIndex.complete();
-  uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.complete();
-}
-
-class Variable {
-  constructor(provider, index, name = null) {
-    this.provider = provider;
-    this.index = index;
-    this.name = name;
-    this.ascending = true;
-    this.upperBound = undefined;
-    this.lowerBound = undefined;
-    this.isWalked = false;
-    this.walkedKB = null;
-    this.walkedNS = null;
-    this.isOmit = false;
-    this.paths = [];
-    this.decoder = null;
-    this.encoder = null;
-    this.blobcache = null;
-  }
-
-  groupBy(otherVariable) {
-    let potentialCycles = new Set([otherVariable.index]);
-    while (potentialCycles.size !== 0) {
-      if (potentialCycles.has(this)) {
-        throw Error("Couldn't group variable, ordering would by cyclic.");
-      }
-      //TODO add omit sanity check.
-      potentialCycles = new Set(
-        this.provider.isBlocking
-          .filter(([a, b]) => potentialCycles.has(b))
-          .map(([a, b]) => a)
-      );
-    }
-    this.provider.isBlocking.push([otherVariable.index, this.index]);
-    return this;
-  }
-
-  ranged({ lower, upper }) {
-    this.lowerBound = lower;
-    this.upperBound = upper;
-    return this;
-  }
-  // TODO: rework to 'ordered(o)' method that takes one of
-  // ascending, descending, concentric
-  // where concentric is relative to another variable that must be
-  // bound before this variable
-  ascend() {
-    this.ascending = true;
-    return this;
-  }
-
-  descend() {
-    this.ascending = false;
-    return this;
-  }
-
-  omit() {
-    this.isOmit = true;
-    this.provider.projected.delete(this.index);
-    return this;
-  }
-
-  walk(kb, ns) {
-    this.isWalked = true;
-    this.walkedKB = kb;
-    this.walkedNS = ns;
-    return this;
-  }
-
-  toString() {
-    if (this.name) {
-      return `${this.name}@${this.index}`;
-    }
-    return `V:${this.index}`;
-  }
-  proposeBlobCache(blobcache) {
-    // Todo check latency cost of blobcache, e.g. inMemory vs. S3.
-    this.blobcache ||= blobcache;
-    return this;
-  }
-}
-
-class VariableProvider {
-  constructor() {
-    this.nextVariableIndex = 0;
-    this.variables = [];
-    this.unnamedVariables = [];
-    this.namedVariables = new Map();
-    this.constantVariables = emptyValuePACT;
-    this.isBlocking = [];
-    this.projected = new Set();
-  }
-
-  namedCache() {
-    return new Proxy(
-      {},
-      {
-        get: (_, name) => {
-          let variable = this.namedVariables.get(name);
-          if (variable) {
-            return variable;
-          }
-          variable = new Variable(this, this.nextVariableIndex, name);
-          this.namedVariables.set(name, variable);
-          this.variables.push(variable);
-          this.projected.add(this.nextVariableIndex);
-          this.nextVariableIndex++;
-          return variable;
-        },
-      }
-    );
-  }
-
-  unnamed() {
-    const variable = new Variable(this, this.nextVariableIndex);
-    this.unnamedVariables.push(variable);
-    this.variables.push(variable);
-    this.projected.add(this.nextVariableIndex);
-    this.nextVariableIndex++;
-    return variable;
-  }
-
-  constant(c) {
-    let variable = this.constantVariables.get(c);
-    if (!variable) {
-      variable = new Variable(this, this.nextVariableIndex);
-      variable.constant = c;
-      this.constantVariables = this.constantVariables.put(c, variable);
-      this.variables.push(variable);
-      this.projected.add(this.nextVariableIndex);
-      this.nextVariableIndex++;
-    }
-    return variable;
-  }
-}
+export const id = Symbol("id");
 
 const lookup = (ns, kb, eId, attributeName) => {
   let {
@@ -479,7 +286,7 @@ function* entityToTriples(
   }
 }
 
-function* entitiesToTriples(ns, unknownFactory, entities) {
+export function* entitiesToTriples(ns, unknownFactory, entities) {
   for (const entity of entities) {
     yield* entityToTriples(ns, unknownFactory, null, null, entity);
   }
@@ -578,7 +385,7 @@ class IDSequence {
 
 /** A persistent immutable knowledge base that stores tribles and blobs,
     providing a (JSON) tree based interface to access and create the graph within.*/
-class KB {
+export class KB {
   /**
    * Create a knowledge base with the gives tribles and blobs.
    * @param {TribleSet} tribleset - The tribles stored.
@@ -613,8 +420,8 @@ class KB {
     return new KB(newTribleSet, newBlobCache);
   }
 
-  where(entities) {
-    return (ns, vars) => {
+  where(ns, entities) {
+    return (vars) => {
       const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
       const triplesWithVars = precompileTriples(ns, vars, triples);
       return [
@@ -627,6 +434,7 @@ class KB {
   }
 
   walk(ns, eId) {
+    if (eId === undefined) return (curriedId) => this.walk(ns, curriedId);
     return entityProxy(ns, this, eId);
   }
 
@@ -675,94 +483,68 @@ class KB {
   }
 }
 
-function find(ns, cfn) {
-  const vars = new VariableProvider();
-  const constraints = [];
-  for (const constraintBuilder of cfn(vars.namedCache())) {
-    const constraintGroup = constraintBuilder(ns, vars);
-    for (const constraint of constraintGroup) {
-      constraints.push(constraint);
-    }
-  }
+let invariantIndex = emptyValuePACT;
+let uniqueAttributeIndex = emptyValuePACT;
+let uniqueInverseAttributeIndex = emptyValuePACT;
 
-  for (const constantVariable of vars.constantVariables.values()) {
-    constraints.push(
-      constantConstraint(constantVariable.index, constantVariable.constant)
-    );
-  }
-
-  for (const { upperBound, lowerBound, encoder, index } of vars.variables) {
-    let encodedLower = undefined;
-    let encodedUpper = undefined;
-
-    if (lowerBound !== undefined) {
-      encodedLower = new Uint8Array(VALUE_SIZE);
-      encoder(lowerBound, encodedLower);
-    }
-    if (upperBound !== undefined) {
-      encodedUpper = new Uint8Array(VALUE_SIZE);
-      encoder(upperBound, encodedUpper);
-    }
-
-    if (encodedLower !== undefined || encodedUpper !== undefined) {
-      constraints.push(rangeConstraint(index, encodedLower, encodedUpper));
-    }
-  }
-
-  const namedVariables = [...vars.namedVariables.values()];
-
-  //console.log(namedVariables.map((v) => [v.name, v.index]));
-  //console.log(constraints.map((c) => c.toString()));
-  const postProcessing = (r) => {
-    const result = {};
-    for (const {
-      index,
-      isWalked,
-      walkedKB,
-      walkedNS,
-      decoder,
-      name,
-      isOmit,
-      blobcache,
-    } of namedVariables) {
-      if (!isOmit) {
-        const encoded = r.slice(index * VALUE_SIZE, (index + 1) * VALUE_SIZE);
-        Object.defineProperty(result, name, {
-          configurable: true,
-          enumerable: true,
-          get: function () {
-            delete this[name];
-            const decoded = decoder(
-              encoded,
-              // Note that there is a potential attack vector here, if we ever want to do query level access control.
-              // An attacker could change the encoder to point to an change the encoded array to request a different blob.
-              // This would be solved by freezing the Array, but since it's typed and the spec designers unimaginative...
-              async () => await blobcache.get(encoded)
-            );
-            return (this[name] = isWalked
-              ? walkedKB.walk(walkedNS || ns, decoded)
-              : decoded);
-          },
-        });
-      }
-    }
-    return result;
-  };
-
-  return new Query(
-    vars.variables.length,
-    constraints,
-    new OrderByMinCostAndBlockage(
-      vars.variables.length,
-      vars.projected,
-      vars.isBlocking
-    ),
-    new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
-    postProcessing
-  );
+export function getInvariant(encodedId) {
+  return invariantIndex.get(encodedId);
 }
 
-const namespace = (ns) => {
+export function globalInvariants(invariants) {
+  let newInvariantIndex = invariantIndex;
+  const newUniqueAttributeIndex = uniqueAttributeIndex.batch();
+  const newUniqueInverseAttributeIndex = uniqueInverseAttributeIndex.batch();
+
+  for (const {
+    id: encodedId,
+    isLink,
+    isUnique,
+    isUniqueInverse,
+  } of invariants) {
+    const existing = newInvariantIndex.get(encodedId);
+    if (existing) {
+      if (Boolean(existing.isLink) !== Boolean(isLink)) {
+        throw Error(
+          `Can't register inconsistent invariant"${encodedId}": isLink:${existing.isLink} !== isLink:${novel.isLink}`
+        );
+      }
+      if (Boolean(existing.isUnique) !== Boolean(isUnique)) {
+        throw Error(
+          `Can't register inconsistent invariant"${encodedId}": isUnique:${existing.isUnique} !== isUnique:${novel.isUnique}`
+        );
+      }
+      if (Boolean(existing.isUniqueInverse) !== Boolean(isUniqueInverse)) {
+        throw Error(
+          `Can't register inconsistent invariant "${encodedId}": isUniqueInverse:${existing.isUniqueInverse} !== isUniqueInverse:${novel.isUniqueInverse}`
+        );
+      }
+    } else {
+      if (isUniqueInverse && !isLink) {
+        throw Error(
+          `Can't register inconsistent invariant "${encodedId}": Only links can be inverse unique.`
+        );
+      }
+      if (isUnique) {
+        newUniqueAttributeIndex.put(encodedId);
+      }
+      if (isUniqueInverse) {
+        newUniqueInverseAttributeIndex.put(encodedId);
+      }
+      newInvariantIndex = newInvariantIndex.put(encodedId, {
+        isLink,
+        isUnique,
+        isUniqueInverse,
+      });
+    }
+  }
+
+  invariantIndex = newInvariantIndex;
+  uniqueAttributeIndex = newUniqueAttributeIndex.complete();
+  uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.complete();
+}
+
+export function namespace(ns) {
   const attributes = new Map(); // attribute name -> attribute description
   let forwardAttributeIndex = emptyValuePACT; // non inverse attribute id -> [attribute description]
   let inverseAttributeIndex = emptyValuePACT; // inverse attribute id -> [attribute description],
@@ -833,14 +615,4 @@ const namespace = (ns) => {
   }
 
   return { attributes, forwardAttributeIndex, inverseAttributeIndex };
-};
-
-export {
-  entitiesToTriples,
-  find,
-  getInvariant,
-  globalInvariants,
-  id,
-  KB,
-  namespace,
-};
+}

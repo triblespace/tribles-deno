@@ -106,8 +106,8 @@ function kbQuery(b, size) {
     }
   });
   // Query some data.
-  const q = find(knightsNS, ({ name, title }) => [
-    knightskb.where([
+  const q = find(({ name, title }) => [
+    knightskb.where(knightsNS, [
       {
         name,
         titles: [title],
@@ -176,8 +176,8 @@ function kbDSQuery(b) {
   });
 
   // Query some data.
-  const q = find(knightsNS, ({ age, lastName }) => [
-    peoplekb.where([
+  const q = find(({ age, lastName }) => [
+    peoplekb.where(knightsNS, [
       {
         name: "Ivan",
         eyeColor: "blue",

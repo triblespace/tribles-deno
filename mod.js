@@ -2,13 +2,13 @@ import { Box } from "./src/js/box.js";
 //import { WSConnector } from "./src/js/connectors/wsconnector.js";
 import {
   entitiesToTriples,
-  find,
   getInvariant,
   globalInvariants,
   id,
   KB,
   namespace,
 } from "./src/js/kb.js";
+import { find } from "./src/js/query.js";
 import { types } from "./src/js/types.js";
 import { TribleSet } from "./src/js/tribleset.js";
 import { BlobCache } from "./src/js/blobcache.js";

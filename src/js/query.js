@@ -663,3 +663,222 @@ export class Query {
     return hasResult;
   }
 }
+
+export class Variable {
+  constructor(provider, index, name = null) {
+    this.provider = provider;
+    this.index = index;
+    this.name = name;
+    this.ascending = true;
+    this.transform = null;
+    this.upperBound = undefined;
+    this.lowerBound = undefined;
+    this.isProjected = true;
+    this.paths = [];
+    this.decoder = null;
+    this.encoder = null;
+    this.blobcache = null;
+  }
+
+  to(transformFn) {
+    this.transform = transformFn;
+    return this;
+  }
+
+  groupBy(otherVariable) {
+    let potentialCycles = new Set([otherVariable.index]);
+    while (potentialCycles.size !== 0) {
+      if (potentialCycles.has(this)) {
+        throw Error("Couldn't group variable, ordering would by cyclic.");
+      }
+      //TODO add omit sanity check.
+      potentialCycles = new Set(
+        this.provider.isBlocking
+          .filter(([a, b]) => potentialCycles.has(b))
+          .map(([a, b]) => a)
+      );
+    }
+    this.provider.isBlocking.push([otherVariable.index, this.index]);
+    return this;
+  }
+
+  ranged({ lower, upper }) {
+    this.lowerBound = lower;
+    this.upperBound = upper;
+    return this;
+  }
+  // TODO: rework to 'ordered(o)' method that takes one of
+  // ascending, descending, concentric
+  // where concentric is relative to another variable that must be
+  // bound before this variable
+  ascend() {
+    this.ascending = true;
+    return this;
+  }
+
+  descend() {
+    this.ascending = false;
+    return this;
+  }
+
+  omit() {
+    this.isProjected = false;
+    this.provider.projected.delete(this.index);
+    return this;
+  }
+
+  toString() {
+    if (this.name) {
+      return `${this.name}@${this.index}`;
+    }
+    return `__anon__@${this.index}`;
+  }
+  proposeBlobCache(blobcache) {
+    // Todo check latency cost of blobcache, e.g. inMemory vs. S3.
+    this.blobcache ||= blobcache;
+    return this;
+  }
+}
+
+export class VariableProvider {
+  constructor() {
+    this.nextVariableIndex = 0;
+    this.variables = [];
+    this.unnamedVariables = [];
+    this.namedVariables = new Map();
+    this.constantVariables = emptyValuePACT;
+    this.isBlocking = [];
+    this.projected = new Set();
+  }
+
+  namedCache() {
+    return new Proxy(
+      {},
+      {
+        get: (_, name) => {
+          let variable = this.namedVariables.get(name);
+          if (variable) {
+            return variable;
+          }
+          variable = new Variable(this, this.nextVariableIndex, name);
+          this.namedVariables.set(name, variable);
+          this.variables.push(variable);
+          this.projected.add(this.nextVariableIndex);
+          this.nextVariableIndex++;
+          return variable;
+        },
+      }
+    );
+  }
+
+  unnamed() {
+    const variable = new Variable(this, this.nextVariableIndex);
+    this.unnamedVariables.push(variable);
+    this.variables.push(variable);
+    this.projected.add(this.nextVariableIndex);
+    this.nextVariableIndex++;
+    return variable;
+  }
+
+  constant(c) {
+    let variable = this.constantVariables.get(c);
+    if (!variable) {
+      variable = new Variable(this, this.nextVariableIndex);
+      variable.constant = c;
+      this.constantVariables = this.constantVariables.put(c, variable);
+      this.variables.push(variable);
+      this.projected.add(this.nextVariableIndex);
+      this.nextVariableIndex++;
+    }
+    return variable;
+  }
+
+  constraints() {
+    const constraints = [];
+
+    for (const constantVariable of this.constantVariables.values()) {
+      constraints.push(
+        constantConstraint(constantVariable.index, constantVariable.constant)
+      );
+    }
+
+    for (const { upperBound, lowerBound, encoder, index } of this.variables) {
+      let encodedLower = undefined;
+      let encodedUpper = undefined;
+
+      if (lowerBound !== undefined) {
+        encodedLower = new Uint8Array(VALUE_SIZE);
+        encoder(lowerBound, encodedLower);
+      }
+      if (upperBound !== undefined) {
+        encodedUpper = new Uint8Array(VALUE_SIZE);
+        encoder(upperBound, encodedUpper);
+      }
+
+      if (encodedLower !== undefined || encodedUpper !== undefined) {
+        constraints.push(rangeConstraint(index, encodedLower, encodedUpper));
+      }
+    }
+
+    return constraints;
+  }
+}
+
+export function find(cfn) {
+  const vars = new VariableProvider();
+  const constraints = [];
+  for (const constraintBuilder of cfn(vars.namedCache())) {
+    const constraintGroup = constraintBuilder(vars);
+    constraints.push(...constraintGroup);
+  }
+
+  constraints.push(...vars.constraints());
+
+  const namedVariables = [...vars.namedVariables.values()];
+
+  //console.log(namedVariables.map((v) => [v.name, v.index]));
+  //console.log(constraints.map((c) => c.toString()));
+  const postProcessing = (r) => {
+    const result = {};
+    for (const {
+      index,
+      transform,
+      decoder,
+      name,
+      isProjected,
+      blobcache,
+    } of namedVariables) {
+      if (isProjected) {
+        const encoded = r.slice(index * VALUE_SIZE, (index + 1) * VALUE_SIZE);
+        Object.defineProperty(result, name, {
+          configurable: true,
+          enumerable: true,
+          get: function () {
+            delete this[name];
+            const decoded = decoder(
+              encoded,
+              // Note that there is a potential attack vector here, if we ever want to do query level access control.
+              // An attacker could change the encoder to manipulate the encoded array and request a different blob.
+              // This would be solved by freezing the Array, but since it's typed and the spec designers unimaginative...
+              async () => await blobcache.get(encoded.slice())
+            );
+            return (this[name] = transform ? transform(decoded) : decoded);
+          },
+        });
+      }
+    }
+    return result;
+  };
+
+  return new Query(
+    vars.variables.length,
+    constraints,
+    new OrderByMinCostAndBlockage(
+      vars.variables.length,
+      vars.projected,
+      vars.isBlocking
+    ),
+    new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
+    postProcessing
+  );
+}
