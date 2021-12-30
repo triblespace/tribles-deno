@@ -353,7 +353,7 @@ Deno.test("KB Walk", () => {
   const [{ romeo }] = [
     ...find(({ romeo }) => [
       knightskb.where(knightsNS, [
-        { [id]: romeo.to(knightskb.walk(knightsNS)), name: "Romeo" },
+        { [id]: romeo.map(knightskb.walk(knightsNS)), name: "Romeo" },
       ]),
     ]).run(),
   ];
@@ -390,7 +390,7 @@ Deno.test("KB Walk ownKeys", () => {
   const [{ romeo }] = [
     ...find(({ romeo }) => [
       knightskb.where(knightsNS, [
-        { [id]: romeo.to(knightskb.walk(knightsNS)), name: "Romeo" },
+        { [id]: romeo.map(knightskb.walk(knightsNS)), name: "Romeo" },
       ]),
     ]).run(),
   ];

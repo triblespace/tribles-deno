@@ -328,13 +328,8 @@ const precompileTriples = (ns, vars, triples) => {
 
     // Entity
     if (e instanceof Variable) {
-      !e.decoder ||
-        assert(
-          e.decoder === idDecoder && e.encoder === idEncoder,
-          `Variables use incompatible types.`
-        );
-      e.decoder = idDecoder;
-      e.encoder = idEncoder;
+      e.decoder ??= idDecoder;
+      e.encoder ??= idEncoder;
       eVar = e;
     } else {
       eVar = vars.constant(e);
@@ -346,13 +341,8 @@ const precompileTriples = (ns, vars, triples) => {
     // Value
     if (v instanceof Variable) {
       const { decoder, encoder } = attributeDescription;
-      !v.decoder ||
-        assert(
-          v.decoder === decoder && v.encoder === encoder,
-          `Variables at positions use incompatible types.`
-        );
-      v.decoder = decoder;
-      v.encoder = encoder;
+      v.decoder ??= decoder;
+      v.encoder ??= encoder;
       vVar = v;
     } else {
       const encoder = attributeDescription.encoder;

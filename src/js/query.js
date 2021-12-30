@@ -680,7 +680,13 @@ export class Variable {
     this.blobcache = null;
   }
 
-  to(transformFn) {
+  typed({ encoder, decoder }) {
+    this.encoder = encoder;
+    this.decoder = decoder;
+    return this;
+  }
+
+  map(transformFn) {
     this.transform = transformFn;
     return this;
   }

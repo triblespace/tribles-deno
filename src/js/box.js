@@ -1,7 +1,7 @@
 import {} from "./kb.js";
 import { Query, indexConstraint, find } from "./query.js";
 
-function validateInvariants(oldKB, difKB, newKB) {
+function validateInvariants(txn) {
   let prevE = null;
   let prevA = null;
   for (const r of new Query(
@@ -85,8 +85,8 @@ export class Txn {
     this.difKB = newKB.subtract(oldKB);
   }
 
-  where(entities) {
-    return (ns, vars) => {
+  where(ns, entities) {
+    return (vars) => {
       const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
       const triplesWithVars = precompileTriples(ns, vars, triples);
 
