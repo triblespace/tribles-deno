@@ -36,7 +36,7 @@ export function ctz32(n) {
 
 export function prevBit(bitPosition, bitset, offset = 0) {
   let wordPosition = bitPosition >>> 5;
-  const mask = ~(~0 >>> bitPosition);
+  const mask = ~(~highBit32 >>> bitPosition);
   const c = ctz32(bitset[offset + wordPosition] & mask);
   if (c < 32) return (wordPosition << 5) + (31 - c);
   for (wordPosition--; wordPosition > 0; wordPosition--) {
