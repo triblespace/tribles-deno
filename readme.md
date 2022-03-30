@@ -40,7 +40,7 @@ Currently to be done and missing is:
 
 Many modern applications from chatbots and robots to project management
 applications and wikis have the need for some form of flexible knowledge
-represenation, that goes beyond the capabilities of traditional RDBMS. However
+representation, that goes beyond the capabilities of traditional RDBMS. However
 existing technologies like the Semantic Web with its RDF, SPARQL, jsonLD, and
 OWL based standards are too complex, and transitively rely on further complexity
 from other web standards. This results in few implementations, which are often
@@ -80,7 +80,7 @@ immutable sense), append only, in memory databases. It provides conjunctive
 queries and constraint solving over tribles, but is completely limited to binary
 data.
 
-Datalog like conjunctive queries are great if your language is build around
+Datalog like conjunctive queries are great if your language is built around
 hypergraphs, e.g. Prolog. Alas most languages we use today are build around
 trees, and therefore profit from languages that return trees or tree unfoldings
 of graphs. A good example for this is GraphQL, although it is more of a RPC tool
@@ -90,12 +90,12 @@ from it.
 
 _TribleSet_ is therefore wrapped by _KB_, which performs conversions between JS
 Objects and _trible_ data, provides tree interfaces for data insertion, and tree
-based query capabilites, as well as tree-based graph walking capabilites, all
+based query capabilites, as well as tree-based graph walking capabilities, all
 operating over familiar plain old javascript objects (and proxies _cough_).
 
 ## Namespaces, Types and Ontologies
 
-The thing that JSON-LD realy got right, is their decoupling of the underlying
+The thing that JSON-LD really got right, is their decoupling of the underlying
 data representation (in their case RDF) and the user facing representation. If
 different systems are to exchange information, or if a single system is
 upgraded, there needs to be some form of neutral representation, in our case
@@ -106,9 +106,9 @@ underlying tribles can be interpreted as needed, we can:
   representations, new parts can read new representations, or a mix thereof.
 - Decouple programming language types from value types. E.g. a timestamp can be
   read as different date types in the same query.
-- Allow the user to use approprate, self explanatory, names. One programmers
+- Allow the user to use appropriate, self explanatory, names. One programmers
   legacy_date is another programmers sanity_check_date.
-- Allow users to fix past mistakes or missunderstandings. Whenever a name in OWL
+- Allow users to fix past mistakes or misunderstandings. Whenever a name in OWL
   is used it's used up. Trible don't care about names, only about binary IDs.
 
 Typing has drawn heavy inspiration from RDFS, in that the type of a value (the
