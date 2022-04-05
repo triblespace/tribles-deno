@@ -2,6 +2,10 @@ import { ID_SIZE, VALUE_SIZE } from "./trible.js";
 import { hash_digest, hash_combine, hash_equal, hash_update } from "./wasm.js";
 import {
   bitIntersect,
+  bitUnion,
+  bitSubtract,
+  noBit,
+  bitDiff,
   bitIterator,
   intersectBitRange,
   nextBit,
@@ -13,6 +17,7 @@ import {
   hasBit,
   singleBitIntersect,
   emptySet,
+  fullSet,
 } from "./bitset.js";
 
 // Perstistent Adaptive Cuckoo Trie (PACT)
