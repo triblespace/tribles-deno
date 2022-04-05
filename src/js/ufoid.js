@@ -10,11 +10,6 @@ class ufoidSequence {
 }
 
 export const UFOID = {
-  rotor: (() => {
-    let a = new Uint32Array(1);
-    crypto.getRandomValues(a);
-    return a;
-  })(),
   now(arr = new Uint8Array(32)) {
     return UFOID.withTime(Date.now(), arr);
   },
@@ -26,8 +21,7 @@ export const UFOID = {
     view.setUint32(8, 0, false);
     view.setUint32(12, 0, false);
     view.setUint32(16, time & 0xffffffff, false);
-    view.setUint32(20, this.rotor[0]++, false);
-    crypto.getRandomValues(arr.subarray(24, 32));
+    crypto.getRandomValues(arr.subarray(20, 32));
 
     return arr;
   },
