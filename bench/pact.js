@@ -41,27 +41,24 @@ const benchAllPACT = ({ name, func }) => {
 function generate_sample(size, sharing_prob = 0.1) {
   const tribles = [];
   const trible = new Uint8Array(TRIBLE_SIZE);
-  const e = E(trible);
-  const a = A(trible);
-  const v1 = V1(trible);
-  const v2 = V2(trible);
   for (let i = 0; i < size; i++) {
     if (sharing_prob < Math.random()) {
-      UFOID.now(e);
+      E(trible).set(UFOID.now().subarray(16, 32));
     }
     if (sharing_prob < Math.random()) {
-      UFOID.now(a);
+      A(trible).set(UFOID.now().subarray(16, 32));
     }
     if (sharing_prob < Math.random()) {
-      UFOID.now(v1);
+      V1(trible).set(UFOID.now().subarray(16, 32));
     }
     if (sharing_prob < Math.random()) {
-      UFOID.now(v2);
+      V2(trible).set(UFOID.now().subarray(16, 32));
     }
     tribles.push(Uint8Array.from(trible));
   }
   return tribles;
 }
+
 function persistentPut(b, pactType, size) {
   const sample = generate_sample(size);
   let pact = pactType;

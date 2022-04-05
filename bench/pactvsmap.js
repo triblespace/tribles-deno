@@ -1,18 +1,28 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
 import { emptyValuePACT } from "../src/js/pact.js";
+import { A, E, TRIBLE_SIZE, V1, V2 } from "../src/js/trible.js";
+import { UFOID } from "../mod.js";
+
 
 function generate_sample(size, sharing_prob = 0.1) {
-  const values = [];
-  const value = new Uint8Array(32);
-  const v1 = value.subarray(0, 16);
-  const v2 = value.subarray(16, 32);
-  crypto.getRandomValues(value);
+  const tribles = [];
+  const trible = new Uint8Array(TRIBLE_SIZE);
   for (let i = 0; i < size; i++) {
-    crypto.getRandomValues(v1);
-    crypto.getRandomValues(v2);
-    values.push(Uint8Array.from(value));
+    if (sharing_prob < Math.random()) {
+      E(trible).set(UFOID.now().subarray(16, 32));
+    }
+    if (sharing_prob < Math.random()) {
+      A(trible).set(UFOID.now().subarray(16, 32));
+    }
+    if (sharing_prob < Math.random()) {
+      V1(trible).set(UFOID.now().subarray(16, 32));
+    }
+    if (sharing_prob < Math.random()) {
+      V2(trible).set(UFOID.now().subarray(16, 32));
+    }
+    tribles.push(Uint8Array.from(trible));
   }
-  return values;
+  return tribles;
 }
 
 function persistentPut(b, size) {
