@@ -10,7 +10,6 @@ import { encode } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 import {
   BlobCache,
   Box,
-  globalInvariants,
   id,
   KB,
   namespace,
@@ -27,16 +26,16 @@ function sleep(ms) {
 
 const { nameId, lovesId, titlesId, motherOfId } = UFOID.namedCache();
 
-globalInvariants({
-  [nameId]: { isUnique: true },
-  [lovesId]: { isLink: true, isUnique: true },
-  [titlesId]: {},
-});
+// cardinalityInvariants({
+//   [nameId]: { isUnique: true },
+//   [lovesId]: { isLink: true, isUnique: true },
+//   [titlesId]: {},
+// });
 
-globalInvariants({
-  [nameId]: { isUnique: true },
-  [motherOfId]: { isLink: true, isUniqueInverse: true },
-});
+// cardinalityInvariants({
+//   [nameId]: { isUnique: true },
+//   [motherOfId]: { isLink: true, isUniqueInverse: true },
+// });
 
 Deno.test("unique constraint", () => {
   const knightsNS = namespace({
@@ -158,8 +157,8 @@ Deno.test({
 
     debugger;
 
-    const inbox = new Box(kb);
-    const outbox = new Box(kb);
+    const inbox = new Box();
+    const outbox = new Box();
     const wsCon = new WSConnector("ws://127.0.0.1:8816", inbox, outbox);
     await wsCon.connect();
     wsCon.transfer().catch((e) => console.error(e.reasons));

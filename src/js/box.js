@@ -1,81 +1,69 @@
 import {} from "./kb.js";
-import { Query, indexConstraint, find } from "./query.js";
+import { Query, indexConstraint, distinctConstraint } from "./query.js";
+import { emptyValuePACT } from "./pact.js";
 
-function validateInvariants(txn) {
-  let prevE = null;
-  let prevA = null;
-  for (const r of new Query(
-    3,
-    [
-      indexConstraint(0, touchedEntities),
-      indexConstraint(1, touchedAttributes),
-      indexConstraint(1, uniqueAttributeIndex),
-      newTribleSet.constraint(0, 1, 2),
-    ],
-    new OrderByMinCostAndBlockage(3, new Set([0, 1, 2]), [
-      [0, 2],
-      [1, 2],
-    ]),
-    new Set([0, 1, 2])
-  )) {
-    if (
-      prevE !== null &&
-      prevA !== null &&
-      equalValue(prevE, e) &&
-      equalValue(prevA, a)
-    ) {
-      throw Error(
-        `Constraint violation: Unique attribute '${ufoid.decoder(
-          a,
-          () => undefined
-        )}' has multiple values on '${idDecoder(e, () => undefined)}'.`
-      );
+//complementOf
+
+function validateNSCardinalities(ns) {
+  const newUniqueAttributeIndex = emptyValuePACT.batch();
+  const newUniqueInverseAttributeIndex = emptyValuePACT.batch();
+
+  for (const {
+    id: encodedId,
+    isMulti,
+    isInverse,
+  } of ns.attributes.values()) {
+    if (!isMulti) {
+      if (isInverse) {
+        newUniqueInverseAttributeIndex.put(encodedId);
+      } else {
+        newUniqueAttributeIndex.put(encodedId);
+      }
     }
-    prevE = e.slice();
-    prevA = a.slice();
   }
 
-  prevA = null;
-  let prevV = null;
-  for (const [e, a, v] of resolve(
-    [
-      indexConstraint(2, touchedValues),
-      indexConstraint(1, touchedAttributes),
-      indexConstraint(1, uniqueInverseAttributeIndex),
-      newTribleSet.constraint(0, 1, 2),
-    ],
-    new OrderByMinCostAndBlockage(3, new Set([0, 1, 2]), [
-      [1, 0],
-      [2, 0],
-    ]),
-    new Set([0, 1, 2]),
-    [
-      new Uint8Array(VALUE_SIZE),
-      new Uint8Array(VALUE_SIZE),
-      new Uint8Array(VALUE_SIZE),
-    ]
-  )) {
-    if (
-      prevA !== null &&
-      prevV !== null &&
-      equalValue(prevA, a) &&
-      equalValue(prevV, v)
-    ) {
-      //TODO make errors pretty.
+  const uniqueAttributeIndex = newUniqueAttributeIndex.complete();
+  const uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.complete();
+
+  return (txn) => {
+    for (const r of new Query(
+      4,
+      [
+        indexConstraint(1, uniqueAttributeIndex),
+        txn.difKB.tribleset.constraint(0, 1, 2),
+        txn.oldKB.tribleset.constraint(0, 1, 3),
+        distinctConstraint(2, 3),
+      ],
+      new OrderByMinCostAndBlockage(3, new Set([0, 1]), []),
+      new Set([0, 1, 2])
+    )) {
       throw Error(
-        `Constraint violation: Unique inverse attribute '${ufoid.decoder(
-          a,
-          () => undefined
-        )}' has multiple entities for '${v}'.`
+        `Constraint violation: Multiple values for unique attribute.`
       );
     }
-    prevA = a.slice();
-    prevV = v.slice();
+
+    for (const r of new Query(
+      4,
+      [
+        indexConstraint(1, uniqueInverseAttributeIndex),
+        txn.difKB.tribleset.constraint(2, 1, 0),
+        txn.oldKB.tribleset.constraint(3, 1, 0),
+        distinctConstraint(2, 3),
+      ],
+      new OrderByMinCostAndBlockage(3, new Set([0, 1]), []),
+      new Set([0, 1, 2])
+    )) {
+      throw Error(
+        `Constraint violation: Multiple entities for unique attribute value.`
+      );
+    }
   }
 }
 
 export class NoveltyConstraint {
-  constructor(oldKB, newKB, triples) {}
+  constructor(oldKB, newKB, triples) {
+
+  }
 }
 
 export class Txn {
@@ -97,14 +85,14 @@ export class Txn {
         ...triplesWithVars.map(([e, a, v]) =>
           newKB.tribleset.constraint(e.index, a.index, v.index)
         ),
-        new NoveltyConstraint(this.oldKB, this.newKB, triplesWithVars),
+        //new NoveltyConstraint(this.oldKB, this.newKB, triplesWithVars),
       ];
     };
   }
 }
 
 export class Box {
-  constructor(validationFn = validateInvariants) {
+  constructor(validationFn = (txn) => {}) {
     this._kb = null;
     this._validationFn = validationFn;
     this._subscriptions = new Set();
@@ -112,11 +100,11 @@ export class Box {
 
   commit(fn) {
     const oldKB = this._kb;
-    const newKb = fn(oldKB);
+    const newKB = fn(oldKB);
 
-    const txn = new Txn(oldKB, newKb);
+    const txn = new Txn(oldKB, newKB);
 
-    this._validationFn(newKb);
+    this._validationFn(txn);
 
     this._kb = newKB;
 

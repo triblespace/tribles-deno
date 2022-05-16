@@ -2,7 +2,6 @@ import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
 import {
   BlobCache,
   find,
-  globalInvariants,
   id,
   KB,
   namespace,
@@ -14,23 +13,14 @@ import {
 const { nameId, lastNameId, ageId, eyeColorId, lovesId, titlesId } =
   UFOID.namedCache();
 
-globalInvariants([
-  { id: nameId, isUnique: true },
-  { id: lastNameId, isUnique: true },
-  { id: lovesId, isLink: true, isUnique: true },
-  { id: titlesId },
-  { id: eyeColorId, isUnique: true },
-  { id: ageId, isUnique: true },
-]);
-
 const knightsNS = namespace({
   [id]: { ...types.ufoid },
   name: { id: nameId, ...types.shortstring },
   lastName: { id: lastNameId, ...types.shortstring },
   eyeColor: { id: eyeColorId, ...types.shortstring },
   age: { id: ageId, ...types.shortstring },
-  loves: { id: lovesId },
-  lovedBy: { id: lovesId, isInverse: true },
+  loves: { id: lovesId, isLink: true },
+  lovedBy: { id: lovesId, isLink: true, isInverse: true },
   titles: { id: titlesId, ...types.shortstring },
 });
 

@@ -1,15 +1,10 @@
 import { emptyValuePACT } from "./pact.js";
 import { ID_SIZE, VALUE_SIZE } from "./trible.js";
 import {
-  bitIntersect,
-  bitIterator,
-  bitComplement,
-  bitSubtract,
   intersectBitRange,
   nextBit,
   prevBit,
   setAllBit,
-  unsetAllBit,
   unsetBit,
   setBit,
   hasBit,
@@ -122,7 +117,6 @@ class RangeCursor {
       this.upperFringe++;
     }
     this.depth++;
-    return true;
   }
 }
 
@@ -172,6 +166,92 @@ export function rangeConstraint(
   return new RangeConstraint(variable, lowerBound, upperBound);
 }
 
+class DistinctCursor {
+  constructor() {
+    this.value = new Uint8Array(32);
+    this.matchingPrefix = 0;
+    this.depth = 0;
+  }
+
+  peek() {
+    return null;
+  }
+
+  propose(bitset, offset) {
+    if(this.matchingPrefix === 63) {
+      unsetBit(bitset, this.value[31], offset);
+    }
+  }
+
+  pop(times = 1) {
+    this.depth -= times;
+    this.matchingPrefix = Math.min(this.depth, this.matchingPrefix);
+  }
+
+  push(byte) {
+    if(this.depth < 32) {
+      this.value[this.depth] = byte;
+      this.matchingPrefix++;
+    } else {
+      if(this.depth === this.matchingPrefix && this.value[this.depth - 32] === byte) {
+        this.matchingPrefix++;
+      }
+    }
+    this.depth++;
+  }
+}
+
+class DistinctConstraint {
+  constructor(leftVariable, rightVariable) {
+    this.leftVariable = leftVariable;
+    this.rightVariable = rightVariable;
+    this.leftDone = false;
+    this.rightDone = false;
+    this.cursor = DistinctCursor();
+  }
+  toString() {
+    return `DistinctConstraint`;
+  }
+
+  dependencies(dependsOnSets) {}
+
+  bid(isUnblocked) {
+    if (!this.leftDone && isUnblocked(this.leftVariable)) {
+      return [this.leftVariable, Number.MAX_VALUE];
+    }
+    if (!this.rightDone && isUnblocked(this.rightVariable)) {
+      return [this.rightVariable, Number.MAX_VALUE];
+    }
+    return [null, Number.MAX_VALUE];
+  }
+
+  push(variable) {
+    if (variable === this.leftVariable) {
+      this.leftDone = true;
+      return [this.cursor];
+
+    }
+    if(variable === this.rightVariable) {
+      this.rightDone = true;
+      return [this.cursor];
+
+    }
+  }
+
+  pop(variable) {
+    if (variable === this.leftVariable) {
+      this.leftDone = false;
+    }
+    if (variable === this.rightVariable) {
+      this.rightDone = false;
+    }
+  }
+}
+
+export function distinctConstraint(leftVariable, rightVariable) {
+  return new DistinctConstraint(leftVariable, rightVariable);
+}
+
 class ConstantCursor {
   constructor(constant) {
     this.constant = constant;
@@ -192,7 +272,6 @@ class ConstantCursor {
 
   push(byte) {
     this.depth++;
-    return true;
   }
 }
 

@@ -19,7 +19,6 @@ import { equal, equalValue } from "../src/js/trible.js";
 import {
   BlobCache,
   find,
-  globalInvariants,
   id,
   KB,
   namespace,
@@ -28,26 +27,15 @@ import {
   UFOID,
 } from "../mod.js";
 
-const { nameId, lovesId, titlesId, motherOfId, romeoId } = UFOID.namedCache();
-
-globalInvariants([
-  { id: nameId, isUnique: true },
-  { id: lovesId, isLink: true, isUnique: true },
-  { id: titlesId },
-]);
-
-globalInvariants([
-  { id: nameId, isUnique: true },
-  { id: motherOfId, isLink: true, isUniqueInverse: true },
-]);
+const { nameId, lovesId, titlesId } = UFOID.namedCache();
 
 Deno.test("KB Find", () => {
   const knightsNS = namespace({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId },
-    lovedBy: { id: lovesId, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring },
+    loves: { id: lovesId, isLink: true},
+    lovedBy: { id: lovesId, isLink: true, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring, isMulti: true },
   });
 
   // Add some data.
@@ -110,11 +98,10 @@ Deno.test("KB Find Single", () => {
       arbitraryId,
       arbitraryPerson,
       (nameId, titlesId, person) => {
-        globalInvariants([{ id: nameId, isUnique: true }, { id: titlesId }]);
         const knightsNS = namespace({
           [id]: { ...types.ufoid },
           name: { id: nameId, ...types.hex },
-          titles: { id: titlesId, ...types.hex },
+          titles: { id: titlesId, ...types.hex, isMulti: true },
         });
 
         const knightskb = new KB(new TribleSet(), new BlobCache()).with(
@@ -141,9 +128,9 @@ Deno.test("Find Ascending", () => {
   const knightsNS = namespace({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId },
-    lovedBy: { id: lovesId, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring },
+    loves: { id: lovesId, ...types.ufoid },
+    lovedBy: { id: lovesId, isLink: true, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring, isMulti: true },
   });
 
   // Add some data.

@@ -2,8 +2,6 @@ import { Box } from "./src/js/box.js";
 //import { WSConnector } from "./src/js/connectors/wsconnector.js";
 import {
   entitiesToTriples,
-  getInvariant,
-  globalInvariants,
   id,
   KB,
   namespace,
@@ -22,8 +20,6 @@ export {
   emptyValuePACT,
   entitiesToTriples,
   find,
-  getInvariant,
-  globalInvariants,
   id,
   KB,
   makePACT,

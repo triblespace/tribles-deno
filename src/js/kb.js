@@ -4,20 +4,15 @@ import {
   indexConstraint,
   OrderByMinCostAndBlockage,
   Query,
-  rangeConstraint,
-  VariableProvider,
   Variable,
 } from "./query.js";
 import {
   A,
   E,
-  equalValue,
-  ID_SIZE,
   TRIBLE_SIZE,
   V,
   VALUE_SIZE,
 } from "./trible.js";
-import { ufoid } from "./types/ufoid.js";
 import { TribleSet } from "./tribleset.js";
 import { BlobCache } from "./blobcache.js";
 
@@ -248,7 +243,7 @@ function* entityToTriples(
       attributeDescription,
       `No attribute named '${attributeName}' in namespace.`
     );
-    if (attributeDescription.expectsArray) {
+    if (attributeDescription.isMulti) {
       for (const v of value) {
         if (attributeDescription.isLink && isPojo(v)) {
           yield* entityToTriples(
@@ -397,8 +392,6 @@ export class KB {
   with(ns, efn) {
     const {
       factory: idFactory,
-      encoder: idEncoder,
-      decoder: idDecoder,
     } = ns.attributes.get(id);
     const entities = efn(new IDSequence(idFactory));
     const triples = entitiesToTriples(ns, idFactory, entities);
@@ -473,67 +466,6 @@ export class KB {
   }
 }
 
-let invariantIndex = emptyValuePACT;
-let uniqueAttributeIndex = emptyValuePACT;
-let uniqueInverseAttributeIndex = emptyValuePACT;
-
-export function getInvariant(encodedId) {
-  return invariantIndex.get(encodedId);
-}
-
-export function globalInvariants(invariants) {
-  let newInvariantIndex = invariantIndex;
-  const newUniqueAttributeIndex = uniqueAttributeIndex.batch();
-  const newUniqueInverseAttributeIndex = uniqueInverseAttributeIndex.batch();
-
-  for (const {
-    id: encodedId,
-    isLink,
-    isUnique,
-    isUniqueInverse,
-  } of invariants) {
-    const existing = newInvariantIndex.get(encodedId);
-    if (existing) {
-      if (Boolean(existing.isLink) !== Boolean(isLink)) {
-        throw Error(
-          `Can't register inconsistent invariant"${encodedId}": isLink:${existing.isLink} !== isLink:${novel.isLink}`
-        );
-      }
-      if (Boolean(existing.isUnique) !== Boolean(isUnique)) {
-        throw Error(
-          `Can't register inconsistent invariant"${encodedId}": isUnique:${existing.isUnique} !== isUnique:${novel.isUnique}`
-        );
-      }
-      if (Boolean(existing.isUniqueInverse) !== Boolean(isUniqueInverse)) {
-        throw Error(
-          `Can't register inconsistent invariant "${encodedId}": isUniqueInverse:${existing.isUniqueInverse} !== isUniqueInverse:${novel.isUniqueInverse}`
-        );
-      }
-    } else {
-      if (isUniqueInverse && !isLink) {
-        throw Error(
-          `Can't register inconsistent invariant "${encodedId}": Only links can be inverse unique.`
-        );
-      }
-      if (isUnique) {
-        newUniqueAttributeIndex.put(encodedId);
-      }
-      if (isUniqueInverse) {
-        newUniqueInverseAttributeIndex.put(encodedId);
-      }
-      newInvariantIndex = newInvariantIndex.put(encodedId, {
-        isLink,
-        isUnique,
-        isUniqueInverse,
-      });
-    }
-  }
-
-  invariantIndex = newInvariantIndex;
-  uniqueAttributeIndex = newUniqueAttributeIndex.complete();
-  uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.complete();
-}
-
 export function namespace(ns) {
   const attributes = new Map(); // attribute name -> attribute description
   let forwardAttributeIndex = emptyValuePACT; // non inverse attribute id -> [attribute description]
@@ -555,32 +487,24 @@ export function namespace(ns) {
   attributes.set(id, idDescription);
 
   for (const [attributeName, attributeDescription] of Object.entries(ns)) {
-    const invariant = invariantIndex.get(attributeDescription.id);
-    if (!invariant) {
-      throw Error(`Missing invariants for attribute "${attributeName}".`);
-    }
-    if (attributeDescription.isInverse && !invariant.isLink) {
+    if (attributeDescription.isInverse && !attributeDescription.isLink) {
       throw Error(
-        `Error in namespace "${attributeName}": Only links can be inverse.`
+        `Bad options in namespace attribute ${attributeName}:
+            Only links can be inversed.`
       );
     }
-    if (!attributeDescription.decoder && !invariant.isLink) {
+    if (!attributeDescription.isLink && !attributeDescription.decoder) {
       throw Error(
         `Missing decoder in namespace for attribute ${attributeName}.`
       );
     }
-    if (!attributeDescription.encoder && !invariant.isLink) {
+    if (!attributeDescription.isLink && !attributeDescription.encoder) {
       throw Error(
         `Missing encoder in namespace for attribute ${attributeName}.`
       );
     }
     const description = {
       ...attributeDescription,
-      ...invariant,
-      expectsArray: Boolean(
-        (!attributeDescription.isInverse && !invariant.isUnique) ||
-          (attributeDescription.isInverse && !invariant.isUniqueInverse)
-      ),
       name: attributeName,
     };
     attributes.set(attributeName, description);
