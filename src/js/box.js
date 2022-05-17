@@ -1,13 +1,12 @@
 import {} from "./kb.js";
-import { Query, indexConstraint, distinctConstraint } from "./query.js";
+import { Query, indexConstraint, distinctConstraint, OrderByMinCostAndBlockage } from "./query.js";
 import { emptyValuePACT } from "./pact.js";
 
-//complementOf
 
-function validateNSCardinalities(ns) {
+export function validateNS(ns) {
   const newUniqueAttributeIndex = emptyValuePACT.batch();
   const newUniqueInverseAttributeIndex = emptyValuePACT.batch();
-
+  
   for (const {
     id: encodedId,
     isMulti,
@@ -34,9 +33,9 @@ function validateNSCardinalities(ns) {
         txn.oldKB.tribleset.constraint(0, 1, 3),
         distinctConstraint(2, 3),
       ],
-      new OrderByMinCostAndBlockage(3, new Set([0, 1]), []),
+      new OrderByMinCostAndBlockage(4, new Set([0, 1]), []),
       new Set([0, 1, 2])
-    )) {
+    ).run()) {
       throw Error(
         `Constraint violation: Multiple values for unique attribute.`
       );
@@ -50,9 +49,9 @@ function validateNSCardinalities(ns) {
         txn.oldKB.tribleset.constraint(3, 1, 0),
         distinctConstraint(2, 3),
       ],
-      new OrderByMinCostAndBlockage(3, new Set([0, 1]), []),
+      new OrderByMinCostAndBlockage(4, new Set([0, 1]), []),
       new Set([0, 1, 2])
-    )) {
+    ).run()) {
       throw Error(
         `Constraint violation: Multiple entities for unique attribute value.`
       );
@@ -92,8 +91,8 @@ export class Txn {
 }
 
 export class Box {
-  constructor(validationFn = (txn) => {}) {
-    this._kb = null;
+  constructor(initialKB, validationFn = (txn) => {}) {
+    this._kb = initialKB;
     this._validationFn = validationFn;
     this._subscriptions = new Set();
   }

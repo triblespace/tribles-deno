@@ -175,9 +175,9 @@ Deno.test("find lower range", () => {
   const knightsNS = namespace({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId },
-    lovedBy: { id: lovesId, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring },
+    loves: { id: lovesId, isLink: true},
+    lovedBy: { id: lovesId, isLink: true, isInverse: true },
+    titles: { id: titlesId, isMulti: true, ...types.shortstring },
   });
 
   // Add some data.
@@ -221,9 +221,9 @@ Deno.test("find upper bound", () => {
   const knightsNS = namespace({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId },
-    lovedBy: { id: lovesId, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring },
+    loves: { id: lovesId, isLink: true },
+    lovedBy: { id: lovesId, isLink: true, isInverse: true },
+    titles: { id: titlesId, isMulti: true, ...types.shortstring },
   });
 
   // Add some data.
@@ -268,9 +268,9 @@ Deno.test("Find Descending", () => {
   const knightsNS = namespace({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId },
-    lovedBy: { id: lovesId, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring },
+    loves: { id: lovesId, isLink: true },
+    lovedBy: { id: lovesId, isLink: true, isInverse: true },
+    titles: { id: titlesId, isMulti: true, ...types.shortstring },
   });
 
   // Add some data.
@@ -314,8 +314,8 @@ Deno.test("KB Walk", () => {
   const knightsNS = namespace({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId },
-    lovedBy: { id: lovesId, isInverse: true },
+    loves: { id: lovesId, isLink: true},
+    lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring },
   });
 
@@ -351,8 +351,8 @@ Deno.test("KB Walk ownKeys", () => {
   const knightsNS = namespace({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId },
-    lovedBy: { id: lovesId, isInverse: true },
+    loves: { id: lovesId, isLink: true },
+    lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring },
   });
 
@@ -393,8 +393,8 @@ Deno.test("TribleSet PACT segmentCount positive", () => {
   const knightsNS = namespace({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId },
-    lovedBy: { id: lovesId, isInverse: true },
+    loves: { id: lovesId, isLink: true},
+    lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring },
   });
 

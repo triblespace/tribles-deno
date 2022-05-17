@@ -26,12 +26,11 @@ export const id = Symbol("id");
 
 const lookup = (ns, kb, eId, attributeName) => {
   let {
-    isInverse,
     id: aId,
     decoder,
     isLink,
-    isUnique,
-    isUniqueInverse,
+    isInverse,
+    isMany,
   } = ns.attributes.get(attributeName);
 
   const constraints = [
@@ -47,7 +46,7 @@ const lookup = (ns, kb, eId, attributeName) => {
     (r) => r.slice(VALUE_SIZE * 2, VALUE_SIZE * 3)
   ).run();
 
-  if ((!isInverse && isUnique) || (isInverse && isUniqueInverse)) {
+  if (!isMany) {
     const { done, value } = res.next();
     if (done) return { found: false };
     return {
@@ -110,13 +109,10 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         const {
           id: aId,
           isInverse,
-          isUnique,
-          isUniqueInverse,
+          isMany,
         } = ns.attributes.get(attributeName);
         if (
-          attributeName in o ||
-          !isUnique ||
-          (isInverse && !isUniqueInverse)
+          attributeName in o || isMany
         ) {
           return true;
         }
@@ -313,7 +309,7 @@ function* triplesToTribles(ns, triples, blobFn = (key, blob) => {}) {
 }
 
 const precompileTriples = (ns, vars, triples) => {
-  const { encoder: idEncoder, decoder: idDecoder } = ns.attributes.get(id);
+  const { encoder: idEncoder, decoder: idDecoder } = ns.ids;
   const precompiledTriples = [];
   for (const [e, a, v] of triples) {
     const attributeDescription = ns.attributes.get(a);
@@ -392,7 +388,7 @@ export class KB {
   with(ns, efn) {
     const {
       factory: idFactory,
-    } = ns.attributes.get(id);
+    } = ns.ids;
     const entities = efn(new IDSequence(idFactory));
     const triples = entitiesToTriples(ns, idFactory, entities);
     let newBlobCache = this.blobcache;
@@ -484,7 +480,6 @@ export function namespace(ns) {
   if (!idDescription.factory) {
     throw Error(`Incomplete namespace: Missing [id] factory.`);
   }
-  attributes.set(id, idDescription);
 
   for (const [attributeName, attributeDescription] of Object.entries(ns)) {
     if (attributeDescription.isInverse && !attributeDescription.isLink) {
@@ -528,5 +523,5 @@ export function namespace(ns) {
     }
   }
 
-  return { attributes, forwardAttributeIndex, inverseAttributeIndex };
+  return { ids: idDescription, attributes, forwardAttributeIndex, inverseAttributeIndex };
 }

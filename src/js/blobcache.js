@@ -40,7 +40,7 @@ class BlobCache {
 
   shrink(tribleset) {
     const blobs = this.blobs.intersect(tribleset.VEA);
-    return new BlobCache(blobs.complete(), this.missHandlers);
+    return new BlobCache(blobs, this.missHandlers);
   }
 }
 

@@ -79,7 +79,9 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       if ((pathDepth & 0b10000000) !== 0) {
         return 0;
       }
-      return this.nodePath[pathDepth].peek(pathDepth);
+      const node = this.nodePath[pathDepth];
+      if (node === null) return null;
+      return node.peek(pathDepth);
     }
 
     propose(bitset, offset) {
@@ -104,11 +106,9 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       let pathDepth = DEPTH_MAPPING[this.pushDepth];
       if ((pathDepth & 0b10000000) === 0) {
         const node = this.nodePath[pathDepth].getFast(pathDepth, byte);
-        if (node == null) return false;
         this.nodePath[pathDepth + 1] = node;
       }
       this.pushDepth++;
-      return true;
     }
 
     segmentCount() {

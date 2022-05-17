@@ -207,7 +207,7 @@ class DistinctConstraint {
     this.rightVariable = rightVariable;
     this.leftDone = false;
     this.rightDone = false;
-    this.cursor = DistinctCursor();
+    this.cursor = new DistinctCursor();
   }
   toString() {
     return `DistinctConstraint`;
@@ -234,8 +234,8 @@ class DistinctConstraint {
     if(variable === this.rightVariable) {
       this.rightDone = true;
       return [this.cursor];
-
     }
+    return [];
   }
 
   pop(variable) {

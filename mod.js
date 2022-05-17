@@ -1,4 +1,4 @@
-import { Box } from "./src/js/box.js";
+import { Box, validateNS } from "./src/js/box.js";
 //import { WSConnector } from "./src/js/connectors/wsconnector.js";
 import {
   entitiesToTriples,
@@ -24,8 +24,8 @@ export {
   KB,
   makePACT,
   namespace,
+  validateNS,
   TribleSet,
   types,
   UFOID,
-  //WSConnector,
 };
