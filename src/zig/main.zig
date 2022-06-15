@@ -1,19 +1,8 @@
 const std = @import("std");
 //const mc = @import("./pact.zig");
 
-const allocator = std.heap.page_allocator;
-var global_secret : [16]u8 = undefined;
-
 // Hash
-//
-export fn setSecret(i : i32, v : i32) void {
-    global_secret[@intCast(usize, i)] = @intCast(u8, v);
-}
-
-export fn secret(i : i32) i32 {
-    return global_secret[@intCast(usize, i)];
-}
-
+export var global_secret : [16]u8 = undefined;
 export var global_hash_this : [16]u8 = undefined;
 export var global_hash_other : [16]u8 = undefined;
 export var global_hash_data : [64]u8 = undefined;

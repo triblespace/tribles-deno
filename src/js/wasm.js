@@ -3,6 +3,12 @@ import { buffer } from "../../build/wasmdata.js";
 const module = await WebAssembly.compile(buffer);
 export const instance = await WebAssembly.instantiate(module, {});
 
+const _global_secret = new Uint8Array(
+  instance.exports.memory.buffer,
+  instance.exports.global_secret,
+  16
+);
+
 const _global_hash_this = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports.global_hash_this,
@@ -20,6 +26,8 @@ const _global_hash_data = new Uint8Array(
   instance.exports.global_hash_data,
   64
 );
+
+crypto.getRandomValues(_global_secret);
 
 export function hash_digest(data) {
   _global_hash_data.set(data);
