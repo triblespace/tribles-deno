@@ -1,5 +1,5 @@
 import * as path from "https://deno.land/std/path/mod.ts";
-import Context from "https://deno.land/std@0.107.0/wasi/snapshot_preview1.ts";
+import Context from "https://deno.land/std@0.143.0/wasi/snapshot_preview1.ts";
 
 let env = {
   inc(x) {
