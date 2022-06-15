@@ -1,27 +1,7 @@
-import * as path from "https://deno.land/std/path/mod.ts";
-import Context from "https://deno.land/std@0.143.0/wasi/snapshot_preview1.ts";
+import { buffer } from "../../build/wasmdata.js";
 
-let env = {
-  inc(x) {
-    return x + 1;
-  },
-};
-
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
-const p = path.join(__dirname, "../../main.wasm");
-
-const context = new Context({
-  args: Deno.args,
-  env: Deno.env.toObject(),
-});
-
-const binary = await Deno.readFile(p);
-const module = await WebAssembly.compile(binary);
-export const instance = await WebAssembly.instantiate(module, {
-  wasi_snapshot_preview1: context.exports,
-});
-
-context.initialize(instance);
+const module = await WebAssembly.compile(buffer);
+export const instance = await WebAssembly.instantiate(module, {});
 
 const _global_hash_this = new Uint8Array(
   instance.exports.memory.buffer,
@@ -67,13 +47,4 @@ export function hash_equal(l, r) {
   _global_hash_this.set(l);
   _global_hash_other.set(r);
   return instance.exports.hash_equal() === 1;
-}
-
-export function alloc(size) {
-  const ptr = instance.exports.alloc(size);
-  return new Uint8Array(instance.exports.memory.buffer, ptr, size);
-}
-
-export function free(array) {
-  const ptr = instance.exports.free(array.byteOffset, array.byteLength);
 }

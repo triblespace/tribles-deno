@@ -1,4 +1,4 @@
-import {} from "./kb.js";
+import { entitiesToTriples } from "./kb.js";
 import { Query, indexConstraint, distinctConstraint, OrderByMinCostAndBlockage } from "./query.js";
 import { emptyValuePACT } from "./pact.js";
 
