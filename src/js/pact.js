@@ -175,7 +175,6 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       const leftChild = leftNode.get(depth, index);
       const rightChild = rightNode.get(depth, index);
 
-      key[depth] = index;
       const union = _union(leftChild, rightChild, depth + 1, key);
       children[index] = union;
       hash = hash_combine(hash, union.hash);
@@ -552,6 +551,7 @@ const makePACT = function (segmentCompression, segmentSize = 32) {
       );
     }
 
+    // Note that the empty set has no intersection with itself.
     isIntersecting(other) {
       return (
         this.keyLength === other.keyLength &&
