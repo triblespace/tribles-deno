@@ -2,10 +2,10 @@ const std = @import("std");
 //const mc = @import("./pact.zig");
 
 // Hash
-export var global_secret : [16]u8 = undefined;
-export var global_hash_this : [16]u8 = undefined;
-export var global_hash_other : [16]u8 = undefined;
-export var global_hash_data : [64]u8 = undefined;
+export var global_secret : [16]u8 = [_]u8{0} ** 16;
+export var global_hash_this : [16]u8 = [_]u8{0} ** 16;
+export var global_hash_other : [16]u8 = [_]u8{0} ** 16;
+export var global_hash_data : [64]u8 = [_]u8{0} ** 64;
 
 export fn hash_digest(len: usize) void {
   const siphash = comptime std.hash.SipHash128(2, 4);
