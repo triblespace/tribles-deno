@@ -85,4 +85,15 @@ export const UFOID = {
       }
     );
   },
+
+  fromHex(str) {
+    let bytes = new Uint8Array(32);
+    for (let c = 0; c < str.length; c += 2)
+      bytes[16+c] = parseInt(str.substr(c, 2), 16);
+    return bytes;
+  },
+
+  toHex(id) {
+    return Array.from(id.subarray(16, 32)).map(byte => byte.toString(16).padStart(2, "0")).join('');
+  }
 };
