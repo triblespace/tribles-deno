@@ -88,8 +88,8 @@ export const UFOID = {
 
   fromHex(str) {
     let bytes = new Uint8Array(32);
-    for (let c = 0; c < str.length; c += 2)
-      bytes[16+c] = parseInt(str.substr(c, 2), 16);
+    for (let i = 0; i < 16; i += 1)
+      bytes[16+i] = parseInt(str.substr(i*2, 2), 16);
     return bytes;
   },
 
