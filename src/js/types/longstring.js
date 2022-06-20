@@ -1,8 +1,8 @@
-import { blake2s32 } from "../blake2s.js";
+import { blake2b256 } from "../wasm.js";
 
 function longstringEncoder(v, b) {
   const d = new TextEncoder("utf-8").encode(v);
-  blake2s32(d, b);
+  blake2b256(d, b);
   return d;
 }
 
