@@ -1,5 +1,4 @@
 import { emptyValuePACT } from "./pact.js";
-import { VALUE_SIZE } from "./trible.js";
 
 class BlobCache {
   constructor(blobs = emptyValuePACT, missHandlers = new Set()) {
