@@ -25,14 +25,6 @@ class IndexConstraint {
     this.done = false;
   }
 
-  toString() {
-    return `IndexConstraint{variable:${
-      this.variable
-    }, size:${this.cursor.pact.count()}}`;
-  }
-
-  dependencies(dependsOnSets) {}
-
   bid(isUnblocked) {
     if (!this.done && isUnblocked(this.variable)) {
       const costs = this.cursor.segmentCount() * inmemoryCosts;
@@ -54,6 +46,152 @@ class IndexConstraint {
       this.done = false;
       return this.cursor;
     }
+  }
+
+  peekByte() {
+    return this.cursor.peek();
+  }
+
+  proposeByte(bitset) {
+    this.cursor.propose(bitset);
+  }
+
+  pushByte(byte) {
+    this.cursor.push(byte);
+  }
+
+  popByte() {
+    this.cursor.pop()
+  }
+
+  proposeVariable(bitset) {
+    bitset.unsetAll();
+
+    switch(this.state) {
+        case stack_empty: bitset.set(self.eVar); bitset.set(self.aVar); bitset.set(self.vVar); return;
+
+        case stack_e: bitset.set(self.aVar); bitset.set(self.vVar); return;
+        case stack_a: bitset.set(self.eVar); bitset.set(self.vVar); return;
+        case stack_v: bitset.set(self.eVar); bitset.set(self.aVar); return;
+
+        case stack_ea: bitset.set(self.vVar); return;
+        case stack_ev: bitset.set(self.aVar); return;
+        case stack_ae: bitset.set(self.vVar); return;
+        case stack_av: bitset.set(self.eVar); return;
+        case stack_ve: bitset.set(self.aVar); return;
+        case stack_va: bitset.set(self.eVar); return;
+
+        default: return;
+    }
+  }
+
+  pushVariable(variable) {
+      if(this.eVar === variable) {
+        switch(this.state) {
+          case stack_empty: this.state = stack_e; return;
+
+          case stack_a: this.state = stack_ae; return;
+          case stack_v: this.state = stack_ve; return;
+
+          case stack_av: this.state = stack_ave; return;
+          case stack_va: this.state = stack_vae; return;
+
+          default: throw "unreachable";
+        }
+      }
+      if(this.aVar === variable) {
+        switch(this.state) {
+          case stack_empty: this.state = stack_a; return;
+
+          case stack_e: this.state = stack_ea; return;
+          case stack_v: this.state = stack_va; return;
+
+          case stack_ev: this.state = stack_eva; return;
+          case stack_ve: this.state = stack_vea; return;
+
+          default: throw "unreachable";
+        }
+      }
+      if(this.vVar == variable) {
+        switch(this.state) {
+          case stack_empty: this.state = stack_v; return;
+
+          case stack_e: this.state = stack_ev; return;
+          case stack_a: this.state = stack_av; return;
+
+          case stack_ea: this.state = stack_eav; return;
+          case stack_ae: this.state = stack_aev; return;
+
+          default: throw "unreachable"; return;
+        }
+      }
+
+  }
+
+  popVariable() {
+      switch(this.state) {
+          case stack_empty: throw "unreachable";
+
+          case stack_e: this.state = stack_empty; return;
+          case stack_a: this.state = stack_empty; return;
+          case stack_v: this.state = stack_empty; return;
+
+          case stack_ea: this.state = stack_e; return;
+          case stack_ev: this.state = stack_e; return;
+          case stack_ae: this.state = stack_a; return;
+          case stack_av: this.state = stack_a; return;
+          case stack_ve: this.state = stack_v; return;
+          case stack_va: this.state = stack_v; return;
+
+          case stack_eav: this.state = stack_ea; return;
+          case stack_eva: this.state = stack_ev; return;
+          case stack_aev: this.state = stack_ae; return;
+          case stack_ave: this.state = stack_av; return;
+          case stack_vea: this.state = stack_ve; return;
+          case stack_vae: this.state = stack_va; return;
+      }
+  }
+
+  countVariable(variable) {
+      if(this.eVar === variable) {
+        switch(self.state) {
+          case stack_empty: return self.eavCursor.segmentCount();
+
+          case stack_a: return self.aevCursor.segmentCount();
+          case stack_v: return self.veaCursor.segmentCount();
+
+          case stack_av: return self.aveCursor.segmentCount();
+          case stack_va: return self.vaeCursor.segmentCount();
+
+          default: throw "unreachable";
+        }
+      }
+      if(this.aVar === variable) {
+          switch(self.state) {
+              case stack_empty: return self.aevCursor.segmentCount();
+
+              case stack_e: return self.eavCursor.segmentCount();
+              case stack_v: return self.vaeCursor.segmentCount();
+
+              case stack_ev: return self.evaCursor.segmentCount();
+              case stack_ve: return self.veaCursor.segmentCount();
+
+              default: throw "unreachable";
+          }
+      }
+      if(self.vVar === variable) {
+          switch(self.state) {
+              case stack_empty: return self.veaCursor.segmentCount();
+
+              case stack_e: return self.evaCursor.segmentCount();
+              case stack_a: return self.aveCursor.segmentCount();
+
+              case stack_ea: self.eavCursor.segmentCount();
+              case stack_ae: self.aevCursor.segmentCount();
+
+              default: throw "unreachable";
+          }
+      }
   }
 }
 

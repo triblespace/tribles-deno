@@ -147,25 +147,11 @@ class MemTribleConstraint {
     }
   }
 
-  proposeVariable(bitset) {
+  variables(bitset) {
     bitset.unsetAll();
-
-    switch(this.state) {
-        case stack_empty: bitset.set(self.eVar); bitset.set(self.aVar); bitset.set(self.vVar); return;
-
-        case stack_e: bitset.set(self.aVar); bitset.set(self.vVar); return;
-        case stack_a: bitset.set(self.eVar); bitset.set(self.vVar); return;
-        case stack_v: bitset.set(self.eVar); bitset.set(self.aVar); return;
-
-        case stack_ea: bitset.set(self.vVar); return;
-        case stack_ev: bitset.set(self.aVar); return;
-        case stack_ae: bitset.set(self.vVar); return;
-        case stack_av: bitset.set(self.eVar); return;
-        case stack_ve: bitset.set(self.aVar); return;
-        case stack_va: bitset.set(self.eVar); return;
-
-        default: return;
-    }
+    bitset.set(self.eVar);
+    bitset.set(self.aVar);
+    bitset.set(self.vVar);
   }
 
   pushVariable(variable) {
