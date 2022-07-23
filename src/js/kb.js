@@ -2,7 +2,8 @@ import { emptyValuePACT } from "./pact.js";
 import {
   constantConstraint,
   indexConstraint,
-  OrderByMinCostAndBlockage,
+  IntersectionConstraint,
+  MaskedConstraint,
   Query,
   Variable,
 } from "./query.js";
@@ -33,17 +34,13 @@ const lookup = (ns, kb, eId, attributeName) => {
     isMany,
   } = ns.attributes.get(attributeName);
 
-  const constraints = [
-    constantConstraint(0, eId),
-    constantConstraint(1, aId),
-    kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
-  ];
   const res = new Query(
-    3,
-    constraints,
-    new OrderByMinCostAndBlockage(3, new Set([0, 1, 2])),
-    new Set([0, 1, 2]),
-    (r) => r.slice(VALUE_SIZE * 2, VALUE_SIZE * 3)
+    new IntersectionConstraint([
+      constantConstraint(0, eId),
+      constantConstraint(1, aId),
+      kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
+    ]),
+    (r) => r.get(2)
   ).run();
 
   if (!isMany) {
@@ -116,16 +113,12 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         ) {
           return true;
         }
-        const constraints = [
-          constantConstraint(0, eId),
-          constantConstraint(1, aId),
-          kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
-        ];
         const { done } = new Query(
-          3,
-          constraints,
-          new OrderByMinCostAndBlockage(3, new Set([0, 1])),
-          new Set([0, 1, 2])
+          new IntersectionConstraint([
+            constantConstraint(0, eId),
+            constantConstraint(1, aId),
+            kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
+          ])
         )
           .run()
           .next();
@@ -176,35 +169,27 @@ const entityProxy = function entityProxy(ns, kb, eId) {
       },
       ownKeys: function (_) {
         const attrs = [id];
-        const forwardConstraints = [
-          constantConstraint(0, eId),
-          indexConstraint(1, ns.forwardAttributeIndex),
-          kb.tribleset.constraint(0, 1, 2),
-        ];
         for (const r of new Query(
-          3,
-          forwardConstraints,
-          new OrderByMinCostAndBlockage(3, new Set([0, 1])),
-          new Set([0, 1, 2])
+          new IntersectionConstraint([
+            constantConstraint(0, eId),
+            indexConstraint(1, ns.forwardAttributeIndex),
+            new MaskedConstraint(kb.tribleset.constraint(0, 1, 2), [2]),
+          ]),
         ).run()) {
-          const a = r.slice(VALUE_SIZE, VALUE_SIZE * 2);
+          const a = r.get(1);
           attrs.push(
             ...ns.forwardAttributeIndex.get(a).map((attr) => attr.name)
           );
         }
 
-        const inverseConstraints = [
-          constantConstraint(0, eId),
-          kb.tribleset.constraint(2, 1, 0),
-          indexConstraint(1, ns.inverseAttributeIndex),
-        ];
         for (const r of new Query(
-          3,
-          inverseConstraints,
-          new OrderByMinCostAndBlockage(3, new Set([0, 1])),
-          new Set([0, 1, 2])
+          new IntersectionConstraint([
+            constantConstraint(0, eId),
+            indexConstraint(1, ns.inverseAttributeIndex),
+            new MaskedConstraint(kb.tribleset.constraint(2, 1, 0), [2]),
+          ])
         ).run()) {
-          const a = r.slice(VALUE_SIZE, VALUE_SIZE * 2);
+          const a = r.get(1);
           attrs.push(
             ...ns.inverseAttributeIndex.get(a).map((attr) => attr.name)
           );

@@ -1,16 +1,8 @@
 import { emptyValuePACT } from "./pact.js";
 import { ID_SIZE, VALUE_SIZE } from "./trible.js";
 import {
-  intersectBitRange,
-  nextBit,
-  prevBit,
-  setAllBit,
-  unsetBit,
-  setBit,
-  hasBit,
-  singleBitIntersect,
-  emptySet,
-  isSubsetOf,
+  ByteBitset,
+  ByteBitsetArray
 } from "./bitset.js";
 
 const inmemoryCosts = 1;
@@ -22,30 +14,6 @@ class IndexConstraint {
   constructor(variable, index) {
     this.cursor = index.cursor();
     this.variable = variable;
-    this.done = false;
-  }
-
-  bid(isUnblocked) {
-    if (!this.done && isUnblocked(this.variable)) {
-      const costs = this.cursor.segmentCount() * inmemoryCosts;
-      return [this.variable, costs];
-    }
-    return [null, Number.MAX_VALUE];
-  }
-
-  push(variable) {
-    if (variable === this.variable) {
-      this.done = true;
-      return [this.cursor];
-    }
-    return [];
-  }
-
-  pop(variable) {
-    if (variable === this.variable) {
-      this.done = false;
-      return this.cursor;
-    }
   }
 
   peekByte() {
@@ -64,134 +32,17 @@ class IndexConstraint {
     this.cursor.pop()
   }
 
-  proposeVariable(bitset) {
+  variables(bitset) {
     bitset.unsetAll();
-
-    switch(this.state) {
-        case stack_empty: bitset.set(self.eVar); bitset.set(self.aVar); bitset.set(self.vVar); return;
-
-        case stack_e: bitset.set(self.aVar); bitset.set(self.vVar); return;
-        case stack_a: bitset.set(self.eVar); bitset.set(self.vVar); return;
-        case stack_v: bitset.set(self.eVar); bitset.set(self.aVar); return;
-
-        case stack_ea: bitset.set(self.vVar); return;
-        case stack_ev: bitset.set(self.aVar); return;
-        case stack_ae: bitset.set(self.vVar); return;
-        case stack_av: bitset.set(self.eVar); return;
-        case stack_ve: bitset.set(self.aVar); return;
-        case stack_va: bitset.set(self.eVar); return;
-
-        default: return;
-    }
+    bitset.set(this.variable);
   }
 
-  pushVariable(variable) {
-      if(this.eVar === variable) {
-        switch(this.state) {
-          case stack_empty: this.state = stack_e; return;
+  pushVariable(_variable) {}
 
-          case stack_a: this.state = stack_ae; return;
-          case stack_v: this.state = stack_ve; return;
+  popVariable() {}
 
-          case stack_av: this.state = stack_ave; return;
-          case stack_va: this.state = stack_vae; return;
-
-          default: throw "unreachable";
-        }
-      }
-      if(this.aVar === variable) {
-        switch(this.state) {
-          case stack_empty: this.state = stack_a; return;
-
-          case stack_e: this.state = stack_ea; return;
-          case stack_v: this.state = stack_va; return;
-
-          case stack_ev: this.state = stack_eva; return;
-          case stack_ve: this.state = stack_vea; return;
-
-          default: throw "unreachable";
-        }
-      }
-      if(this.vVar == variable) {
-        switch(this.state) {
-          case stack_empty: this.state = stack_v; return;
-
-          case stack_e: this.state = stack_ev; return;
-          case stack_a: this.state = stack_av; return;
-
-          case stack_ea: this.state = stack_eav; return;
-          case stack_ae: this.state = stack_aev; return;
-
-          default: throw "unreachable"; return;
-        }
-      }
-
-  }
-
-  popVariable() {
-      switch(this.state) {
-          case stack_empty: throw "unreachable";
-
-          case stack_e: this.state = stack_empty; return;
-          case stack_a: this.state = stack_empty; return;
-          case stack_v: this.state = stack_empty; return;
-
-          case stack_ea: this.state = stack_e; return;
-          case stack_ev: this.state = stack_e; return;
-          case stack_ae: this.state = stack_a; return;
-          case stack_av: this.state = stack_a; return;
-          case stack_ve: this.state = stack_v; return;
-          case stack_va: this.state = stack_v; return;
-
-          case stack_eav: this.state = stack_ea; return;
-          case stack_eva: this.state = stack_ev; return;
-          case stack_aev: this.state = stack_ae; return;
-          case stack_ave: this.state = stack_av; return;
-          case stack_vea: this.state = stack_ve; return;
-          case stack_vae: this.state = stack_va; return;
-      }
-  }
-
-  countVariable(variable) {
-      if(this.eVar === variable) {
-        switch(self.state) {
-          case stack_empty: return self.eavCursor.segmentCount();
-
-          case stack_a: return self.aevCursor.segmentCount();
-          case stack_v: return self.veaCursor.segmentCount();
-
-          case stack_av: return self.aveCursor.segmentCount();
-          case stack_va: return self.vaeCursor.segmentCount();
-
-          default: throw "unreachable";
-        }
-      }
-      if(this.aVar === variable) {
-          switch(self.state) {
-              case stack_empty: return self.aevCursor.segmentCount();
-
-              case stack_e: return self.eavCursor.segmentCount();
-              case stack_v: return self.vaeCursor.segmentCount();
-
-              case stack_ev: return self.evaCursor.segmentCount();
-              case stack_ve: return self.veaCursor.segmentCount();
-
-              default: throw "unreachable";
-          }
-      }
-      if(self.vVar === variable) {
-          switch(self.state) {
-              case stack_empty: return self.veaCursor.segmentCount();
-
-              case stack_e: return self.evaCursor.segmentCount();
-              case stack_a: return self.aveCursor.segmentCount();
-
-              case stack_ea: self.eavCursor.segmentCount();
-              case stack_ae: self.aevCursor.segmentCount();
-
-              default: throw "unreachable";
-          }
-      }
+  countVariable(_variable) {
+    return this.cursor.segmentCount();
   }
 }
 
@@ -208,40 +59,28 @@ export function collectionConstraint(variable, collection) {
   return new IndexConstraint(variable, index);
 }
 
-class RangeCursor {
-  constructor(lowerBound, upperBound) {
+class RangeConstraint {
+  constructor(variable, lowerBound, upperBound) {
     this.lowerBound = lowerBound;
     this.upperBound = upperBound;
+    this.variable = variable;
     this.depth = 0;
     this.lowerFringe = 0;
     this.upperFringe = 0;
   }
-
-  peek() {
+  peekByte() {
     return null;
   }
 
-  propose(bitset, offset) {
+  proposeByte(bitset) {
     const lowerByte =
       this.depth === this.lowerFringe ? this.lowerBound[this.depth] : 0;
     const upperByte =
       this.depth === this.upperFringe ? this.upperBound[this.depth] : 255;
-    intersectBitRange(bitset, lowerByte, upperByte, offset);
+    intersectBitRange(bitset, lowerByte, upperByte);
   }
 
-  pop(times = 1) {
-    this.depth -= times;
-
-    if (this.depth < this.lowerFringe) {
-      this.lowerFringe = this.depth;
-    }
-    if (this.depth < this.upperFringe) {
-      this.upperFringe = this.depth;
-    }
-    this.depth--;
-  }
-
-  push(byte) {
+  pushByte(byte) {
     if (
       this.depth === this.lowerFringe &&
       byte === this.lowerBound[this.depth]
@@ -256,40 +95,29 @@ class RangeCursor {
     }
     this.depth++;
   }
-}
 
-class RangeConstraint {
-  constructor(variable, lowerBound, upperBound) {
-    this.lowerBound = lowerBound;
-    this.upperBound = upperBound;
-    this.variable = variable;
-    this.done = false;
-  }
-  toString() {
-    return `RangeConstraint{variable:${this.variable}}`;
-  }
+  popByte() {
+    this.depth--;
 
-  dependencies(dependsOnSets) {}
-
-  bid(isUnblocked) {
-    if (!this.done && isUnblocked(this.variable)) {
-      return [this.variable, Number.MAX_VALUE];
+    if (this.depth < this.lowerFringe) {
+      this.lowerFringe = this.depth;
     }
-    return [null, Number.MAX_VALUE];
+    if (this.depth < this.upperFringe) {
+      this.upperFringe = this.depth;
+    }
   }
 
-  push(variable) {
-    if (variable === this.variable) {
-      this.done = true;
-      return [new RangeCursor(this.lowerBound, this.upperBound)];
-    }
-    return [];
+  variables(bitset) {
+    bitset.unsetAll();
+    bitset.set(this.variable);
   }
 
-  pop(variable) {
-    if (variable === this.variable) {
-      this.done = false;
-    }
+  pushVariable(_variable) {}
+
+  popVariable() {}
+
+  countVariable(_variable) {
+    return Number.MAX_VALUE;
   }
 }
 
@@ -304,478 +132,278 @@ export function rangeConstraint(
   return new RangeConstraint(variable, lowerBound, upperBound);
 }
 
-class DistinctCursor {
-  constructor() {
-    this.value = new Uint8Array(32);
-    this.matchingPrefix = 0;
-    this.depth = 0;
-  }
-
-  peek() {
-    return null;
-  }
-
-  propose(bitset, offset) {
-    if(this.matchingPrefix === 63) {
-      unsetBit(bitset, this.value[31], offset);
-    }
-  }
-
-  pop(times = 1) {
-    this.depth -= times;
-    this.matchingPrefix = Math.min(this.depth, this.matchingPrefix);
-  }
-
-  push(byte) {
-    if(this.depth < 32) {
-      this.value[this.depth] = byte;
-      this.matchingPrefix++;
-    } else {
-      if(this.depth === this.matchingPrefix && this.value[this.depth - 32] === byte) {
-        this.matchingPrefix++;
-      }
-    }
-    this.depth++;
-  }
-}
-
-class DistinctConstraint {
-  constructor(leftVariable, rightVariable) {
-    this.leftVariable = leftVariable;
-    this.rightVariable = rightVariable;
-    this.leftDone = false;
-    this.rightDone = false;
-    this.cursor = new DistinctCursor();
-  }
-  toString() {
-    return `DistinctConstraint`;
-  }
-
-  dependencies(dependsOnSets) {}
-
-  bid(isUnblocked) {
-    if (!this.leftDone && isUnblocked(this.leftVariable)) {
-      return [this.leftVariable, Number.MAX_VALUE];
-    }
-    if (!this.rightDone && isUnblocked(this.rightVariable)) {
-      return [this.rightVariable, Number.MAX_VALUE];
-    }
-    return [null, Number.MAX_VALUE];
-  }
-
-  push(variable) {
-    if (variable === this.leftVariable) {
-      this.leftDone = true;
-      return [this.cursor];
-
-    }
-    if(variable === this.rightVariable) {
-      this.rightDone = true;
-      return [this.cursor];
-    }
-    return [];
-  }
-
-  pop(variable) {
-    if (variable === this.leftVariable) {
-      this.leftDone = false;
-    }
-    if (variable === this.rightVariable) {
-      this.rightDone = false;
-    }
-  }
-}
-
-export function distinctConstraint(leftVariable, rightVariable) {
-  return new DistinctConstraint(leftVariable, rightVariable);
-}
-
-class ConstantCursor {
-  constructor(constant) {
+class ConstantConstraint {
+  constructor(variable, constant) {
+    this.variable = variable;
     this.constant = constant;
     this.depth = 0;
   }
 
-  peek() {
+  peekByte() {
     return this.constant[this.depth];
   }
 
-  propose(bitset, offset) {
-    singleBitIntersect(bitset, this.constant[this.depth], offset);
+  proposeByte(bitset) {
+    singleBitIntersect(bitset, this.constant[this.depth]);
   }
 
-  pop(times = 1) {
-    this.depth -= times;
+  popByte() {
+    this.depth--;
   }
 
-  push(byte) {
+  pushByte(_byte) {
     this.depth++;
   }
-}
 
-class ConstantConstraint {
-  constructor(variable, constant) {
-    this.cursor = new ConstantCursor(constant);
-    this.variable = variable;
-    this.done = false;
-  }
-  toString() {
-    return `ConstantConstraint{variable:${this.variable}}`;
+  variables(bitset) {
+    bitset.unsetAll();
+    bitset.set(this.variable);
   }
 
-  dependencies(dependsOnSets) {}
+  pushVariable(_variable) {}
 
-  bid(isUnblocked) {
-    if (!this.done && isUnblocked(this.variable)) {
-      return [this.variable, 1];
-    }
-    return [null, Number.MAX_VALUE];
-  }
+  popVariable() {}
 
-  push(variable) {
-    if (variable === this.variable) {
-      this.done = true;
-      return [this.cursor];
-    }
-    return [];
-  }
-
-  pop(variable) {
-    if (variable === this.variable) {
-      this.done = false;
-    }
+  countVariable(_variable) {
+    return 1;
   }
 }
 
 export function constantConstraint(variable, constant) {
-  let value;
-  if (constant.length === ID_SIZE) {
-    value = new Uint8Array(VALUE_SIZE);
-    value.set(constant, 16);
-  } else {
-    value = constant;
-  }
+  if (constant.length !== VALUE_SIZE) throw new Error("Bad constant length.");
   return new ConstantConstraint(variable, value);
 }
 
-export class OrderByMinCostAndBlockage {
-  constructor(variableCount, projected, isBlocking = []) {
-    this.variablesLeft = variableCount;
-    this.explored = emptySet();
-    this.blockedBy = new Uint32Array(variableCount * 8);
-    this.shortcircuit = emptySet();
-    this.unblocked = emptySet();
+// TODO return single intersection constraint from multi TribleSet Trible
+// constraints -> allows us to have a zig only fast subconstraint
+export const IntersectionConstraint = class {
+  constructor(constraints) {
+    this.constraints = constraints;
+    this.activeConstraits = [];
+    this.variableStack = [];
+  }
 
-    for (let v = 0; v < variableCount; v++) {
-      if (!projected.has(v)) {
-        for (const p of projected) {
-          setBit(this.blockedBy, p, v * 8);
+  // Interface API >>>
+
+  peekByte() {
+    let byte = null;
+    for (const constraint of this.activeConstraints) {
+      const peeked = constraint.peekByte();
+      if (peeked) {
+          byte = byte || peeked;
+          if (byte !== peeked) return null;
+      } else {
+          return null;
+      }
+    }
+
+    return byte;
+  }
+
+  proposeByte(bitset) {
+      bitset.setAll();
+      let b = (new ByteBitset()).unsetAll();
+      for (const constraint of this.activeConstraits) {
+          constraint.proposeByte(b);
+          bitset.setIntersection(bitset, b);
+      }
+  }
+
+  pushByte(byte) {
+      for (const constraint of this.activeConstraits) {
+        constraint.pushByte(byte);
+      }
+  }
+
+  popByte() {
+    for (const constraint of this.activeConstraits) {
+      constraint.popByte();
+    }
+  }
+
+  variables(bitset) {
+    bitset.unsetAll();
+    let b = (new ByteBitset()).unsetAll();
+    for(const constraint of this.constraints) {
+      constraint.variables(b);
+      bitset.setUnion(bitset, b);
+    }
+  }
+
+  pushVariable(variable) {
+    this.variableStack.push(variable);
+    this.activeConstraits.length = 0;
+    let b = (new ByteBitset()).unsetAll();
+    for(const constraint of this.constraints) {
+      constraint.variables(b);
+      if(b.has(variable)) {
+        constraint.pushVariable(variable);
+        this.activeConstraits.push(constraint);
+      }
+    }
+  }
+
+  popVariable() {
+    let b = (new ByteBitset()).unsetAll();
+    for(const constraint of this.constraints) {
+      constraint.variables(b);
+      if(b.has(b)) {
+        constraint.popVariable();
+      }
+    }
+    const variable = this.variableStack.pop();
+    this.activeConstraits.length = 0;
+    if(variable) {
+      for(const constraint of this.constraints) {
+        constraint.variables(b);
+        if(b.has(variable)) {
+          this.activeConstraits.push(constraint);
         }
-        setBit(this.shortcircuit, v);
+      }
+    }
+  }
+
+  countVariable(variable) {
+    let min = Number.MAX_VALUE
+    let b = (new ByteBitset()).unsetAll();
+    for(const constraint of this.constraints) {
+      constraint.variables(b);
+      if(b.has(b)) {
+        min = Math.min(min, constraint.countVariable(variable));
       }
     }
 
-    for (const [blocker, blocked] of isBlocking) {
-      setBit(this.blockedBy, blocker, blocked * 8);
+    return min;
+  }
+};
+
+// Can be used like a projection, but one must makes sure that the masked constraint
+// implicitly existentially quantifies the variables masked.
+export const MaskedConstraint = class {
+  constructor(constraint, maskedVariables) {
+    this.constraint = constraint;
+    this.mask = new ByteBitset();
+    for(const v of maskedVariables) {
+      this.mask.set(v);
     }
   }
 
-  next(constraints) {
-    if (this.variablesLeft === 0) return null;
-    let candidateVariable = null;
-    let candidateCosts = Number.MAX_VALUE;
-    for (const c of constraints) {
-      const [variable, costs] = c.bid((v) =>
-        isSubsetOf(this.blockedBy, this.explored, v * 8)
-      );
-      if (costs <= candidateCosts) {
-        candidateVariable = variable;
-        candidateCosts = costs;
-      }
-      if (candidateCosts <= 1) break;
-    }
-    //console.log("next:", candidateVariable, candidateCosts);
-    return candidateVariable;
+  // Interface API >>>
+
+  peekByte() {
+    return this.constraint.peekByte();
   }
 
-  isShortcircuit(variable) {
-    return hasBit(this.shortcircuit, variable);
+  proposeByte(bitset) {
+    return this.constraint.proposeByte(bitset);
   }
 
-  push(variable) {
-    //console.log("push:", variable);
-    this.variablesLeft--;
-    setBit(this.explored, variable);
+  pushByte(byte) {
+    return this.constraint.pushByte(byte);
   }
 
-  pop(variable) {
-    //console.log("pop:", variable);
-    this.variablesLeft++;
-    unsetBit(this.explored, variable);
+  popByte() {
+    return this.constraint.popByte();
   }
-}
 
-function branchBitmap(branchBuffer, depth) {
-  return branchBuffer.subarray(depth, depth + 8);
-}
+  variables(bitset) {
+    this.constraint.variables(bitset);
+    bitset.setSubtraction(bitset, this.mask);
+  }
+
+  pushVariable(variable) {
+    this.constraint.pushVariable(variable);
+  }
+
+  popVariable() {
+    this.constraint.popVariable();
+  }
+
+  countVariable(variable) {
+    return this.constraint.countVariable(variable);
+  }
+};
 
 const MODE_PATH = 0;
 const MODE_BRANCH = 1;
 const MODE_BACKTRACK = 2;
 
-function* resolveSegmentAscending(
-  cursors,
-  variable,
-  bindings,
-  branchPoints,
-  cache,
-  cached
-) {
-  const branchOffset = variable * BITSET_VALUE_SIZE;
-  const bindingOffset = variable * VALUE_SIZE;
+function VariableIterator(constraint, branch_state, key_state) {
+  return {
+    branch_points: (new ByteBitset()).unsetAll(),
+    branch_state: branch_state,
+    key_state: key_state,
+    mode: MODE_PATH,
+    depth: 0,
+    constraint: constraint,
 
-  let mode = MODE_PATH;
-  let depth = 0;
-  let branchPositions = 0;
-  let offset = 0;
-
-  outer: while (true) {
-    offset = branchOffset + depth * BRANCH_BITSET_SIZE;
-    switch (mode) {
-      case MODE_PATH:
-        while (true) {
-          if (depth === 32) {
-            if (yield) {
-              for (const c of cursors) {
-                c.pop(depth);
-              }
-              return;
-            }
-            mode = MODE_BACKTRACK;
-            continue outer;
-          }
-          offset = branchOffset + depth * BRANCH_BITSET_SIZE;
-
-          let byte = null;
-          let noProposals = true;
-
-          for (const cursor of cursors) {
-            const peeked = cursor.peek();
-            if (peeked === null) {
-              if (noProposals) {
-                noProposals = false;
-                if (cached) {
-                  branchPoints.set(cache.subarray(offset, offset + 8), offset);
+    next: function(cancel) {
+      if(cancel) {
+        while (0 < self.depth){
+          self.depth--;
+          self.constraint.popByte();
+        }
+        self.mode = MODE_PATH;
+        return {done: true, value: undefined};
+      }
+      outer: while (true) {
+          switch (this.mode) {
+            case MODE_PATH:
+              while (this.depth < key_state.length) {
+                const byte = this.constraint.peekByte()
+                if (byte) {
+                  this.key[this.depth] = byte;
+                  this.constraint.pushByte(byte);
+                  this.depth += 1;
                 } else {
-                  setAllBit(branchPoints, offset);
+                  this.constraint.proposeByte(this.branch_state.get(this.depth));
+                  this.branch_points.set(this.depth);
+                  this.mode = MODE_BRANCH;
+                  continue outer;
                 }
               }
-              cursor.propose(branchPoints, offset);
-            } else {
-              byte ??= peeked;
-              if (byte !== peeked) {
-                mode = MODE_BACKTRACK;
+              this.mode = MODE_BACKTRACK;
+              return {done:false, value: this.key_state};
+            case MODE_BRANCH:
+              const byte = this.branch_state.get(this.depth).drainNext()
+              if(byte) {
+                  this.key_state[this.depth] = byte;
+                  this.constraint.pushByte(byte);
+                  this.depth += 1;
+                  this.mode = MODE_PATH;
+                  continue outer;
+              } else {
+                this.branch_points.unset(this.depth);
+                this.mode = MODE_BACKTRACK;
                 continue outer;
               }
-            }
-          }
-
-          if (byte === null) {
-            branchPositions = branchPositions | (1 << depth);
-            mode = MODE_BRANCH;
-            continue outer;
-          }
-          if (
-            (noProposals && cached && !hasBit(cache, byte, offset)) ||
-            (!noProposals && !hasBit(branchPoints, byte, offset))
-          ) {
-            mode = MODE_BACKTRACK;
-            continue outer;
-          }
-
-          bindings[bindingOffset + depth] = byte;
-          for (const c of cursors) {
-            c.push(byte);
-          }
-          depth++;
-        }
-
-        break;
-
-      case MODE_BRANCH:
-        const byte = nextBit(0, branchPoints, offset);
-        if (byte > 255) {
-          branchPositions = branchPositions & ~(1 << depth);
-          mode = MODE_BACKTRACK;
-          continue outer;
-        }
-        bindings[bindingOffset + depth] = byte;
-        for (const c of cursors) {
-          c.push(byte);
-        }
-        unsetBit(branchPoints, byte, offset);
-        depth++;
-        mode = MODE_PATH;
-        continue outer;
-
-        break;
-
-      case MODE_BACKTRACK:
-        //console.count(`backtracking:${variable}`);
-
-        const newDepth = 31 - Math.clz32(branchPositions);
-        if (newDepth < 0) {
-          for (const c of cursors) {
-            c.pop(depth);
-          }
-          return;
-        } else {
-          const pops = depth - newDepth;
-          for (const c of cursors) {
-            c.pop(pops);
-          }
-          depth = newDepth;
-        }
-
-        mode = MODE_BRANCH;
-        continue outer;
-
-        break;
-    }
-  }
-}
-
-function* resolveSegmentDescending(
-  cursors,
-  variable,
-  bindings,
-  branchPoints,
-  cache,
-  cached
-) {
-  const branchOffset = variable * BITSET_VALUE_SIZE;
-  const bindingOffset = variable * VALUE_SIZE;
-
-  let mode = MODE_PATH;
-  let depth = 0;
-  let branchPositions = 0;
-  let offset = 0;
-
-  outer: while (true) {
-    offset = branchOffset + depth * BRANCH_BITSET_SIZE;
-    switch (mode) {
-      case MODE_PATH:
-        while (true) {
-          if (depth === 32) {
-            if (yield) {
-              for (const c of cursors) {
-                c.pop(depth);
-              }
-              return;
-            }
-            mode = MODE_BACKTRACK;
-            continue outer;
-          }
-          offset = branchOffset + depth * BRANCH_BITSET_SIZE;
-
-          let byte = null;
-          let noProposals = true;
-
-          for (const cursor of cursors) {
-            const peeked = cursor.peek();
-            if (peeked === null) {
-              if (noProposals) {
-                noProposals = false;
-                if (cached) {
-                  branchPoints.set(cache.subarray(offset, offset + 8), offset);
+              case MODE_BACKTRACK:
+                const parent_depth = self.branch_points.prev(255);
+                if(parent_depth) {
+                  while (parent_depth < self.depth){
+                    self.depth -= 1;
+                    self.constraint.popByte();
+                  }
+                  self.mode = MODE_BRANCH;
+                  continue outer;
                 } else {
-                  setAllBit(branchPoints, offset);
+                  return {done: true, value: undefined};
                 }
-              }
-              cursor.propose(branchPoints, offset);
-            } else {
-              byte ??= peeked;
-              if (byte !== peeked) {
-                mode = MODE_BACKTRACK;
-                continue outer;
-              }
-            }
           }
-
-          if (byte === null) {
-            branchPositions = branchPositions | (1 << depth);
-            mode = MODE_BRANCH;
-            continue outer;
-          }
-          if (
-            (noProposals && cached && !hasBit(cache, byte, offset)) ||
-            (!noProposals && !hasBit(branchPoints, byte, offset))
-          ) {
-            mode = MODE_BACKTRACK;
-            continue outer;
-          }
-
-          bindings[bindingOffset + depth] = byte;
-          for (const c of cursors) {
-            c.push(byte);
-          }
-          depth++;
-        }
-
-        break;
-
-      case MODE_BRANCH:
-        const byte = prevBit(255, branchPoints, offset);
-        if (byte < 0) {
-          branchPositions = branchPositions & ~(1 << depth);
-          mode = MODE_BACKTRACK;
-          continue outer;
-        }
-        bindings[bindingOffset + depth] = byte;
-        for (const c of cursors) {
-          c.push(byte);
-        }
-        unsetBit(branchPoints, byte, offset);
-        depth++;
-        mode = MODE_PATH;
-        continue outer;
-
-        break;
-
-      case MODE_BACKTRACK:
-        //console.count(`backtracking:${variable}`);
-
-        const newDepth = 31 - Math.clz32(branchPositions);
-        if (newDepth < 0) {
-          for (const c of cursors) {
-            c.pop(depth);
-          }
-          return;
-        } else {
-          const pops = depth - newDepth;
-          for (const c of cursors) {
-            c.pop(pops);
-          }
-          depth = newDepth;
-        }
-
-        mode = MODE_BRANCH;
-        continue outer;
-
-        break;
-    }
+      }
   }
+  };
 }
 
-const BRANCH_BITSET_SIZE = 8;
-// TODO: Simply make 256-elements the default Bitset size everywhere.
-const BITSET_VALUE_SIZE = VALUE_SIZE * BRANCH_BITSET_SIZE;
-export function branchState(varCount) {
-  return new Uint32Array(varCount * BITSET_VALUE_SIZE);
-}
+export class Bindings {
+  constructor(length) {
+    this.length = length;
+    this.buffer = new Uint8Array(length*32);
+  }
 
-export function variableBindings(varCount) {
-  return new Uint8Array(varCount * VALUE_SIZE);
+  get(offset) {
+    return this.buffer.subarray(offset*32, (offset+1)*32);
+  }
 }
 
 export function dependencyState(varCount, constraints) {
@@ -788,96 +416,50 @@ export function dependencyState(varCount, constraints) {
 
 export class Query {
   constructor(
-    varCount,
-    constraints,
-    ordering,
-    ascendingVariables,
+    constraint,
     postProcessing = (r) => r
   ) {
-    this.constraints = constraints;
-    this.ordering = ordering;
-    this.ascendingVariables = ascendingVariables;
+    this.constraint = constraint;
     this.postProcessing = postProcessing;
-    this.bindings = variableBindings(varCount);
-    this.branchPoints = branchState(varCount);
-    this.dependencies = dependencyState(varCount, constraints);
-    this.cache = branchState(varCount);
-    this.cachedVariables = emptySet();
+
+    this.unexploredVariables = new ByteBitset();
+    constraint.variables(this.unexploredVariables);
+    const variableCount = this.unexploredVariables.count();
+
+    this.bindings = new Bindings(variableCount);
+    this.branchPoints = new ByteBitsetArray(variableCount);
   }
-  *run(caching = true) {
-    for (const r of this.__resolve(caching)) {
+  *run() {
+    for (const r of this.__resolve()) {
       yield this.postProcessing(r);
     }
-    if (caching) {
-      setAllBit(this.cachedVariables);
-    }
   }
 
-  *__resolve(caching) {
-    //init
-    let hasResult = false;
-    const variable = this.ordering.next(this.constraints);
-    if (variable === null) {
+  *__resolve() {
+    if (this.unexploredVariables.isEmpty()) {
       yield this.bindings;
-      hasResult = true;
     } else {
-      const ascending = this.ascendingVariables.has(variable);
+      let nextVariable;
+      let nextVariableCosts = Number.MAX_VALUE;
 
-      this.ordering.push(variable);
-
-      const cursors = [];
-      for (const c of this.constraints) {
-        cursors.push(...c.push(variable));
+      for (const variable of this.unexploredVariables.entries()) {
+        const costs = this.constraint.countVariable(variable);
+        if (costs <= candidateCosts) {
+          nextVariable = variable;
+          nextVariableCosts = costs;
+        }
+        if (nextVariableCosts <= 1) break;
       }
 
-      const shortcircuit = this.ordering.isShortcircuit(variable);
-      const cached = hasBit(this.cachedVariables, variable);
-      //if (cached) console.log("cached ", variable);
-      let segments;
-      if (ascending) {
-        segments = resolveSegmentAscending(
-          cursors,
-          variable,
-          this.bindings,
-          this.branchPoints,
-          this.cache,
-          cached
-        );
-      } else {
-        segments = resolveSegmentDescending(
-          cursors,
-          variable,
-          this.bindings,
-          this.branchPoints,
-          this.cache,
-          cached
-        );
-      }
-
-      const bindingOffset = variable * VALUE_SIZE;
-      const cacheOffset = variable * BITSET_VALUE_SIZE;
-
+      this.unexploredVariables.unset(nextVariable);
+      this.constraint.pushVariable(nextVariable);
+      const segments = VariableIterator(this.constraint, thisbranch_state.get(nextVariable), this.bindings.get(nextVariable));
       for (const _ of segments) {
-        //console.log("variable", variable);
-        const r = yield* this.__resolve(caching);
-        hasResult = hasResult || r;
-        if (caching && !cached && r) {
-          for (let d = 0; d < VALUE_SIZE; d++) {
-            setBit(
-              this.cache,
-              this.bindings[bindingOffset + d],
-              cacheOffset + d * BRANCH_BITSET_SIZE
-            );
-          }
-        }
-        if (hasResult && shortcircuit) {
-          segments.next(true);
-        }
+        yield* this.__resolve();
       }
-      this.constraints.forEach((c) => c.pop(variable));
-      this.ordering.pop(variable);
+      this.constraint.popVariable();
+      this.unexploredVariables.set(nextVariable);
     }
-    return hasResult;
   }
 }
 
@@ -886,11 +468,8 @@ export class Variable {
     this.provider = provider;
     this.index = index;
     this.name = name;
-    this.ascending = true;
-    this.transform = null;
     this.upperBound = undefined;
     this.lowerBound = undefined;
-    this.isProjected = true;
     this.paths = [];
     this.decoder = null;
     this.encoder = null;
@@ -903,53 +482,12 @@ export class Variable {
     return this;
   }
 
-  map(transformFn) {
-    this.transform = transformFn;
-    return this;
-  }
-
-  groupBy(otherVariable) {
-    let potentialCycles = new Set([otherVariable.index]);
-    while (potentialCycles.size !== 0) {
-      if (potentialCycles.has(this)) {
-        throw Error("Couldn't group variable, ordering would by cyclic.");
-      }
-      //TODO add omit sanity check.
-      potentialCycles = new Set(
-        this.provider.isBlocking
-          .filter(([a, b]) => potentialCycles.has(b))
-          .map(([a, b]) => a)
-      );
-    }
-    this.provider.isBlocking.push([otherVariable.index, this.index]);
-    return this;
-  }
-
   ranged({ lower, upper }) {
     this.lowerBound = lower;
     this.upperBound = upper;
     return this;
   }
-  // TODO: rework to 'ordered(o)' method that takes one of
-  // ascending, descending, concentric
-  // where concentric is relative to another variable that must be
-  // bound before this variable
-  ascend() {
-    this.ascending = true;
-    return this;
-  }
-
-  descend() {
-    this.ascending = false;
-    return this;
-  }
-
-  omit() {
-    this.isProjected = false;
-    this.provider.projected.delete(this.index);
-    return this;
-  }
-
+  
   toString() {
     if (this.name) {
       return `${this.name}@${this.index}`;
@@ -1049,6 +587,7 @@ export class VariableProvider {
 
 export function find(cfn) {
   const vars = new VariableProvider();
+
   const constraints = [];
   for (const constraintBuilder of cfn(vars.namedCache())) {
     const constraintGroup = constraintBuilder(vars);
@@ -1057,51 +596,35 @@ export function find(cfn) {
 
   constraints.push(...vars.constraints());
 
-  const namedVariables = [...vars.namedVariables.values()];
+  const constraint = new IntersectionConstraint(constraints);
 
-  //console.log(namedVariables.map((v) => [v.name, v.index]));
-  //console.log(constraints.map((c) => c.toString()));
   const postProcessing = (r) => {
     const result = {};
     for (const {
       index,
-      transform,
       decoder,
       name,
-      isProjected,
       blobcache,
-    } of namedVariables) {
-      if (isProjected) {
-        const encoded = r.slice(index * VALUE_SIZE, (index + 1) * VALUE_SIZE);
-        Object.defineProperty(result, name, {
-          configurable: true,
-          enumerable: true,
-          get: function () {
-            delete this[name];
-            const decoded = decoder(
-              encoded,
-              // Note that there is a potential attack vector here, if we ever want to do query level access control.
-              // An attacker could change the encoder to manipulate the encoded array and request a different blob.
-              // This would be solved by freezing the Array, but since it's typed and the spec designers unimaginative...
-              async () => await blobcache.get(encoded.slice())
-            );
-            return (this[name] = transform ? transform(decoded) : decoded);
-          },
-        });
-      }
+    } of vars.namedVariables.values()) {
+      const encoded = r.get(index);
+      Object.defineProperty(result, name, {
+        configurable: true,
+        enumerable: true,
+        get: function () {
+          delete this[name];
+          const decoded = decoder(
+            encoded,
+            // Note that there is a potential attack vector here, if we ever want to do query level access control.
+            // An attacker could change the encoder to manipulate the encoded array and request a different blob.
+            // This would be solved by freezing the Array, but since it's typed and the spec designers unimaginative...
+            async () => await blobcache.get(encoded.slice())
+          );
+          return (this[name] = decoded);
+        },
+      });
     }
     return result;
   };
 
-  return new Query(
-    vars.variables.length,
-    constraints,
-    new OrderByMinCostAndBlockage(
-      vars.variables.length,
-      vars.projected,
-      vars.isBlocking
-    ),
-    new Set(vars.variables.filter((v) => v.ascending).map((v) => v.index)),
-    postProcessing
-  );
+  return new Query(constraint, postProcessing);
 }

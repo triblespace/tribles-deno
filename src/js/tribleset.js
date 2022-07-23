@@ -2,6 +2,7 @@ import {
   emptyIdIdValueTriblePACT,
   emptyIdValueIdTriblePACT,
   emptyValueIdIdTriblePACT,
+  PaddedCursor
 } from "./pact.js";
 import {
   scrambleAEV,
@@ -11,7 +12,6 @@ import {
   scrambleVAE,
   scrambleVEA,
 } from "./trible.js";
-import { setBit } from "./bitset.js";
 
 const inmemoryCosts = 1; //TODO estimate and change to microseconds.
 // TODO return both count and latency. Cost = min count * max latency;
@@ -43,12 +43,12 @@ class MemTribleConstraint {
     this.eVar = e;
     this.aVar = a;
     this.vVar = v;
-    this.EAVCursor = PaddedCursor(tribleSet.EAV.cursor(), 32);
-    this.EVACursor = PaddedCursor(tribleSet.EVA.cursor(), 32);
-    this.AEVCursor = PaddedCursor(tribleSet.AEV.cursor(), 32);
-    this.AVECursor = PaddedCursor(tribleSet.AVE.cursor(), 32);
-    this.VEACursor = PaddedCursor(tribleSet.VEA.cursor(), 32);
-    this.VAECursor = PaddedCursor(tribleSet.VAE.cursor(), 32);
+    this.EAVCursor = new PaddedCursor(tribleSet.EAV.cursor(), tribleSet.EAV.constructor.segments, 32);
+    this.EVACursor = new PaddedCursor(tribleSet.EVA.cursor(), tribleSet.EAV.constructor.segments, 32);
+    this.AEVCursor = new PaddedCursor(tribleSet.AEV.cursor(), tribleSet.EAV.constructor.segments, 32);
+    this.AVECursor = new PaddedCursor(tribleSet.AVE.cursor(), tribleSet.EAV.constructor.segments, 32);
+    this.VEACursor = new PaddedCursor(tribleSet.VEA.cursor(), tribleSet.EAV.constructor.segments, 32);
+    this.VAECursor = new PaddedCursor(tribleSet.VAE.cursor(), tribleSet.EAV.constructor.segments, 32);
   }
 
   peekByte() {
@@ -391,10 +391,7 @@ class TribleSet {
       this.AEV.union(other.AEV),
       this.AVE.union(other.AVE),
       this.VEA.union(other.VEA),
-      this.VAE.union(other.VAE),
-      this.EisA.union(other.EisA),
-      this.EisV.union(other.EisV),
-      this.AisV.union(other.AisV)
+      this.VAE.union(other.VAE)
     );
   }
 
@@ -405,10 +402,7 @@ class TribleSet {
       this.AEV.subtract(other.AEV),
       this.AVE.subtract(other.AVE),
       this.VEA.subtract(other.VEA),
-      this.VAE.subtract(other.VAE),
-      this.EisA.subtract(other.EisA),
-      this.EisV.subtract(other.EisV),
-      this.AisV.subtract(other.AisV)
+      this.VAE.subtract(other.VAE)
     );
   }
 
@@ -419,10 +413,7 @@ class TribleSet {
       this.AEV.difference(other.AEV),
       this.AVE.difference(other.AVE),
       this.VEA.difference(other.VEA),
-      this.VAE.difference(other.VAE),
-      this.EisA.difference(other.EisA),
-      this.EisV.difference(other.EisV),
-      this.AisV.difference(other.AisV)
+      this.VAE.difference(other.VAE)
     );
   }
 
@@ -433,10 +424,7 @@ class TribleSet {
       this.AEV.intersect(other.AEV),
       this.AVE.intersect(other.AVE),
       this.VEA.intersect(other.VEA),
-      this.VAE.intersect(other.VAE),
-      this.EisA.intersect(other.EisA),
-      this.EisV.intersect(other.EisV),
-      this.AisV.intersect(other.AisV)
+      this.VAE.intersect(other.VAE)
     );
   }
 }

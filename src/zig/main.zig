@@ -1,5 +1,5 @@
 const std = @import("std");
-const blaked25519 = @import("./zig-ed25519-blake2b/d25519-blake2b.zig");
+//const blaked25519 = @import("./zig-ed25519-blake2b/d25519-blake2b.zig");
 
 const Blake2b256 = std.crypto.hash.blake2.Blake2b256;
 

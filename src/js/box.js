@@ -1,5 +1,5 @@
 import { entitiesToTriples } from "./kb.js";
-import { Query, indexConstraint, distinctConstraint, OrderByMinCostAndBlockage } from "./query.js";
+import { Query, indexConstraint, IntersectionConstraint } from "./query.js";
 import { emptyValuePACT } from "./pact.js";
 
 
@@ -26,33 +26,23 @@ export function validateNS(ns) {
 
   return (txn) => {
     for (const r of new Query(
-      4,
-      [
+      new IntersectionConstraint([
         indexConstraint(1, uniqueAttributeIndex),
         txn.difKB.tribleset.constraint(0, 1, 2),
         txn.oldKB.tribleset.constraint(0, 1, 3),
-        distinctConstraint(2, 3),
-      ],
-      new OrderByMinCostAndBlockage(4, new Set([0, 1]), []),
-      new Set([0, 1, 2])
-    ).run()) {
-      throw Error(
-        `Constraint violation: Multiple values for unique attribute.`
-      );
+      ])).run()) {
+        if(!equalValue(r.get(2), r.get(3))) throw Error(
+          `Constraint violation: Multiple values for unique attribute.`
+        );
     }
 
     for (const r of new Query(
-      4,
-      [
+      new IntersectionConstraint([
         indexConstraint(1, uniqueInverseAttributeIndex),
         txn.difKB.tribleset.constraint(2, 1, 0),
         txn.oldKB.tribleset.constraint(3, 1, 0),
-        distinctConstraint(2, 3),
-      ],
-      new OrderByMinCostAndBlockage(4, new Set([0, 1]), []),
-      new Set([0, 1, 2])
-    ).run()) {
-      throw Error(
+      ])).run()) {
+      if(!equalValue(r.get(2), r.get(3))) throw Error(
         `Constraint violation: Multiple entities for unique attribute value.`
       );
     }
