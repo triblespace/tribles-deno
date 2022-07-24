@@ -353,49 +353,49 @@ function VariableIterator(constraint, key_state) {
         return {done: true, value: undefined};
       }
       outer: while (true) {
-          switch (this.mode) {
-            case MODE_PATH:
-              while (this.depth < key_state.length) {
-                const byte = this.constraint.peekByte()
-                if (byte) {
-                  this.key_state[this.depth] = byte;
-                  this.constraint.pushByte(byte);
-                  this.depth += 1;
-                } else {
-                  this.constraint.proposeByte(this.branch_state.get(this.depth));
-                  this.branch_points.set(this.depth);
-                  this.mode = MODE_BRANCH;
-                  continue outer;
-                }
-              }
-              this.mode = MODE_BACKTRACK;
-              return {done:false, value: this.key_state};
-            case MODE_BRANCH:
-              const byte = this.branch_state.get(this.depth).drainNext()
-              if(byte !== undefined) {
-                  this.key_state[this.depth] = byte;
-                  this.constraint.pushByte(byte);
-                  this.depth += 1;
-                  this.mode = MODE_PATH;
-                  continue outer;
+        switch (this.mode) {
+          case MODE_PATH:
+            while (this.depth < key_state.length) {
+              const byte = this.constraint.peekByte()
+              if (byte) {
+                this.key_state[this.depth] = byte;
+                this.constraint.pushByte(byte);
+                this.depth += 1;
               } else {
-                this.branch_points.unset(this.depth);
-                this.mode = MODE_BACKTRACK;
+                this.constraint.proposeByte(this.branch_state.get(this.depth));
+                this.branch_points.set(this.depth);
+                this.mode = MODE_BRANCH;
                 continue outer;
               }
-              case MODE_BACKTRACK:
-                const parent_depth = this.branch_points.prev(255);
-                if(parent_depth !== undefined) {
-                  while (parent_depth < this.depth){
-                    this.depth -= 1;
-                    this.constraint.popByte();
-                  }
-                  this.mode = MODE_BRANCH;
-                  continue outer;
-                } else {
-                  return {done: true, value: undefined};
+            }
+            this.mode = MODE_BACKTRACK;
+            return {done:false, value: this.key_state};
+          case MODE_BRANCH:
+            const byte = this.branch_state.get(this.depth).drainNext()
+            if(byte !== undefined) {
+                this.key_state[this.depth] = byte;
+                this.constraint.pushByte(byte);
+                this.depth += 1;
+                this.mode = MODE_PATH;
+                continue outer;
+            } else {
+              this.branch_points.unset(this.depth);
+              this.mode = MODE_BACKTRACK;
+              continue outer;
+            }
+            case MODE_BACKTRACK:
+              const parent_depth = this.branch_points.prev(255);
+              if(parent_depth !== undefined) {
+                while (parent_depth < this.depth){
+                  this.depth -= 1;
+                  this.constraint.popByte();
                 }
-          }
+                this.mode = MODE_BRANCH;
+                continue outer;
+              } else {
+                return {done: true, value: undefined};
+              }
+        }
       }
   }
   };

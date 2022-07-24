@@ -1,4 +1,4 @@
-const highBit32 = 1 << 31;
+const highBit32 = (1 << 31) >>> 0;
 
 export function ctz32(n) {
   // pos trailing zeros
@@ -74,10 +74,10 @@ export class ByteBitset {
 
   prev(byte) {
     let wordPosition = byte >>> 5;
-    const mask = ~(~highBit32 >>> byte);
+    const mask = (~(~highBit32 >>> byte)) >>> 0;
     const c = ctz32(this.u32array[wordPosition] & mask);
     if (c < 32) return (wordPosition << 5) + (31 - c);
-    for (wordPosition--; wordPosition > 0; wordPosition--) {
+    for (wordPosition--; 0 <= wordPosition; wordPosition--) {
       const c = ctz32(this.u32array[wordPosition]);
       if (c < 32) return (wordPosition << 5) + (31 - c);
     }
