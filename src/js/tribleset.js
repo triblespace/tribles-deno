@@ -17,21 +17,21 @@ const inmemoryCosts = 1; //TODO estimate and change to microseconds.
 // TODO return both count and latency. Cost = min count * max latency;
 
 const stack_empty = 0;
-const stack_e = 0;
-const stack_a = 1;
-const stack_v = 2;
-const stack_ea = 3;
-const stack_ev = 4;
-const stack_ae = 5;
-const stack_av = 6;
-const stack_ve = 7;
-const stack_va = 8;
-const stack_eav = 9;
-const stack_eva = 10;
-const stack_aev = 11;
-const stack_ave = 12;
-const stack_vea = 13;
-const stack_vae = 14;
+const stack_e = 1;
+const stack_a = 2;
+const stack_v = 3;
+const stack_ea = 4;
+const stack_ev = 5;
+const stack_ae = 6;
+const stack_av = 7;
+const stack_ve = 8;
+const stack_va = 9;
+const stack_eav = 10;
+const stack_eva = 11;
+const stack_aev = 12;
+const stack_ave = 13;
+const stack_vea = 14;
+const stack_vae = 15;
 
 class MemTribleConstraint {
   constructor(tribleSet, e, a, v) {
@@ -43,17 +43,17 @@ class MemTribleConstraint {
     this.eVar = e;
     this.aVar = a;
     this.vVar = v;
-    this.EAVCursor = new PaddedCursor(tribleSet.EAV.cursor(), tribleSet.EAV.constructor.segments, 32);
-    this.EVACursor = new PaddedCursor(tribleSet.EVA.cursor(), tribleSet.EAV.constructor.segments, 32);
-    this.AEVCursor = new PaddedCursor(tribleSet.AEV.cursor(), tribleSet.EAV.constructor.segments, 32);
-    this.AVECursor = new PaddedCursor(tribleSet.AVE.cursor(), tribleSet.EAV.constructor.segments, 32);
-    this.VEACursor = new PaddedCursor(tribleSet.VEA.cursor(), tribleSet.EAV.constructor.segments, 32);
-    this.VAECursor = new PaddedCursor(tribleSet.VAE.cursor(), tribleSet.EAV.constructor.segments, 32);
+    this.eavCursor = new PaddedCursor(tribleSet.EAV.cursor(), tribleSet.EAV.constructor.segments, 32);
+    this.evaCursor = new PaddedCursor(tribleSet.EVA.cursor(), tribleSet.EAV.constructor.segments, 32);
+    this.aevCursor = new PaddedCursor(tribleSet.AEV.cursor(), tribleSet.EAV.constructor.segments, 32);
+    this.aveCursor = new PaddedCursor(tribleSet.AVE.cursor(), tribleSet.EAV.constructor.segments, 32);
+    this.veaCursor = new PaddedCursor(tribleSet.VEA.cursor(), tribleSet.EAV.constructor.segments, 32);
+    this.vaeCursor = new PaddedCursor(tribleSet.VAE.cursor(), tribleSet.EAV.constructor.segments, 32);
   }
 
   peekByte() {
     switch(this.state) {
-      case stack_empty: throw "unreachable";
+      case stack_empty: throw new error("unreachable");
 
       case stack_e: return this.eavCursor.peek();
       case stack_a: return this.aevCursor.peek();
@@ -77,7 +77,7 @@ class MemTribleConstraint {
 
   proposeByte(bitset) {
     switch(this.state) {
-      case stack_empty: throw "unreachable";
+      case stack_empty: throw new error("unreachable");
 
       case stack_e: this.eavCursor.propose(bitset); return;
       case stack_a: this.aevCursor.propose(bitset); return;
@@ -101,7 +101,7 @@ class MemTribleConstraint {
 
   pushByte(byte) {
     switch(this.state) {
-      case stack_empty: throw "unreachable";
+      case stack_empty: throw new error("unreachable");
 
       case stack_e: this.eavCursor.push(byte); this.evaCursor.push(byte); return;
       case stack_a: this.aevCursor.push(byte); this.aveCursor.push(byte); return;
@@ -125,7 +125,7 @@ class MemTribleConstraint {
 
   popByte() {
     switch(this.state) {
-      case stack_empty: throw "unreachable";
+      case stack_empty: throw new error("unreachable");
 
       case stack_e: this.eavCursor.pop(); this.evaCursor.pop(); return;
       case stack_a: this.aevCursor.pop(); this.aveCursor.pop(); return;
@@ -149,9 +149,9 @@ class MemTribleConstraint {
 
   variables(bitset) {
     bitset.unsetAll();
-    bitset.set(self.eVar);
-    bitset.set(self.aVar);
-    bitset.set(self.vVar);
+    bitset.set(this.eVar);
+    bitset.set(this.aVar);
+    bitset.set(this.vVar);
   }
 
   pushVariable(variable) {
@@ -165,7 +165,7 @@ class MemTribleConstraint {
           case stack_av: this.state = stack_ave; return;
           case stack_va: this.state = stack_vae; return;
 
-          default: throw "unreachable";
+          default: throw new Error("unreachable");
         }
       }
       if(this.aVar === variable) {
@@ -178,7 +178,7 @@ class MemTribleConstraint {
           case stack_ev: this.state = stack_eva; return;
           case stack_ve: this.state = stack_vea; return;
 
-          default: throw "unreachable";
+          default: throw new Error("unreachable");
         }
       }
       if(this.vVar == variable) {
@@ -191,7 +191,7 @@ class MemTribleConstraint {
           case stack_ea: this.state = stack_eav; return;
           case stack_ae: this.state = stack_aev; return;
 
-          default: throw "unreachable"; return;
+          default: throw new Error("unreachable"); return;
         }
       }
 
@@ -199,17 +199,17 @@ class MemTribleConstraint {
 
   popVariable() {
       switch(this.state) {
-          case stack_empty: throw "unreachable";
+          case stack_empty: throw new Error("unreachable");
 
-          case stack_e: this.state = stack_empty; return;
-          case stack_a: this.state = stack_empty; return;
+          case stack_e:
+          case stack_a:
           case stack_v: this.state = stack_empty; return;
 
-          case stack_ea: this.state = stack_e; return;
+          case stack_ea:
           case stack_ev: this.state = stack_e; return;
-          case stack_ae: this.state = stack_a; return;
+          case stack_ae:
           case stack_av: this.state = stack_a; return;
-          case stack_ve: this.state = stack_v; return;
+          case stack_ve:
           case stack_va: this.state = stack_v; return;
 
           case stack_eav: this.state = stack_ea; return;
@@ -223,43 +223,43 @@ class MemTribleConstraint {
 
   countVariable(variable) {
       if(this.eVar === variable) {
-        switch(self.state) {
-          case stack_empty: return self.eavCursor.segmentCount();
+        switch(this.state) {
+          case stack_empty: return this.eavCursor.segmentCount();
 
-          case stack_a: return self.aevCursor.segmentCount();
-          case stack_v: return self.veaCursor.segmentCount();
+          case stack_a: return this.aevCursor.segmentCount();
+          case stack_v: return this.veaCursor.segmentCount();
 
-          case stack_av: return self.aveCursor.segmentCount();
-          case stack_va: return self.vaeCursor.segmentCount();
+          case stack_av: return this.aveCursor.segmentCount();
+          case stack_va: return this.vaeCursor.segmentCount();
 
-          default: throw "unreachable";
+          default: throw new Error("unreachable");
         }
       }
       if(this.aVar === variable) {
-          switch(self.state) {
-              case stack_empty: return self.aevCursor.segmentCount();
+        switch(this.state) {
+            case stack_empty: return this.aevCursor.segmentCount();
 
-              case stack_e: return self.eavCursor.segmentCount();
-              case stack_v: return self.vaeCursor.segmentCount();
+            case stack_e: return this.eavCursor.segmentCount();
+            case stack_v: return this.vaeCursor.segmentCount();
 
-              case stack_ev: return self.evaCursor.segmentCount();
-              case stack_ve: return self.veaCursor.segmentCount();
+            case stack_ev: return this.evaCursor.segmentCount();
+            case stack_ve: return this.veaCursor.segmentCount();
 
-              default: throw "unreachable";
-          }
+            default: throw new Error("unreachable");
+        }
       }
-      if(self.vVar === variable) {
-          switch(self.state) {
-              case stack_empty: return self.veaCursor.segmentCount();
+      if(this.vVar === variable) {
+        switch(this.state) {
+            case stack_empty: return this.veaCursor.segmentCount();
 
-              case stack_e: return self.evaCursor.segmentCount();
-              case stack_a: return self.aveCursor.segmentCount();
+            case stack_e: return this.evaCursor.segmentCount();
+            case stack_a: return this.aveCursor.segmentCount();
 
-              case stack_ea: self.eavCursor.segmentCount();
-              case stack_ae: self.aevCursor.segmentCount();
+            case stack_ea: return this.eavCursor.segmentCount();
+            case stack_ae: return this.aevCursor.segmentCount();
 
-              default: throw "unreachable";
-          }
+            default: throw new Error("unreachable");
+        }
       }
   }
 }

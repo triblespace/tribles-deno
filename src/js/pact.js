@@ -34,12 +34,12 @@ const PaddedCursor = class {
   // Interface API >>>
 
   peek() {
-    if (padding.isSet(this.depth)) return 0;
+    if (this.padding.has(this.depth)) return 0;
     return this.cursor.peek();
   }
 
   propose(bitset) {
-    if (padding.isSet(self.depth)) {
+    if (this.padding.has(this.depth)) {
         bitset.unsetAll();
         bitset.set(0);
     } else {
@@ -47,18 +47,18 @@ const PaddedCursor = class {
     }
   }
 
-  pop() {
-    this.depth -= 1;
-    if (padding.isUnset(this.depth)) {
-      this.cursor.pop();
-    }
-  }
-
   push(key_fragment) {
-    if (padding.isUnset(this.depth)) {
+    if (!this.padding.has(this.depth)) {
         this.cursor.push(key_fragment);
     }
     this.depth += 1;
+  }
+
+  pop() {
+    this.depth -= 1;
+    if (!this.padding.has(this.depth)) {
+      this.cursor.pop();
+    }
   }
 
   segmentCount() {
@@ -117,8 +117,8 @@ const makePACT = function (segments, segmentSize = 32) {
 
     push(byte) {
       const node = this.path[this.depth].get(this.depth, byte);
-      this.path[this.depth + 1] = node;
       this.depth++;
+      this.path[this.depth] = node;
     }
 
     segmentCount() {

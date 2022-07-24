@@ -144,7 +144,8 @@ class ConstantConstraint {
   }
 
   proposeByte(bitset) {
-    singleBitIntersect(bitset, this.constant[this.depth]);
+    bitset.unsetAll();
+    bitset.set(this.constant[this.depth]);
   }
 
   popByte() {
@@ -171,7 +172,7 @@ class ConstantConstraint {
 
 export function constantConstraint(variable, constant) {
   if (constant.length !== VALUE_SIZE) throw new Error("Bad constant length.");
-  return new ConstantConstraint(variable, value);
+  return new ConstantConstraint(variable, constant);
 }
 
 // TODO return single intersection constraint from multi TribleSet Trible
@@ -179,7 +180,7 @@ export function constantConstraint(variable, constant) {
 export const IntersectionConstraint = class {
   constructor(constraints) {
     this.constraints = constraints;
-    this.activeConstraits = [];
+    this.activeConstraints = [];
     this.variableStack = [];
   }
 
@@ -203,20 +204,20 @@ export const IntersectionConstraint = class {
   proposeByte(bitset) {
       bitset.setAll();
       let b = (new ByteBitset()).unsetAll();
-      for (const constraint of this.activeConstraits) {
+      for (const constraint of this.activeConstraints) {
           constraint.proposeByte(b);
           bitset.setIntersection(bitset, b);
       }
   }
 
   pushByte(byte) {
-      for (const constraint of this.activeConstraits) {
+      for (const constraint of this.activeConstraints) {
         constraint.pushByte(byte);
       }
   }
 
   popByte() {
-    for (const constraint of this.activeConstraits) {
+    for (const constraint of this.activeConstraints) {
       constraint.popByte();
     }
   }
@@ -232,32 +233,33 @@ export const IntersectionConstraint = class {
 
   pushVariable(variable) {
     this.variableStack.push(variable);
-    this.activeConstraits.length = 0;
+    this.activeConstraints.length = 0;
     let b = (new ByteBitset()).unsetAll();
     for(const constraint of this.constraints) {
       constraint.variables(b);
       if(b.has(variable)) {
         constraint.pushVariable(variable);
-        this.activeConstraits.push(constraint);
+        this.activeConstraints.push(constraint);
       }
     }
   }
 
   popVariable() {
+    const poppedVariable = this.variableStack.pop();
     let b = (new ByteBitset()).unsetAll();
     for(const constraint of this.constraints) {
       constraint.variables(b);
-      if(b.has(b)) {
+      if(b.has(poppedVariable)) {
         constraint.popVariable();
       }
     }
-    const variable = this.variableStack.pop();
-    this.activeConstraits.length = 0;
-    if(variable) {
+    this.activeConstraints.length = 0;
+    if(0 < this.variableStack.length) {
+      const currentVariable = this.variableStack[this.variableStack.length-1];
       for(const constraint of this.constraints) {
         constraint.variables(b);
-        if(b.has(variable)) {
-          this.activeConstraits.push(constraint);
+        if(b.has(currentVariable)) {
+          this.activeConstraints.push(constraint);
         }
       }
     }
@@ -268,7 +270,7 @@ export const IntersectionConstraint = class {
     let b = (new ByteBitset()).unsetAll();
     for(const constraint of this.constraints) {
       constraint.variables(b);
-      if(b.has(b)) {
+      if(b.has(variable)) {
         min = Math.min(min, constraint.countVariable(variable));
       }
     }
@@ -328,22 +330,26 @@ const MODE_PATH = 0;
 const MODE_BRANCH = 1;
 const MODE_BACKTRACK = 2;
 
-function VariableIterator(constraint, branch_state, key_state) {
+function VariableIterator(constraint, key_state) {
   return {
     branch_points: (new ByteBitset()).unsetAll(),
-    branch_state: branch_state,
+    branch_state: new ByteBitsetArray(32),
     key_state: key_state,
     mode: MODE_PATH,
     depth: 0,
     constraint: constraint,
 
-    next: function(cancel) {
+    [Symbol.iterator]() {
+      return this;
+    },
+
+    next(cancel) {
       if(cancel) {
-        while (0 < self.depth){
-          self.depth--;
-          self.constraint.popByte();
+        while (0 < this.depth){
+          this.depth--;
+          this.constraint.popByte();
         }
-        self.mode = MODE_PATH;
+        this.mode = MODE_PATH;
         return {done: true, value: undefined};
       }
       outer: while (true) {
@@ -352,7 +358,7 @@ function VariableIterator(constraint, branch_state, key_state) {
               while (this.depth < key_state.length) {
                 const byte = this.constraint.peekByte()
                 if (byte) {
-                  this.key[this.depth] = byte;
+                  this.key_state[this.depth] = byte;
                   this.constraint.pushByte(byte);
                   this.depth += 1;
                 } else {
@@ -366,7 +372,7 @@ function VariableIterator(constraint, branch_state, key_state) {
               return {done:false, value: this.key_state};
             case MODE_BRANCH:
               const byte = this.branch_state.get(this.depth).drainNext()
-              if(byte) {
+              if(byte !== undefined) {
                   this.key_state[this.depth] = byte;
                   this.constraint.pushByte(byte);
                   this.depth += 1;
@@ -378,13 +384,13 @@ function VariableIterator(constraint, branch_state, key_state) {
                 continue outer;
               }
               case MODE_BACKTRACK:
-                const parent_depth = self.branch_points.prev(255);
-                if(parent_depth) {
-                  while (parent_depth < self.depth){
-                    self.depth -= 1;
-                    self.constraint.popByte();
+                const parent_depth = this.branch_points.prev(255);
+                if(parent_depth !== undefined) {
+                  while (parent_depth < this.depth){
+                    this.depth -= 1;
+                    this.constraint.popByte();
                   }
-                  self.mode = MODE_BRANCH;
+                  this.mode = MODE_BRANCH;
                   continue outer;
                 } else {
                   return {done: true, value: undefined};
@@ -427,7 +433,6 @@ export class Query {
     const variableCount = this.unexploredVariables.count();
 
     this.bindings = new Bindings(variableCount);
-    this.branchPoints = new ByteBitsetArray(variableCount);
   }
   *run() {
     for (const r of this.__resolve()) {
@@ -444,7 +449,7 @@ export class Query {
 
       for (const variable of this.unexploredVariables.entries()) {
         const costs = this.constraint.countVariable(variable);
-        if (costs <= candidateCosts) {
+        if (costs <= nextVariableCosts) {
           nextVariable = variable;
           nextVariableCosts = costs;
         }
@@ -453,7 +458,7 @@ export class Query {
 
       this.unexploredVariables.unset(nextVariable);
       this.constraint.pushVariable(nextVariable);
-      const segments = VariableIterator(this.constraint, thisbranch_state.get(nextVariable), this.bindings.get(nextVariable));
+      const segments = VariableIterator(this.constraint, this.bindings.get(nextVariable));
       for (const _ of segments) {
         yield* this.__resolve();
       }

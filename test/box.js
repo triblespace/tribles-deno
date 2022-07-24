@@ -44,7 +44,6 @@ Deno.test("unique constraint", () => {
 
   assertThrows(
     () => {
-
       box.commit(kb => kb.with(knightsNS, () => [{
         [id]: romeoId,
         name: "Bob",

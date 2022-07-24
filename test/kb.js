@@ -62,6 +62,9 @@ Deno.test("KB Find", () => {
       knightskb.where(knightsNS, [{ name: name, titles: [title] }]),
     ]).run(),
   ]);
+  console.log([...results].map(r => {
+    r.name;
+    r.title}));
   assertEquals(
     results,
     new Set([
