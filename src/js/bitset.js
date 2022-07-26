@@ -69,7 +69,7 @@ export class ByteBitset {
       const c = Math.clz32(this.u32array[wordPosition]);
       if (c < 32) return (wordPosition << 5) + c;
     }
-    return undefined;
+    return null;
   }
 
   prev(byte) {
@@ -81,18 +81,22 @@ export class ByteBitset {
       const c = ctz32(this.u32array[wordPosition]);
       if (c < 32) return (wordPosition << 5) + (31 - c);
     }
-    return undefined;
+    return null;
   }
  
   drainNext() {
     const byte = this.next(0);
-    this.unset(byte);
+    if(byte !== null) {
+      this.unset(byte);
+    }
     return byte;
   }
 
   drainPrev() {
     const byte = this.prev(255);
-    this.unset(byte);
+    if(byte !== null) {
+      this.unset(byte);
+    }
     return byte;
   }
 

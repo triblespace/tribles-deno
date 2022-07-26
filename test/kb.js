@@ -62,9 +62,6 @@ Deno.test("KB Find", () => {
       knightskb.where(knightsNS, [{ name: name, titles: [title] }]),
     ]).run(),
   ]);
-  console.log([...results].map(r => {
-    r.name;
-    r.title}));
   assertEquals(
     results,
     new Set([
@@ -125,53 +122,6 @@ Deno.test("KB Find Single", () => {
       }
     )
   );
-});
-
-Deno.test("Find Ascending", () => {
-  const knightsNS = namespace({
-    [id]: { ...types.ufoid },
-    name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId, ...types.ufoid },
-    lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring, isMulti: true },
-  });
-
-  // Add some data.
-  const memkb = new KB(new TribleSet(), new BlobCache());
-
-  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
-    {
-      [id]: romeo,
-      name: "Romeo",
-      titles: ["fool", "prince"],
-      loves: juliet,
-    },
-    {
-      [id]: juliet,
-      name: "Juliet",
-      titles: ["the lady", "princess"],
-      loves: romeo,
-    },
-  ]);
-
-  // Query some data.
-  const results = [
-    ...find(({ person, name, title }) => [
-      knightskb.where(knightsNS, [
-        {
-          [id]: person.groupBy(name.ascend()).omit(),
-          name,
-          titles: [title],
-        },
-      ]),
-    ]).run(),
-  ];
-  assertEquals(results, [
-    { name: "Juliet", title: "princess" },
-    { name: "Juliet", title: "the lady" },
-    { name: "Romeo", title: "fool" },
-    { name: "Romeo", title: "prince" },
-  ]);
 });
 
 Deno.test("find lower range", () => {

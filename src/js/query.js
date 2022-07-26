@@ -81,13 +81,13 @@ class RangeConstraint {
   }
 
   pushByte(byte) {
-    if (
+    if(
       this.depth === this.lowerFringe &&
       byte === this.lowerBound[this.depth]
     ) {
       this.lowerFringe++;
     }
-    if (
+    if(
       this.depth === this.upperFringe &&
       byte === this.upperBound[this.depth]
     ) {
@@ -99,10 +99,10 @@ class RangeConstraint {
   popByte() {
     this.depth--;
 
-    if (this.depth < this.lowerFringe) {
+    if(this.depth < this.lowerFringe) {
       this.lowerFringe = this.depth;
     }
-    if (this.depth < this.upperFringe) {
+    if(this.depth < this.upperFringe) {
       this.upperFringe = this.depth;
     }
   }
@@ -171,7 +171,7 @@ class ConstantConstraint {
 }
 
 export function constantConstraint(variable, constant) {
-  if (constant.length !== VALUE_SIZE) throw new Error("Bad constant length.");
+  if(constant.length !== VALUE_SIZE) throw new Error("Bad constant length.");
   return new ConstantConstraint(variable, constant);
 }
 
@@ -190,9 +190,11 @@ export const IntersectionConstraint = class {
     let byte = null;
     for (const constraint of this.activeConstraints) {
       const peeked = constraint.peekByte();
-      if (peeked) {
-          byte = byte || peeked;
-          if (byte !== peeked) return null;
+      if(peeked !== null) {
+          if(byte === null) {
+            byte = peeked;
+          }
+          if(byte !== peeked) return null;
       } else {
           return null;
       }
@@ -245,17 +247,14 @@ export const IntersectionConstraint = class {
   }
 
   popVariable() {
-    const poppedVariable = this.variableStack.pop();
-    let b = (new ByteBitset()).unsetAll();
-    for(const constraint of this.constraints) {
-      constraint.variables(b);
-      if(b.has(poppedVariable)) {
-        constraint.popVariable();
-      }
+    this.variableStack.pop();
+    for(const constraint of this.activeConstraints) {
+      constraint.popVariable();
     }
     this.activeConstraints.length = 0;
     if(0 < this.variableStack.length) {
       const currentVariable = this.variableStack[this.variableStack.length-1];
+      let b = new ByteBitset();
       for(const constraint of this.constraints) {
         constraint.variables(b);
         if(b.has(currentVariable)) {
@@ -346,7 +345,7 @@ function VariableIterator(constraint, key_state) {
     next(cancel) {
       if(cancel) {
         while (0 < this.depth){
-          this.depth--;
+          this.depth -= 1;
           this.constraint.popByte();
         }
         this.mode = MODE_PATH;
@@ -355,9 +354,9 @@ function VariableIterator(constraint, key_state) {
       outer: while (true) {
         switch (this.mode) {
           case MODE_PATH:
-            while (this.depth < key_state.length) {
+            while (this.depth < this.key_state.length) {
               const byte = this.constraint.peekByte()
-              if (byte) {
+              if(byte !== null) {
                 this.key_state[this.depth] = byte;
                 this.constraint.pushByte(byte);
                 this.depth += 1;
@@ -372,7 +371,7 @@ function VariableIterator(constraint, key_state) {
             return {done:false, value: this.key_state};
           case MODE_BRANCH:
             const byte = this.branch_state.get(this.depth).drainNext()
-            if(byte !== undefined) {
+            if(byte !== null) {
                 this.key_state[this.depth] = byte;
                 this.constraint.pushByte(byte);
                 this.depth += 1;
@@ -385,7 +384,7 @@ function VariableIterator(constraint, key_state) {
             }
             case MODE_BACKTRACK:
               const parent_depth = this.branch_points.prev(255);
-              if(parent_depth !== undefined) {
+              if(parent_depth !== null) {
                 while (parent_depth < this.depth){
                   this.depth -= 1;
                   this.constraint.popByte();
@@ -393,6 +392,10 @@ function VariableIterator(constraint, key_state) {
                 this.mode = MODE_BRANCH;
                 continue outer;
               } else {
+                while (0 < this.depth){
+                  this.depth -= 1;
+                  this.constraint.popByte();
+                }
                 return {done: true, value: undefined};
               }
         }
@@ -402,13 +405,17 @@ function VariableIterator(constraint, key_state) {
 }
 
 export class Bindings {
-  constructor(length) {
+  constructor(length, buffer = new Uint8Array(length*32)) {
     this.length = length;
-    this.buffer = new Uint8Array(length*32);
+    this.buffer = buffer;
   }
 
   get(offset) {
     return this.buffer.subarray(offset*32, (offset+1)*32);
+  }
+
+  copy() {
+    return new Bindings(this.length, this.buffer.slice());
   }
 }
 
@@ -435,25 +442,26 @@ export class Query {
     this.bindings = new Bindings(variableCount);
   }
   *run() {
+    debugger;
     for (const r of this.__resolve()) {
       yield this.postProcessing(r);
     }
   }
 
   *__resolve() {
-    if (this.unexploredVariables.isEmpty()) {
-      yield this.bindings;
+    if(this.unexploredVariables.isEmpty()) {
+      yield this.bindings.copy();
     } else {
       let nextVariable;
       let nextVariableCosts = Number.MAX_VALUE;
 
       for (const variable of this.unexploredVariables.entries()) {
         const costs = this.constraint.countVariable(variable);
-        if (costs <= nextVariableCosts) {
+        if(costs <= nextVariableCosts) {
           nextVariable = variable;
           nextVariableCosts = costs;
         }
-        if (nextVariableCosts <= 1) break;
+        if(nextVariableCosts <= 1) break;
       }
 
       this.unexploredVariables.unset(nextVariable);
@@ -494,7 +502,7 @@ export class Variable {
   }
   
   toString() {
-    if (this.name) {
+    if(this.name) {
       return `${this.name}@${this.index}`;
     }
     return `__anon__@${this.index}`;
@@ -523,7 +531,7 @@ export class VariableProvider {
       {
         get: (_, name) => {
           let variable = this.namedVariables.get(name);
-          if (variable) {
+          if(variable) {
             return variable;
           }
           variable = new Variable(this, this.nextVariableIndex, name);
@@ -548,7 +556,7 @@ export class VariableProvider {
 
   constant(c) {
     let variable = this.constantVariables.get(c);
-    if (!variable) {
+    if(!variable) {
       variable = new Variable(this, this.nextVariableIndex);
       variable.constant = c;
       this.constantVariables = this.constantVariables.put(c, variable);
@@ -572,16 +580,16 @@ export class VariableProvider {
       let encodedLower = undefined;
       let encodedUpper = undefined;
 
-      if (lowerBound !== undefined) {
+      if(lowerBound !== undefined) {
         encodedLower = new Uint8Array(VALUE_SIZE);
         encoder(lowerBound, encodedLower);
       }
-      if (upperBound !== undefined) {
+      if(upperBound !== undefined) {
         encodedUpper = new Uint8Array(VALUE_SIZE);
         encoder(upperBound, encodedUpper);
       }
 
-      if (encodedLower !== undefined || encodedUpper !== undefined) {
+      if(encodedLower !== undefined || encodedUpper !== undefined) {
         constraints.push(rangeConstraint(index, encodedLower, encodedUpper));
       }
     }
