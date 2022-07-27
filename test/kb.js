@@ -283,12 +283,12 @@ Deno.test("KB Walk ownKeys", () => {
   const [{ romeo }] = [
     ...find(({ romeo }) => [
       knightskb.where(knightsNS, [
-        { [id]: romeo.map(knightskb.walk(knightsNS)), name: "Romeo" },
+        { [id]: romeo, name: "Romeo" },
       ]),
     ]).run(),
   ];
   assertEquals(
-    new Set(Reflect.ownKeys(romeo)),
+    new Set(Reflect.ownKeys(knightskb.walk(knightsNS, romeo))),
     new Set([id, "name", "titles", "loves", "lovedBy"])
   );
 });

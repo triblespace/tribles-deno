@@ -38,7 +38,7 @@ const lookup = (ns, kb, eId, attributeName) => {
     new IntersectionConstraint([
       constantConstraint(0, eId),
       constantConstraint(1, aId),
-      kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
+      kb.tribleset.patternConstraint([(isInverse ? [2, 1, 0] : [0, 1, 2])]),
     ]),
     (r) => r.get(2)
   ).run();
@@ -117,7 +117,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           new IntersectionConstraint([
             constantConstraint(0, eId),
             constantConstraint(1, aId),
-            kb.tribleset.constraint(...(isInverse ? [2, 1, 0] : [0, 1, 2])),
+            kb.tribleset.patternConstraint([(isInverse ? [2, 1, 0] : [0, 1, 2])]),
           ])
         )
           .run()
@@ -173,7 +173,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           new IntersectionConstraint([
             constantConstraint(0, eId),
             indexConstraint(1, ns.forwardAttributeIndex),
-            new MaskedConstraint(kb.tribleset.constraint(0, 1, 2), [2]),
+            new MaskedConstraint(kb.tribleset.patternConstraint([[0, 1, 2]]), [2]),
           ]),
         ).run()) {
           const a = r.get(1);
@@ -186,7 +186,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           new IntersectionConstraint([
             constantConstraint(0, eId),
             indexConstraint(1, ns.inverseAttributeIndex),
-            new MaskedConstraint(kb.tribleset.constraint(2, 1, 0), [2]),
+            new MaskedConstraint(kb.tribleset.patternConstraint([[2, 1, 0]]), [2]),
           ])
         ).run()) {
           const a = r.get(1);

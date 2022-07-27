@@ -135,14 +135,25 @@ export class ByteBitset {
     return this;
   }
 
-  intersectRange(fromByte, toByte) {
+  setRange(fromByte, toByte) {
     let fromWordPosition = fromByte >>> 5;
     let toWordPosition = toByte >>> 5;
     for (let wordPosition = 0; wordPosition < fromWordPosition; wordPosition++) {
       this.u32array[wordPosition] = 0;
     }
-    this.u32array[fromWordPosition] &= ~0 >>> fromByte;
-    this.u32array[toWordPosition] &= ~(~highBit32 >>> toByte);
+
+    this.u32array[fromWordPosition] = ~0 >>> fromByte;
+
+    for (
+      let wordPosition = fromWordPosition + 1;
+      wordPosition < toWordPosition;
+      wordPosition++
+    ) {
+      this.u32array[wordPosition] = ~0;
+    }
+
+    this.u32array[toWordPosition] = ~(~highBit32 >>> toByte);
+    
     for (
       let wordPosition = toWordPosition + 1;
       wordPosition < 8;

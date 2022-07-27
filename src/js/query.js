@@ -77,7 +77,8 @@ class RangeConstraint {
       this.depth === this.lowerFringe ? this.lowerBound[this.depth] : 0;
     const upperByte =
       this.depth === this.upperFringe ? this.upperBound[this.depth] : 255;
-    intersectBitRange(bitset, lowerByte, upperByte);
+    
+    bitset.setRange(lowerByte, upperByte);
   }
 
   pushByte(byte) {
