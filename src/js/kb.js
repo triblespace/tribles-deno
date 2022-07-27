@@ -388,12 +388,10 @@ export class KB {
     return (vars) => {
       const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
       const triplesWithVars = precompileTriples(ns, vars, triples);
-      return [
-        ...triplesWithVars.map(([e, a, v]) => {
-          v.proposeBlobCache(this.blobcache);
-          return this.tribleset.constraint(e.index, a.index, v.index);
-        }),
-      ];
+      for (const [_e, _a, v] of triplesWithVars) {
+        v.proposeBlobCache(this.blobcache);
+      }
+      return this.tribleset.patternConstraint(triplesWithVars.map(([e, a, v]) => [e.index, a.index, v.index]));
     };
   }
 

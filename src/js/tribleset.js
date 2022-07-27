@@ -12,9 +12,9 @@ import {
   scrambleVAE,
   scrambleVEA,
 } from "./trible.js";
-
-const inmemoryCosts = 1; //TODO estimate and change to microseconds.
-// TODO return both count and latency. Cost = min count * max latency;
+import {
+  IntersectionConstraint,
+} from "./query.js";
 
 const stack_empty = 0;
 const stack_e = 1;
@@ -356,8 +356,8 @@ class TribleSet {
     return this.EAV.keys();
   }
 
-  constraint(e, a, v) {
-    return new MemTribleConstraint(this, e, a, v);
+  patternConstraint(triples) {
+    return new IntersectionConstraint(triples.map(([e,a,v]) => new MemTribleConstraint(this, e, a, v)));
   }
 
   count() {

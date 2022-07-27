@@ -602,8 +602,7 @@ export function find(cfn) {
 
   const constraints = [];
   for (const constraintBuilder of cfn(vars.namedCache())) {
-    const constraintGroup = constraintBuilder(vars);
-    constraints.push(...constraintGroup);
+    constraints.push(constraintBuilder(vars));
   }
 
   constraints.push(...vars.constraints());
