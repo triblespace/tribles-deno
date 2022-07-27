@@ -442,7 +442,6 @@ export class Query {
     this.bindings = new Bindings(variableCount);
   }
   *run() {
-    debugger;
     for (const r of this.__resolve()) {
       yield this.postProcessing(r);
     }

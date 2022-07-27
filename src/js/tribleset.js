@@ -44,11 +44,11 @@ class MemTribleConstraint {
     this.aVar = a;
     this.vVar = v;
     this.eavCursor = new PaddedCursor(tribleSet.EAV.cursor(), tribleSet.EAV.constructor.segments, 32);
-    this.evaCursor = new PaddedCursor(tribleSet.EVA.cursor(), tribleSet.EAV.constructor.segments, 32);
-    this.aevCursor = new PaddedCursor(tribleSet.AEV.cursor(), tribleSet.EAV.constructor.segments, 32);
-    this.aveCursor = new PaddedCursor(tribleSet.AVE.cursor(), tribleSet.EAV.constructor.segments, 32);
-    this.veaCursor = new PaddedCursor(tribleSet.VEA.cursor(), tribleSet.EAV.constructor.segments, 32);
-    this.vaeCursor = new PaddedCursor(tribleSet.VAE.cursor(), tribleSet.EAV.constructor.segments, 32);
+    this.evaCursor = new PaddedCursor(tribleSet.EVA.cursor(), tribleSet.EVA.constructor.segments, 32);
+    this.aevCursor = new PaddedCursor(tribleSet.AEV.cursor(), tribleSet.AEV.constructor.segments, 32);
+    this.aveCursor = new PaddedCursor(tribleSet.AVE.cursor(), tribleSet.AVE.constructor.segments, 32);
+    this.veaCursor = new PaddedCursor(tribleSet.VEA.cursor(), tribleSet.VEA.constructor.segments, 32);
+    this.vaeCursor = new PaddedCursor(tribleSet.VAE.cursor(), tribleSet.VAE.constructor.segments, 32);
   }
 
   peekByte() {

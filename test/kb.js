@@ -40,7 +40,7 @@ Deno.test("KB Find", () => {
 
   // Add some data.
   const memkb = new KB(new TribleSet(), new BlobCache());
-  debugger;
+
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
       [id]: romeo,
@@ -198,7 +198,6 @@ Deno.test("find upper bound", () => {
   ]);
 
   // Query some data.
-  debugger;
 
   const results = [
     ...find(({ name, title }) => [
@@ -211,53 +210,6 @@ Deno.test("find upper bound", () => {
     ]).run(),
   ];
   assertEquals(results, [
-    { name: "Juliet", title: "princess" },
-    { name: "Juliet", title: "the lady" },
-  ]);
-});
-
-Deno.test("Find Descending", () => {
-  // Define a context, mapping between js data and tribles.
-  const knightsNS = namespace({
-    [id]: { ...types.ufoid },
-    name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId, isLink: true },
-    lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, isMulti: true, ...types.shortstring },
-  });
-
-  // Add some data.
-  const memkb = new KB(new TribleSet(), new BlobCache());
-  debugger;
-  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
-    {
-      [id]: romeo,
-      name: "Romeo",
-      titles: ["fool", "prince"],
-      loves: juliet,
-    },
-    {
-      [id]: juliet,
-      name: "Juliet",
-      titles: ["the lady", "princess"],
-      loves: romeo,
-    },
-  ]);
-  // Query some data.
-  const results = [
-    ...find(({ person, name, title }) => [
-      knightskb.where(knightsNS, [
-        {
-          [id]: person.groupBy(name.descend()).omit(),
-          name,
-          titles: [title],
-        },
-      ]),
-    ]).run(),
-  ];
-  assertEquals(results, [
-    { name: "Romeo", title: "fool" },
-    { name: "Romeo", title: "prince" },
     { name: "Juliet", title: "princess" },
     { name: "Juliet", title: "the lady" },
   ]);
@@ -290,14 +242,15 @@ Deno.test("KB Walk", () => {
     },
   ]);
   // Query some data.
+  debugger;
   const [{ romeo }] = [
     ...find(({ romeo }) => [
       knightskb.where(knightsNS, [
-        { [id]: romeo.map(knightskb.walk(knightsNS)), name: "Romeo" },
+        { [id]: romeo, name: "Romeo" },
       ]),
     ]).run(),
   ];
-  assertEquals(romeo.loves.name, "Juliet");
+  assertEquals(knightskb.walk(knightsNS, romeo).loves.name, "Juliet");
 });
 
 Deno.test("KB Walk ownKeys", () => {

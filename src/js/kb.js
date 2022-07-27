@@ -398,7 +398,6 @@ export class KB {
   }
 
   walk(ns, eId) {
-    if (eId === undefined) return (curriedId) => this.walk(ns, curriedId);
     return entityProxy(ns, this, eId);
   }
 

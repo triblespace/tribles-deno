@@ -21,7 +21,7 @@ const knightsNS = namespace({
   age: { id: ageId, ...types.shortstring },
   loves: { id: lovesId, isLink: true },
   lovedBy: { id: lovesId, isLink: true, isInverse: true },
-  titles: { id: titlesId, ...types.shortstring },
+  titles: { id: titlesId, isMulti: true, ...types.shortstring },
 });
 
 function kbWith(b, size) {
@@ -95,6 +95,8 @@ function kbQuery(b, size) {
       ];
     }
   });
+
+  debugger;
   // Query some data.
   const q = find(({ name, title }) => [
     knightskb.where(knightsNS, [
@@ -105,14 +107,12 @@ function kbQuery(b, size) {
       },
     ]),
   ]);
-  q.run();
   b.start();
 
-  for (let i = 0; i < 1000; i++) {
-    const results = [...q.run()];
-  }
+  const results = [...q.run()];
+
   b.stop();
-  console.log(knightskb.tribleset.count());
+  console.log(results.length, knightskb.tribleset.count());
 }
 
 function getRandomInt(max) {
@@ -176,14 +176,12 @@ function kbDSQuery(b) {
       },
     ]),
   ]);
-  q.run();
   b.start();
 
-  for (let i = 0; i < 1000; i++) {
-    const results = [...q.run()];
-  }
+  const results = [...q.run()];
+  
   b.stop();
-  console.log(peoplekb.tribleset.count());
+  console.log(results.length, peoplekb.tribleset.count());
 }
 
 function kbWithPeople(b, size) {

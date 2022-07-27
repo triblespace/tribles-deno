@@ -325,8 +325,6 @@ Deno.test("set subtract", () => {
       const pactA = vsA.reduce((pact, v) => pact.put(v), emptyValuePACT);
       const pactB = vsB.reduce((pact, v) => pact.put(v), emptyValuePACT);
 
-      debugger;
-
       const pactSubtraction = pactA.subtract(pactB);
       const pactSubtractionSet = new Set(
         [...pactSubtraction.keys()].map((v) => encode(v))
@@ -528,7 +526,6 @@ Deno.test("static shuffled equality check batched", () => {
     ],
   ];
 
-  debugger;
   const pactA = vsA
     .reduce((pact, v) => pact.put(v), emptyValuePACT.batch())
     .complete();
