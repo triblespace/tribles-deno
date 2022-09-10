@@ -3,9 +3,10 @@ import { buffer } from "../../build/wasmdata.js";
 const module = await WebAssembly.compile(buffer);
 export const instance = await WebAssembly.instantiate(module, {});
 
-const _global_secret = new Uint8Array(
+// # siphash
+const _global_hash_secret = new Uint8Array(
   instance.exports.memory.buffer,
-  instance.exports.global_secret,
+  instance.exports.global_hash_secret,
   16
 );
 
@@ -27,7 +28,7 @@ const _global_hash_data = new Uint8Array(
   64
 );
 
-crypto.getRandomValues(_global_secret);
+crypto.getRandomValues(_global_hash_secret);
 
 export function hash_digest(data) {
   _global_hash_data.set(data);
@@ -57,7 +58,7 @@ export function hash_equal(l, r) {
   return instance.exports.hash_equal() === 1;
 }
 
-// Blake2
+// # Blake2b256
 const blake2b256_digest_size = 32;
 const blake_buffer_size = 1024;
 
@@ -85,4 +86,34 @@ export function blake2b256(data, out) {
 
   instance.exports.blake2b256_finish();
   out.set(_global_blake2b256_out);
+}
+
+// # Commits
+const commit_header_size = 128;
+const commit_max_trible_count = 1020;
+const trible_size = 64;
+const commit_max_size = commit_header_size + (commit_max_trible_count * trible_size);
+const commit_secret_size = 32;
+
+const _global_commit_secret = new Uint8Array(
+  instance.exports.memory.buffer,
+  instance.exports._global_commit_secret,
+  commit_secret_size
+);
+const _global_commit_buffer = new Uint8Array(
+  instance.exports.memory.buffer,
+  instance.exports._global_commit_buffer,
+  commit_max_size
+);
+
+export function commit_verify(data) {
+  _global_commit_buffer.set(data);
+  return instance.exports.commit_verify(data.length);
+}
+
+export function commit_sign(data, secret) {
+  _global_commit_buffer.set(data);
+  _global_commit_secret.set(secret);
+  if(!instance.exports.commit_sign(data.length)) throw "Failed to sign commit!";
+  return _global_commit_buffer.slice(0, data.length);
 }
