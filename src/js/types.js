@@ -1,19 +1,19 @@
-import { ufoid } from "./types/ufoid.js";
-import { uuid } from "./types/uuid.js";
-import { shortstring } from "./types/shortstring.js";
-import { longstring } from "./types/longstring.js";
-import { spacetimestamp } from "./types/spacetimestamp.js";
-import { biguint256 } from "./types/biguint256.js";
-import { hex } from "./types/hex.js";
-import { float64 } from "./types/float64.js";
+import { schema as ufoid_schema } from "./types/ufoid.js";
+import { schema as uuid_schema } from "./types/uuid.js";
+import { schema as shortstring_schema } from "./types/shortstring.js";
+import { schema as longstring_schema } from "./types/longstring.js";
+import { schema as spacetimestamp_schema } from "./types/spacetimestamp.js";
+import { schema as biguint256_schema } from "./types/biguint256.js";
+import { schema as hex_schema } from "./types/hex.js";
+//import { schema as float64_schema } from "./types/float64.js"; //TODO Fix to use lexicographical sorting.
+
 
 export const types = {
-  ufoid,
-  uuid,
-  shortstring,
-  longstring,
-  spacetimestamp,
-  biguint256,
-  hex,
-  //float64, //TODO Fix to use lexicographical sorting.
+  ufoid: ufoid_schema,
+  uuid: uuid_schema,
+  shortstring: shortstring_schema,
+  longstring: longstring_schema,
+  spacetimestamp: spacetimestamp_schema,
+  biguint256: biguint256_schema,
+  hex: hex_schema,
 };

@@ -21,9 +21,7 @@ function shortstringDecoder(b, blob) {
   return new TextDecoder("utf-8").decode(b);
 }
 
-const shortstring = {
+export const schema = {
   encoder: shortstringEncoder,
   decoder: shortstringDecoder,
 };
-
-export { shortstring };

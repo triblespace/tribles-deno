@@ -1,35 +1,95 @@
 import * as ed from "https://deno.land/x/ed25519/mod.ts";
 
 import { TribleSet } from "./tribleset.js";
-import { TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
+import { TRIBLE_SIZE } from "./trible.js";
+import { id, KB, namespace } from "./src/js/kb.js";
+import { types } from "./src/js/types.js";
+import { TribleSet } from "./src/js/tribleset.js";
+import { BlobCache } from "./src/js/blobcache.js";
+import { UFOID } from "./src/js/types/ufoid.js";
 
-const MARKER_SIZE = TRIBLE_SIZE * 2;
+// Each commits starts with a 16 byte zero marker for framing.
+//
+//   Note that the use of nil/zero ids is invalid in tribles, which allows
+//   us to use it in this fashion without data transparency issues.
+// 
+// This is followed by a blaked25519 plublic key used to sign the commit
+// and the corresponding signature.
+//
+// The following commit id identifies an entity in the commit itself that
+// contains metadata about this commit, such as creation time, additional
+// information on provenance and the author, and wether this commit is
+// part of a larger unit of information.
+//
+//   The reason for the signature awkwardly crossing cache lines,
+//   with the commit id following it is that this allows implementations
+//   to conveniently sign the both the commit id and the payload without
+//   having to copy them into a contiguous buffer.
+//
+// The following payload consists of both the data and metadata trible
+// sorted in canonical EAV order.
+//
+//      16 byte                 32 byte
+//         │                       │
+// ┌──────────────┐┌──────────────────────────────┐
+// ┌──────────────┐┌──────────────────────────────┐┌──────────────┐
+// │     zero     ││          public key          ││  signature   │
+// └──────────────┘└──────────────────────────────┘└──────────────┘
+//                                                 └──────────────┘
+//                         ┌───────────────────────────────┘
+//                      64 byte                         16 byte
+//                         │                               │
+// ┌──────────────────────────────────────────────┐┌──────────────┐
+// ┌──────────────────────────────────────────────┐┌──────────────┐
+// │                  signature                   ││  commit id   │
+// └──────────────────────────────────────────────┘└──────────────┘
+//
+//                              64 byte
+//                                 │
+// ┌──────────────────────────────────────────────────────────────┐
+// ┌──────────────┬┬──────────────┬┬──────────────────────────────┐*
+// │    entity    ││  attribute   ││            value             │
+// └──────────────┴┴──────────────┴┴──────────────────────────────┘
+//                                 │
+//                              trible
 
-async function serializetribleset(tribleset, privateKey) {
-  // TODO This could be done lazily if we knew the size of a tribleset,
-  // which we should def add.
-  const triblesEager = [...tribleset.tribles()];
-  const data = new Uint8Array(MARKER_SIZE + TRIBLE_SIZE * triblesEager.length);
+
+const commit_header_size = 128;
+
+const { commitGroupId, commitSegmentId, creationStampId } =
+  UFOID.namedCache();
+
+const commitNS = namespace({
+  [id]: { ...types.ufoid },
+  group: { id: commitGroupId, ...types.ufoid },
+  segment: { id: commitSegmentId, ...types.segment },
+  createdAt: { id: creationStampId, ...types.spacetimestamp },
+});
+
+export async function serialize(kb, privateKey) {
+  // Add some data.
+  let metadata = new KB(new TribleSet(), new BlobCache());
+
+  metadata = metadata.with(commitNS, () => [{
+          [id]: commitId,
+          group: commitGroupId,
+          segment: new Segment(segment_count, segment_i),
+          createdAt: spacetimestamp.stamp(),
+        }]);
+
+  const data_tribles_count = kb.tribleset.count();
+  const data_tribles = kb.tribleset.tribles();
+
+  const data = new Uint8Array(commit_header_size + (TRIBLE_SIZE * tribles_count));
   const tribles = data.subarray(MARKER_SIZE);
-  for (let i = 0; i < triblesEager.length; i++) {
+  for (let i = 0; i < triblesEager.length; i++) { 
     tribles.set(triblesEager[i], i * TRIBLE_SIZE);
   }
   const signature = await ed.sign(tribles, privateKey);
   data.subarray(64, 128).put(signature);
 
-  const payloadLength = tribles.length;
-  const payloadLengthView = new Uint32Array(
-    data.buffer,
-    data.byteOffset + 24,
-    2
-  );
-  payloadLengthView[1] = payloadLength & 0x00000000ffffffff;
-  payloadLengthView[0] = payloadLength & 0xffffffff00000000;
-
   return data;
 }
-
-async function readTxnType() {}
 
 async function readTxnMarker(bytes) {
   if (bytes.length < MARKER_SIZE) return null;
@@ -97,5 +157,3 @@ export async function* readAllTxns(bytes) {
     }
   }
 }
-
-export async function serialize(kb) {}

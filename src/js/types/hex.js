@@ -32,10 +32,8 @@ function hexFactory() {
   return encodeToString(bytes).padStart(64, "0");
 }
 
-const hex = {
+export const schema = {
   encoder: hexEncoder,
   decoder: hexDecoder,
   factory: hexFactory,
 };
-
-export { hex };

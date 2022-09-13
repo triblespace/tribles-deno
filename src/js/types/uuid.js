@@ -20,10 +20,8 @@ function uuidDecoder(b, blob) {
   return bytesToUuid(b.subarray(b.length - 16));
 }
 
-const uuid = {
+export const schema = {
   encoder: uuidEncoder,
   decoder: uuidDecoder,
   factory: v4,
 };
-
-export { uuid };

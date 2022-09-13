@@ -11,7 +11,7 @@ import { types } from "./src/js/types.js";
 import { TribleSet } from "./src/js/tribleset.js";
 import { BlobCache } from "./src/js/blobcache.js";
 import { emptyTriblePACT, emptyValuePACT, makePACT } from "./src/js/pact.js";
-import { UFOID } from "./src/js/ufoid.js";
+import { UFOID } from "./src/js/types/ufoid.js";
 
 export {
   BlobCache,

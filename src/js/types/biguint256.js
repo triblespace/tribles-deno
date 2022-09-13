@@ -15,9 +15,7 @@ function biguint256Decoder(b, blob) {
   return bytesToBigInt(b, 0, 32);
 }
 
-const biguint256 = {
+export const schema = {
   encoder: biguint256Encoder,
   decoder: biguint256Decoder,
 };
-
-export { biguint256 };

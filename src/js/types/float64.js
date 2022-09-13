@@ -13,9 +13,7 @@ function float64Decoder(b, blob) {
   );
 }
 
-const float64 = {
+export const schema = {
   encoder: float64Encoder,
   decoder: float64Decoder,
 };
-
-export { float64 };
