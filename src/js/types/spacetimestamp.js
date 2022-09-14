@@ -98,9 +98,7 @@ function spacetimestampDecoder(b, blob) {
   return { t, x, y, z };
 }
 
-const spacetimestamp = {
+export const schema = {
   encoder: spacetimestampEncoder,
   decoder: spacetimestampDecoder,
 };
-
-export { spacetimestamp };
