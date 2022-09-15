@@ -1,6 +1,8 @@
 import { entitiesToTriples } from "./kb.js";
 import { Query, indexConstraint, IntersectionConstraint } from "./query.js";
 import { emptyValuePACT } from "./pact.js";
+import { UFOID } from "./types/ufoid.js";
+import { validateCommitSize } from "./commit.js";
 
 
 export function validateNS(ns) {
@@ -24,12 +26,12 @@ export function validateNS(ns) {
   const uniqueAttributeIndex = newUniqueAttributeIndex.complete();
   const uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.complete();
 
-  return (txn) => {
+  return (commit) => {
     for (const r of new Query(
       new IntersectionConstraint([
         indexConstraint(1, uniqueAttributeIndex),
-        txn.difKB.tribleset.constraint(0, 1, 2),
-        txn.oldKB.tribleset.constraint(0, 1, 3),
+        commit.difKB.tribleset.constraint(0, 1, 2),
+        commit.oldKB.tribleset.constraint(0, 1, 3),
       ])).run()) {
         if(!equalValue(r.get(2), r.get(3))) throw Error(
           `Constraint violation: Multiple values for unique attribute.`
@@ -39,8 +41,8 @@ export function validateNS(ns) {
     for (const r of new Query(
       new IntersectionConstraint([
         indexConstraint(1, uniqueInverseAttributeIndex),
-        txn.difKB.tribleset.constraint(2, 1, 0),
-        txn.oldKB.tribleset.constraint(3, 1, 0),
+        commit.difKB.tribleset.constraint(2, 1, 0),
+        commit.oldKB.tribleset.constraint(3, 1, 0),
       ])).run()) {
       if(!equalValue(r.get(2), r.get(3))) throw Error(
         `Constraint violation: Multiple entities for unique attribute value.`
@@ -55,11 +57,12 @@ export class NoveltyConstraint {
   }
 }
 
-export class Txn {
-  constructor(oldKB, newKB) {
+export class Commit {
+  constructor(oldKB, newKB, commitId) {
     this.oldKB = oldKB;
     this.newKB = newKB;
     this.difKB = newKB.subtract(oldKB);
+    this.commitId = commitId;
   }
 
   where(ns, entities) {
@@ -81,24 +84,25 @@ export class Txn {
 }
 
 export class Box {
-  constructor(initialKB, validationFn = (txn) => {}) {
+  constructor(initialKB, validationFn = validateCommitSize()) {
     this._kb = initialKB;
     this._validationFn = validationFn;
     this._subscriptions = new Set();
   }
 
   commit(fn) {
+    const commitId = UFOID.now();
     const oldKB = this._kb;
-    const newKB = fn(oldKB);
+    const newKB = fn(oldKB, commitId);
 
-    const txn = new Txn(oldKB, newKB);
+    const commit = new Commit(oldKB, newKB, commitId);
 
-    this._validationFn(txn);
+    this._validationFn(commit, commitId);
 
     this._kb = newKB;
 
     for (const sub of this._subscriptions) {
-      sub(txn);
+      sub(commit);
     }
   }
 

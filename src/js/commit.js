@@ -2,11 +2,11 @@ import * as ed from "https://deno.land/x/ed25519/mod.ts";
 
 import { TribleSet } from "./tribleset.js";
 import { TRIBLE_SIZE } from "./trible.js";
-import { id, KB, namespace } from "./src/js/kb.js";
-import { types } from "./src/js/types.js";
-import { TribleSet } from "./src/js/tribleset.js";
-import { BlobCache } from "./src/js/blobcache.js";
-import { UFOID } from "./src/js/types/ufoid.js";
+import { id, KB, namespace } from "./kb.js";
+import { types } from "./types.js";
+import { TribleSet } from "./tribleset.js";
+import { BlobCache } from "./blobcache.js";
+import { UFOID } from "./types/ufoid.js";
 
 // Each commits starts with a 16 byte zero marker for framing.
 //
@@ -53,30 +53,51 @@ import { UFOID } from "./src/js/types/ufoid.js";
 //                                 │
 //                              trible
 
-
 const commit_header_size = 128;
+const commit_max_trible_count = 128;
 
-const { commitGroupId, commitSegmentId, creationStampId } =
+
+export function validateCommitSize(max_trible_count = commit_max_trible_count) {
+  return (commit) => {
+    if(commit.difKB.count() > max_trible_count) throw Error(
+      `Commit too large: Commits must not contain more than ${max_trible_count} tribles.`
+    );
+  }
+}
+
+const { commitGroupId, commitSubrangeId, creationStampId } =
   UFOID.namedCache();
 
 const commitNS = namespace({
   [id]: { ...types.ufoid },
   group: { id: commitGroupId, ...types.ufoid },
-  segment: { id: commitSegmentId, ...types.segment },
-  createdAt: { id: creationStampId, ...types.spacetimestamp },
+  segment: { id: commitSubrangeId, ...types.subrange },
+  createdAt: { id: creationStampId, ...types.geostamp },
 });
+
+export function withCommitMeta(kb, commitId) {
+  return kb.with(commitNS, () => [{
+          [id]: commitId,
+          createdAt: geostamp.stamp(),
+        }]);
+}
+
+// TODO commit splitting for when you just want a helper to dump stuff
+// export function autoSplitCommitGroup(groupCommitFn) {
+//   (kb, commitId) => {
+//   return kb.with(commitNS, () => [{
+//     [id]: commitFragmentId,
+//     group: commitId,
+//     subrange: {range_start: 0,
+//                range_end: data_tribles_count,
+//                start: trible_offset},
+//     createdAt: geostamp.stamp(),
+//   }]);
+//   }
+// }
 
 export async function serialize(kb, privateKey) {
   // Add some data.
-  let metadata = new KB(new TribleSet(), new BlobCache());
-
-  metadata = metadata.with(commitNS, () => [{
-          [id]: commitId,
-          group: commitGroupId,
-          segment: new Segment(segment_count, segment_i),
-          createdAt: spacetimestamp.stamp(),
-        }]);
-
   const data_tribles_count = kb.tribleset.count();
   const data_tribles = kb.tribleset.tribles();
 
