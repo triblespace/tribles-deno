@@ -4,7 +4,7 @@ import {
 
 import {
   BlobCache,
-  Box,
+  Head,
   validateNS,
   id,
   KB,
@@ -25,9 +25,9 @@ Deno.test("unique constraint", () => {
     titles: { id: titlesId, ...types.shortstring, isMany: true },
   });
 
-  const box = new Box(new KB(new TribleSet(), new BlobCache()), validateNS(knightsNS));
+  const head = new Head(new KB(new TribleSet(), new BlobCache()), validateNS(knightsNS));
 
-  box.commit(kb => kb.with(knightsNS, ([juliet]) => [
+  head.commit(kb => kb.with(knightsNS, ([juliet]) => [
     {
       [id]: romeoId,
       name: "Romeo",
@@ -44,7 +44,7 @@ Deno.test("unique constraint", () => {
 
   assertThrows(
     () => {
-      box.commit(kb => kb.with(knightsNS, () => [{
+      head.commit(kb => kb.with(knightsNS, () => [{
         [id]: romeoId,
         name: "Bob",
       }]));
@@ -62,8 +62,8 @@ Deno.test("unique inverse constraint", () => {
     hasMother: { id: motherOfId, isLink: true, isInverse:true },
   });
 
-  const box = new Box(new KB(new TribleSet(), new BlobCache()), validateNS(knightsNS));
-  box.commit(kb => kb.with(knightsNS, () => [
+  const head = new Head(new KB(new TribleSet(), new BlobCache()), validateNS(knightsNS));
+  head.commit(kb => kb.with(knightsNS, () => [
     {
       [id]: romeoId,
       name: "Romeo",
@@ -76,7 +76,7 @@ Deno.test("unique inverse constraint", () => {
 
   assertThrows(
     () => {
-      box.commit(kb => kb.with(knightsNS, () => [
+      head.commit(kb => kb.with(knightsNS, () => [
         {
           name: "Lady Impostor",
           motherOf: [romeoId],

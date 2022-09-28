@@ -1,4 +1,4 @@
-import { Box, validateNS } from "./src/js/box.js";
+import { Head, validateNS } from "./src/js/head.js";
 //import { WSConnector } from "./src/js/connectors/wsconnector.js";
 import {
   entitiesToTriples,
@@ -15,7 +15,7 @@ import { UFOID } from "./src/js/types/ufoid.js";
 
 export {
   BlobCache,
-  Box,
+  Head,
   emptyTriblePACT,
   emptyValuePACT,
   entitiesToTriples,

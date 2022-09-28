@@ -63,7 +63,7 @@ export class Head {
     const baseKB = this._kb;
     const currentKB = fn(baseKB, commitId);
     const commitKB = currentKB.subtract(baseKB);
-
+    
     const commit = new Commit(baseKB, commitKB, currentKB, commitId);
 
     this._validationFn(commit);

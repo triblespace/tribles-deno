@@ -159,12 +159,12 @@ capabilities. These can be roughly categorized as follows:
   also provides a lot of the data-model in terms of the general graph structure,
   constraints, types, query capabilities and so on. The knowledge base is also
   an immutable datatype with set operations defined on it.
-- Mutable containers: Boxes are mutable references to immutable Knowledge Bases
+- Mutable containers: Heades are mutable references to immutable Knowledge Bases
   that provide a place where the changing of State can take place. They provide
   safe transaction semantics, and allow for subscriptions to the applied
   changes.
 - Communication beyond the program: Connectors provide means to send and receive
-  data from and to Boxes. This could be over the network for use with tools like
+  data from and to Heades. This could be over the network for use with tools like
   `trible archive` or or to store and load data to or from disk.
 
 The resulting structure looks like this:
@@ -190,7 +190,7 @@ The resulting structure looks like this:
 ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
                        ▼
                 ╔════════════╗
-                ║    Box     ║                Mutable
+                ║    Head     ║                Mutable
                 ╚════════════╝         & Subscribable
 ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─▲─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
         ┌────────────┬─┴───────┐

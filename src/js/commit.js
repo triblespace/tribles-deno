@@ -74,7 +74,7 @@ const commitNS = namespace({
   createdAt: { id: creationStampId, ...types.geostamp },
   shortMessage: { id: shortMessageId, ...types.shortstring },
   message: { id: messageId, ...types.longstring },
-  author: { id: authorId, isLink: true}
+  author: { id: authorId, ...types.blaked25519PubKey}
 });
 
 export function withCommitMeta(kb, commitId) {
@@ -138,11 +138,12 @@ export class Commit {
     if(!wasm.commit_verify(bytes)) {
       throw Error("Failed to verify commit!");
     }
+    const commitId = bytes.subarray(112, 128);
 
     const commitKB = baseKB.empty().withTribles(splitTribles(bytes.subarray(commit_header_size)));
     const currentKB = baseKB.union(commitKB);
 
-    return new Commit(baseKB, commitKB, currentKB, );
+    return new Commit(baseKB, commitKB, currentKB, commitId);
   }
 
   serialize(privateKey) {

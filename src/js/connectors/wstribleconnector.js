@@ -3,7 +3,7 @@ import {emptyValuePACT}from "./pact.js";
 
 export const PROTOCOL = "tribles/commit";
 
-export function filterTrustedPolicy(publicKeys, inbox) {
+export function filterTrustedPolicy(publicKeys, inhead) {
 	const keyIndex = publicKeys.reduce((pact, key) => pact.put(key), emptyValuePACT);
 	return ({publicKey, kb}) => {
 		
