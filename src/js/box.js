@@ -2,7 +2,7 @@ import { entitiesToTriples } from "./kb.js";
 import { Query, indexConstraint, IntersectionConstraint } from "./query.js";
 import { emptyValuePACT } from "./pact.js";
 import { UFOID } from "./types/ufoid.js";
-import { validateCommitSize } from "./commit.js";
+import { Commit, validateCommitSize } from "./commit.js";
 
 
 export function validateNS(ns) {
@@ -30,8 +30,8 @@ export function validateNS(ns) {
     for (const r of new Query(
       new IntersectionConstraint([
         indexConstraint(1, uniqueAttributeIndex),
-        commit.difKB.tribleset.constraint(0, 1, 2),
-        commit.oldKB.tribleset.constraint(0, 1, 3),
+        commit.commitKB.tribleset.constraint(0, 1, 2),
+        commit.baseKB.tribleset.constraint(0, 1, 3),
       ])).run()) {
         if(!equalValue(r.get(2), r.get(3))) throw Error(
           `Constraint violation: Multiple values for unique attribute.`
@@ -41,45 +41,13 @@ export function validateNS(ns) {
     for (const r of new Query(
       new IntersectionConstraint([
         indexConstraint(1, uniqueInverseAttributeIndex),
-        commit.difKB.tribleset.constraint(2, 1, 0),
-        commit.oldKB.tribleset.constraint(3, 1, 0),
+        commit.commitKB.tribleset.constraint(2, 1, 0),
+        commit.baseKB.tribleset.constraint(3, 1, 0),
       ])).run()) {
       if(!equalValue(r.get(2), r.get(3))) throw Error(
         `Constraint violation: Multiple entities for unique attribute value.`
       );
     }
-  }
-}
-
-export class NoveltyConstraint {
-  constructor(oldKB, newKB, triples) {
-
-  }
-}
-
-export class Commit {
-  constructor(oldKB, newKB, commitId) {
-    this.oldKB = oldKB;
-    this.newKB = newKB;
-    this.difKB = newKB.subtract(oldKB);
-    this.commitId = commitId;
-  }
-
-  where(ns, entities) {
-    return (vars) => {
-      const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
-      const triplesWithVars = precompileTriples(ns, vars, triples);
-
-      triplesWithVars.foreach(([e, a, v]) => {
-        v.proposeBlobDB(newKB.blobdb);
-      });
-      return [
-        ...triplesWithVars.map(([e, a, v]) =>
-          newKB.tribleset.constraint(e.index, a.index, v.index)
-        ),
-        //new NoveltyConstraint(this.oldKB, this.newKB, triplesWithVars),
-      ];
-    };
   }
 }
 
@@ -92,14 +60,15 @@ export class Box {
 
   commit(fn) {
     const commitId = UFOID.now();
-    const oldKB = this._kb;
-    const newKB = fn(oldKB, commitId);
+    const baseKB = this._kb;
+    const currentKB = fn(baseKB, commitId);
+    const commitKB = currentKB.subtract(baseKB);
+    
+    const commit = new Commit(baseKB, commitKB, currentKB, commitId);
 
-    const commit = new Commit(oldKB, newKB, commitId);
+    this._validationFn(commit);
 
-    this._validationFn(commit, commitId);
-
-    this._kb = newKB;
+    this._kb = currentKB;
 
     for (const sub of this._subscriptions) {
       sub(commit);

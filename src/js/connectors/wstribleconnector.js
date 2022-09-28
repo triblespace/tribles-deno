@@ -1,7 +1,7 @@
 import { TRIBLE_SIZE, VALUE_SIZE } from "./trible.js";
 import {emptyValuePACT}from "./pact.js";
 
-export const PROTOCOL = "triblesTXN";
+export const PROTOCOL = "tribles/commit";
 
 export function filterTrustedPolicy(publicKeys, inbox) {
 	const keyIndex = publicKeys.reduce((pact, key) => pact.put(key), emptyValuePACT);
@@ -17,9 +17,9 @@ function wsTribleConnector(ws, inHandler){
 		this.inbox.commit((kb) => kb.withTribles(contiguousTribles(txnPayload)));
 	});
 	return async (txn) => {
-		if (!change.difKB.isEmpty()) {
-			const transaction = change.difKB.tribleset.dump();
-			await change.difKB.blobcache.flush();
+		if (!change.commitKB.isEmpty()) {
+			const transaction = change.commitKB.tribleset.dump();
+			await change.commitKB.blobcache.flush();
 			this.ws.send(transaction);
 		  }
 	};

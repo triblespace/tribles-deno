@@ -88,7 +88,7 @@ fn signature() [64]u8 {
   return global_commit_buffer[48..112];
 }
 
-fn check_structure() bool {
+fn check_structure(commit_length: usize) bool {
   // Commits must at least contain one trible.
   if(commit_length < commit_header_size + trible_size) return false;
   // Commits must include at most 1020 tribles to fit into UDP, DDS, RTC, ...
@@ -107,14 +107,15 @@ fn check_structure() bool {
 }
 
 pub fn commit_verify(commit_length: usize) bool {
-  check_structure() or return false;
+  check_structure(commit_length) or return false;
   const msg = global_commit_buffer[112..commit_length];
   blaked25519.verify(signature(), msg, pubkey()) catch return false;
   return true;
 }
 
-pub fn commit_sign(commit_length: usize) bool {
-  check_structure() or return false;
+pub fn commit_sign(trible_count: usize) bool {
+  const commit_length = trible_count * trible_size;
+  check_structure(commit_length) or return false;
   const key_pair = blaked25519.KeyPair.create(global_commit_secret) catch return false;
   std.mem.set(u8, global_commit_buffer[0..16], 0);
   std.mem.copy(u8, global_commit_buffer[16..48], key_pair.public_key[0..]);

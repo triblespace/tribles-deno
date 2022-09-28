@@ -1,5 +1,3 @@
-import * as ed from "https://deno.land/x/ed25519/mod.ts";
-
 import { TribleSet } from "./tribleset.js";
 import { TRIBLE_SIZE } from "./trible.js";
 import { id, KB, namespace } from "./kb.js";
@@ -7,6 +5,7 @@ import { types } from "./types.js";
 import { TribleSet } from "./tribleset.js";
 import { BlobCache } from "./blobcache.js";
 import { UFOID } from "./types/ufoid.js";
+import { commit_verify } from "./wasm.js";
 
 // Each commits starts with a 16 byte zero marker for framing.
 //
@@ -54,25 +53,28 @@ import { UFOID } from "./types/ufoid.js";
 //                              trible
 
 const commit_header_size = 128;
-const commit_max_trible_count = 128;
+const commit_max_trible_count = 1020;
 
 
 export function validateCommitSize(max_trible_count = commit_max_trible_count) {
   return (commit) => {
-    if(commit.difKB.count() > max_trible_count) throw Error(
+    if(commit.commitKB.count() > max_trible_count) throw Error(
       `Commit too large: Commits must not contain more than ${max_trible_count} tribles.`
     );
   }
 }
 
-const { commitGroupId, commitSubrangeId, creationStampId } =
+const { commitGroupId, commitSegmentId, creationStampId, shortMessageId, messageId, authorId } =
   UFOID.namedCache();
 
 const commitNS = namespace({
   [id]: { ...types.ufoid },
   group: { id: commitGroupId, ...types.ufoid },
-  segment: { id: commitSubrangeId, ...types.subrange },
+  segment: { id: commitSegmentId, ...types.subrange },
   createdAt: { id: creationStampId, ...types.geostamp },
+  shortMessage: { id: shortMessageId, ...types.shortstring },
+  message: { id: messageId, ...types.longstring },
+  author: { id: authorId, isLink: true}
 });
 
 export function withCommitMeta(kb, commitId) {
@@ -96,85 +98,78 @@ export function withCommitMeta(kb, commitId) {
 //   }
 // }
 
-export async function serialize(kb, privateKey) {
-  // Add some data.
-  const data_tribles_count = kb.tribleset.count();
-  const data_tribles = kb.tribleset.tribles();
+// const TRIBLE_SIZE_IN_UINT32 = TRIBLE_SIZE / Uint32Array.BYTES_PER_ELEMENT;
+// function recoverFromBrokenCommit(bytes) {
+//   const view = new Uint32Array(bytes.buffer, bytes.byteOffset);
 
-  const data = new Uint8Array(commit_header_size + (TRIBLE_SIZE * tribles_count));
-  const tribles = data.subarray(MARKER_SIZE);
-  for (let i = 0; i < triblesEager.length; i++) { 
-    tribles.set(triblesEager[i], i * TRIBLE_SIZE);
-  }
-  const signature = await ed.sign(tribles, privateKey);
-  data.subarray(64, 128).put(signature);
+//   for (let i = 0; i < view.length - 4; i = i + TRIBLE_SIZE_IN_UINT32) {
+//     if (
+//       view[i] === 0 &&
+//       view[i + 1] === 0 &&
+//       view[i + 2] === 0 &&
+//       view[i + 3] === 0
+//     ) {
+//       return bytes.subarray(i * Uint32Array.BYTES_PER_ELEMENT);
+//     }
+//   }
+// }
 
-  return data;
-}
-
-async function readTxnMarker(bytes) {
-  if (bytes.length < MARKER_SIZE) return null;
-
-  const view = new Uint32Array(bytes.buffer, bytes.byteOffset, 4);
-  if (!(view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0)) {
-    return null;
-  }
-
-  const publicKey = bytes.subarray(32, 64);
-  const signature = bytes.subarray(64, 128);
-
-  return [{ payloadLength, publicKey, signature }, bytes.subarray(MARKER_SIZE)];
-}
-
-async function readTxn(bytes) {
-  let payloadLength, publicKey, signature;
-  [{ payloadLength, publicKey, signature }, bytes] = readTxnMarker(bytes);
-
-  if (payloadLength > bytes.length) {
-    throw Error("Bad Txn: Marker declares more bytes than available.");
-  }
-  const payload = bytes.subarray(0, payloadLength);
-
-  const isSigned = await ed.verify(signature, payload, publicKey);
-  if (!isSigned) throw Error("Bad Txn: Couldn't verify signature.");
-
-  return [{ payload, publicKey }, bytes.subarray(payloadLength)];
-}
-
-const TRIBLE_SIZE_IN_UINT32 = TRIBLE_SIZE / Uint32Array.BYTES_PER_ELEMENT;
-function recoverFromBrokenTxn(bytes) {
-  const view = new Uint32Array(bytes.buffer, bytes.byteOffset);
-
-  for (let i = 0; i < view.length - 4; i = i + TRIBLE_SIZE_IN_UINT32) {
-    if (
-      view[i] === 0 &&
-      view[i + 1] === 0 &&
-      view[i + 2] === 0 &&
-      view[i + 3] === 0
-    ) {
-      return bytes.subarray(i * Uint32Array.BYTES_PER_ELEMENT);
-    }
-  }
-}
-
-export function splitTribles(bytes) {
-  const tribles = [];
+function* splitTribles(bytes) {
   for (let t = 0; t < bytes.length; t += TRIBLE_SIZE) {
-    tribles.push(bytes.subarray(t, t + TRIBLE_SIZE));
+    yield bytes.subarray(t, t + TRIBLE_SIZE);
   }
-  return tribles;
 }
 
-export async function* readAllTxns(bytes) {
-  while (bytes.length > MARKER_SIZE) {
-    try {
-      let [{ payload, publicKey }, bytes] = await readTxn(bytes);
-      yield {
-        publicKey,
-        tribleset: new TribleSet().with(splitTribles(payload)),
-      };
-    } catch (e) {
-      bytes = recoverFromBrokenTxn(bytes);
+export class NoveltyConstraint {
+  constructor(baseKB, currentKB, triples) {
+
+  }
+}
+
+export class Commit {
+  constructor(baseKB, commitKB, currentKB, commitId) {
+    this.baseKB = baseKB;
+    this.currentKB = currentKB;
+    this.commitKB = commitKB;
+    this.commitId = commitId;
+  }
+
+  static deserialize(baseKB, bytes) {
+    if(!wasm.commit_verify(bytes)) {
+      throw Error("Failed to verify commit!");
     }
+
+    const commitKB = baseKB.empty().withTribles(splitTribles(bytes.subarray(commit_header_size)));
+    const currentKB = baseKB.union(commitKB);
+
+    return new Commit(baseKB, commitKB, currentKB, );
+  }
+
+  serialize(privateKey) {
+    const tribles_count = this.commitKB.tribleset.count();
+    const tribles = this.commitKB.tribleset.tribles();
+    let i = 0;
+    for (const trible of tribles) { 
+      wasm._global_commit_buffer_tribles.subarray(i * TRIBLE_SIZE, (i + 1) * TRIBLE_SIZE).set(trible);
+      i += 1;
+    }
+    return wasm.commit_sign(privateKey, tribles_count);
+  }
+
+  where(ns, entities) {
+    return (vars) => {
+      const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
+      const triplesWithVars = precompileTriples(ns, vars, triples);
+
+      triplesWithVars.foreach(([e, a, v]) => {
+        v.proposeBlobDB(currentKB.blobdb);
+      });
+      return [
+        ...triplesWithVars.map(([e, a, v]) =>
+          currentKB.tribleset.constraint(e.index, a.index, v.index)
+        ),
+        //new NoveltyConstraint(this.baseKB, this.currentKB, triplesWithVars),
+      ];
+    };
   }
 }

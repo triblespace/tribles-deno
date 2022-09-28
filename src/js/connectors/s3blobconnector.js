@@ -14,7 +14,7 @@ function S3BlobConnector(
       return request.body;
     },
     syncHandler: async (txn) => {
-      for (const [key, blob] of txn.difKB.blobcache.blobs.entries()) {
+      for (const [key, blob] of txn.commitKB.blobcache.blobs.entries()) {
         await bucket.putObject(hashToName(key), blob);
       }
     }
