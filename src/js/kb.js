@@ -41,10 +41,10 @@ const lookup = (ns, kb, eId, attributeName) => {
       kb.tribleset.patternConstraint([(isInverse ? [2, 1, 0] : [0, 1, 2])]),
     ]),
     (r) => r.get(2)
-  ).run();
+  );
 
   if (!isMany) {
-    const { done, value } = res.next();
+    const { done, value } = res[Symbol.iterator]().next();
     if (done) return { found: false };
     return {
       found: true,
@@ -119,9 +119,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
             constantConstraint(1, aId),
             kb.tribleset.patternConstraint([(isInverse ? [2, 1, 0] : [0, 1, 2])]),
           ])
-        )
-          .run()
-          .next();
+        )[Symbol.iterator]().next();
         return !done;
       },
       deleteProperty: function (_, attr) {
@@ -175,7 +173,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
             indexConstraint(1, ns.forwardAttributeIndex),
             new MaskedConstraint(kb.tribleset.patternConstraint([[0, 1, 2]]), [2]),
           ]),
-        ).run()) {
+        )) {
           const a = r.get(1);
           attrs.push(
             ...ns.forwardAttributeIndex.get(a).map((attr) => attr.name)
@@ -188,7 +186,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
             indexConstraint(1, ns.inverseAttributeIndex),
             new MaskedConstraint(kb.tribleset.patternConstraint([[2, 1, 0]]), [2]),
           ])
-        ).run()) {
+        )) {
           const a = r.get(1);
           attrs.push(
             ...ns.inverseAttributeIndex.get(a).map((attr) => attr.name)

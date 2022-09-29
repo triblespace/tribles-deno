@@ -442,7 +442,8 @@ export class Query {
 
     this.bindings = new Bindings(variableCount);
   }
-  *run() {
+
+  *[Symbol.iterator] () {
     for (const r of this.__resolve()) {
       yield this.postProcessing(r);
     }
