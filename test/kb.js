@@ -21,7 +21,6 @@ import {
   find,
   id,
   KB,
-  namespace,
   TribleSet,
   types,
   UFOID,
@@ -30,13 +29,13 @@ import {
 const { nameId, lovesId, titlesId } = UFOID.namedCache();
 
 Deno.test("KB Find", () => {
-  const knightsNS = namespace({
+  const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true},
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring, isMulti: true },
-  });
+  };
 
   // Add some data.
   const memkb = new KB(new TribleSet(), new BlobCache());
@@ -98,11 +97,11 @@ Deno.test("KB Find Single", () => {
       arbitraryId,
       arbitraryPerson,
       (nameId, titlesId, person) => {
-        const knightsNS = namespace({
+        const knightsNS = {
           [id]: { ...types.ufoid },
           name: { id: nameId, ...types.hex },
           titles: { id: titlesId, ...types.hex, isMulti: true },
-        });
+        };
 
         const knightskb = new KB(new TribleSet(), new BlobCache()).with(
           knightsNS,
@@ -125,13 +124,13 @@ Deno.test("KB Find Single", () => {
 });
 
 Deno.test("find lower range", () => {
-  const knightsNS = namespace({
+  const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true},
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, isMulti: true, ...types.shortstring },
-  });
+  };
 
   // Add some data.
   const memkb = new KB(new TribleSet(), new BlobCache());
@@ -171,13 +170,13 @@ Deno.test("find lower range", () => {
 });
 
 Deno.test("find upper bound", () => {
-  const knightsNS = namespace({
+  const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, isMulti: true, ...types.shortstring },
-  });
+  };
 
   // Add some data.
   const memkb = new KB(new TribleSet(), new BlobCache());
@@ -216,13 +215,13 @@ Deno.test("find upper bound", () => {
 });
 
 Deno.test("KB Walk", () => {
-  const knightsNS = namespace({
+  const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true},
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring },
-  });
+  };
 
   // Add some data.
   const memkb = new KB(new TribleSet(), new BlobCache());
@@ -254,13 +253,13 @@ Deno.test("KB Walk", () => {
 });
 
 Deno.test("KB Walk ownKeys", () => {
-  const knightsNS = namespace({
+  const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring },
-  });
+  };
 
   // Add some data.
   const memkb = new KB(new TribleSet(), new BlobCache());
@@ -296,13 +295,13 @@ Deno.test("KB Walk ownKeys", () => {
 Deno.test("TribleSet PACT segmentCount positive", () => {
   const size = 3;
 
-  const knightsNS = namespace({
+  const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true},
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring },
-  });
+  };
 
   // Add some data.
   let knightskb = new KB(new TribleSet(), new BlobCache());

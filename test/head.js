@@ -8,7 +8,6 @@ import {
   validateNS,
   id,
   KB,
-  namespace,
   TribleSet,
   types,
   UFOID,
@@ -17,13 +16,13 @@ import {
 const { nameId, lovesId, titlesId, motherOfId, romeoId } = UFOID.namedCache();
 
 Deno.test("unique constraint", () => {
-  const knightsNS = namespace({
+  const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring, isMany: true },
-  });
+  };
 
   const head = new Head(new KB(new TribleSet(), new BlobCache()), validateNS(knightsNS));
 
@@ -55,12 +54,12 @@ Deno.test("unique constraint", () => {
 });
 
 Deno.test("unique inverse constraint", () => {
-  const knightsNS = namespace({
+  const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     motherOf: { id: motherOfId, isLink: true, isMany: true},
     hasMother: { id: motherOfId, isLink: true, isInverse:true },
-  });
+  };
 
   const head = new Head(new KB(new TribleSet(), new BlobCache()), validateNS(knightsNS));
   head.commit(kb => kb.with(knightsNS, () => [

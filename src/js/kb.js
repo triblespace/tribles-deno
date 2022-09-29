@@ -16,6 +16,7 @@ import {
 } from "./trible.js";
 import { TribleSet } from "./tribleset.js";
 import { BlobCache } from "./blobcache.js";
+import { id, buildNamespace } from "./namespace.js";
 
 const assert = (test, message) => {
   if (!test) {
@@ -23,16 +24,14 @@ const assert = (test, message) => {
   }
 };
 
-export const id = Symbol("id");
-
-const lookup = (ns, kb, eId, attributeName) => {
+const lookup = (build_ns, kb, eId, attributeName) => {
   let {
     id: aId,
     decoder,
     isLink,
     isInverse,
     isMany,
-  } = ns.attributes.get(attributeName);
+  } = build_ns.attributes.get(attributeName);
 
   const res = new Query(
     new IntersectionConstraint([
@@ -49,7 +48,7 @@ const lookup = (ns, kb, eId, attributeName) => {
     return {
       found: true,
       result: isLink
-        ? entityProxy(ns, kb, value)
+        ? entityProxy(build_ns, kb, value)
         : decoder(value.slice(), async () => await kb.blobcache.get(value)),
     };
   } else {
@@ -57,7 +56,7 @@ const lookup = (ns, kb, eId, attributeName) => {
     for (const value of res) {
       results.push(
         isLink
-          ? entityProxy(ns, kb, value)
+          ? entityProxy(build_ns, kb, value)
           : decoder(value.slice(), async () => await kb.blobcache.get(value))
       );
     }
@@ -68,12 +67,12 @@ const lookup = (ns, kb, eId, attributeName) => {
   }
 };
 
-const entityProxy = function entityProxy(ns, kb, eId) {
+const entityProxy = function entityProxy(build_ns, kb, eId) {
   return new Proxy(
     { [id]: eId },
     {
       get: function (o, attributeName) {
-        if (!ns.attributes.has(attributeName)) {
+        if (!build_ns.attributes.has(attributeName)) {
           return undefined;
         }
 
@@ -81,7 +80,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           return o[attributeName];
         }
 
-        const { found, result } = lookup(ns, kb, eId, attributeName);
+        const { found, result } = lookup(build_ns, kb, eId, attributeName);
         if (found) {
           Object.defineProperty(o, attributeName, {
             value: result,
@@ -99,7 +98,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         );
       },
       has: function (o, attributeName) {
-        if (!ns.attributes.has(attributeName)) {
+        if (!build_ns.attributes.has(attributeName)) {
           return false;
         }
 
@@ -107,7 +106,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           id: aId,
           isInverse,
           isMany,
-        } = ns.attributes.get(attributeName);
+        } = build_ns.attributes.get(attributeName);
         if (
           attributeName in o || isMany
         ) {
@@ -144,7 +143,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         );
       },
       getOwnPropertyDescriptor: function (o, attributeName) {
-        if (!ns.attributes.has(attributeName)) {
+        if (!build_ns.attributes.has(attributeName)) {
           return undefined;
         }
 
@@ -152,7 +151,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           return Object.getOwnPropertyDescriptor(o, attributeName);
         }
 
-        const { found, result } = lookup(ns, kb, eId, attributeName);
+        const { found, result } = lookup(build_ns, kb, eId, attributeName);
         if (found) {
           const property = {
             value: result,
@@ -170,26 +169,26 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         for (const r of new Query(
           new IntersectionConstraint([
             constantConstraint(0, eId),
-            indexConstraint(1, ns.forwardAttributeIndex),
+            indexConstraint(1, build_ns.forwardAttributeIndex),
             new MaskedConstraint(kb.tribleset.patternConstraint([[0, 1, 2]]), [2]),
           ]),
         )) {
           const a = r.get(1);
           attrs.push(
-            ...ns.forwardAttributeIndex.get(a).map((attr) => attr.name)
+            ...build_ns.forwardAttributeIndex.get(a).map((attr) => attr.name)
           );
         }
 
         for (const r of new Query(
           new IntersectionConstraint([
             constantConstraint(0, eId),
-            indexConstraint(1, ns.inverseAttributeIndex),
+            indexConstraint(1, build_ns.inverseAttributeIndex),
             new MaskedConstraint(kb.tribleset.patternConstraint([[2, 1, 0]]), [2]),
           ])
         )) {
           const a = r.get(1);
           attrs.push(
-            ...ns.inverseAttributeIndex.get(a).map((attr) => attr.name)
+            ...build_ns.inverseAttributeIndex.get(a).map((attr) => attr.name)
           );
         }
         return attrs;
@@ -206,7 +205,7 @@ const isPojo = (obj) => {
 };
 
 function* entityToTriples(
-  ns,
+  build_ns,
   unknownFactory,
   parentId,
   parentAttributeName,
@@ -217,7 +216,7 @@ function* entityToTriples(
     yield [parentId, parentAttributeName, entityId];
   }
   for (const [attributeName, value] of Object.entries(entity)) {
-    const attributeDescription = ns.attributes.get(attributeName);
+    const attributeDescription = build_ns.attributes.get(attributeName);
     assert(
       attributeDescription,
       `No attribute named '${attributeName}' in namespace.`
@@ -226,7 +225,7 @@ function* entityToTriples(
       for (const v of value) {
         if (attributeDescription.isLink && isPojo(v)) {
           yield* entityToTriples(
-            ns,
+            build_ns,
             unknownFactory,
             entityId,
             attributeName,
@@ -243,7 +242,7 @@ function* entityToTriples(
     } else {
       if (attributeDescription.isLink && isPojo(value)) {
         yield* entityToTriples(
-          ns,
+          build_ns,
           unknownFactory,
           entityId,
           attributeName,
@@ -260,15 +259,15 @@ function* entityToTriples(
   }
 }
 
-export function* entitiesToTriples(ns, unknownFactory, entities) {
+export function* entitiesToTriples(build_ns, unknownFactory, entities) {
   for (const entity of entities) {
-    yield* entityToTriples(ns, unknownFactory, null, null, entity);
+    yield* entityToTriples(build_ns, unknownFactory, null, null, entity);
   }
 }
 
-function* triplesToTribles(ns, triples, blobFn = (key, blob) => {}) {
+function* triplesToTribles(build_ns, triples, blobFn = (key, blob) => {}) {
   for (const [e, a, v] of triples) {
-    const attributeDescription = ns.attributes.get(a);
+    const attributeDescription = build_ns.attributes.get(a);
 
     const trible = new Uint8Array(TRIBLE_SIZE);
     E(trible).set(e.subarray(16, 32));
@@ -291,11 +290,11 @@ function* triplesToTribles(ns, triples, blobFn = (key, blob) => {}) {
   }
 }
 
-const precompileTriples = (ns, vars, triples) => {
-  const { encoder: idEncoder, decoder: idDecoder } = ns.ids;
+const precompileTriples = (build_ns, vars, triples) => {
+  const { encoder: idEncoder, decoder: idDecoder } = build_ns.ids;
   const precompiledTriples = [];
   for (const [e, a, v] of triples) {
-    const attributeDescription = ns.attributes.get(a);
+    const attributeDescription = build_ns.attributes.get(a);
     let eVar;
     let aVar;
     let vVar;
@@ -369,13 +368,14 @@ export class KB {
   }
 
   with(ns, efn) {
+    const build_ns = buildNamespace(ns);
     const {
       factory: idFactory,
-    } = ns.ids;
+    } = build_ns.ids;
     const entities = efn(new IDSequence(idFactory));
-    const triples = entitiesToTriples(ns, idFactory, entities);
+    const triples = entitiesToTriples(build_ns, idFactory, entities);
     let newBlobCache = this.blobcache;
-    const tribles = triplesToTribles(ns, triples, (key, blob) => {
+    const tribles = triplesToTribles(build_ns, triples, (key, blob) => {
       newBlobCache = newBlobCache.put(key, blob);
     });
     const newTribleSet = this.tribleset.with(tribles);
@@ -383,9 +383,10 @@ export class KB {
   }
 
   where(ns, entities) {
+    const build_ns = buildNamespace(ns);
     return (vars) => {
-      const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
-      const triplesWithVars = precompileTriples(ns, vars, triples);
+      const triples = entitiesToTriples(build_ns, () => vars.unnamed(), entities);
+      const triplesWithVars = precompileTriples(build_ns, vars, triples);
       for (const [_e, _a, v] of triplesWithVars) {
         v.proposeBlobCache(this.blobcache);
       }
@@ -394,7 +395,8 @@ export class KB {
   }
 
   walk(ns, eId) {
-    return entityProxy(ns, this, eId);
+    const build_ns = buildNamespace(ns);
+    return entityProxy(build_ns, this, eId);
   }
 
   empty() {
@@ -440,68 +442,4 @@ export class KB {
     const blobcache = this.blobcache.merge(other.blobcache).shrink(tribleset);
     return new KB(tribleset, blobcache);
   }
-}
-
-export function namespace(ns) {
-  const attributes = new Map(); // attribute name -> attribute description
-  let forwardAttributeIndex = emptyValuePACT; // non inverse attribute id -> [attribute description]
-  let inverseAttributeIndex = emptyValuePACT; // inverse attribute id -> [attribute description],
-
-  const idDescription = ns[id];
-  if (!idDescription) {
-    throw Error(`Incomplete namespace: Missing [id] field.`);
-  }
-  if (!idDescription.decoder) {
-    throw Error(`Incomplete namespace: Missing [id] decoder.`);
-  }
-  if (!idDescription.encoder) {
-    throw Error(`Incomplete namespace: Missing [id] encoder.`);
-  }
-  if (!idDescription.factory) {
-    throw Error(`Incomplete namespace: Missing [id] factory.`);
-  }
-
-  for (const [attributeName, attributeDescription] of Object.entries(ns)) {
-    if (attributeDescription.isInverse && !attributeDescription.isLink) {
-      throw Error(
-        `Bad options in namespace attribute ${attributeName}:
-            Only links can be inversed.`
-      );
-    }
-    if (!attributeDescription.isLink && !attributeDescription.decoder) {
-      throw Error(
-        `Missing decoder in namespace for attribute ${attributeName}.`
-      );
-    }
-    if (!attributeDescription.isLink && !attributeDescription.encoder) {
-      throw Error(
-        `Missing encoder in namespace for attribute ${attributeName}.`
-      );
-    }
-    const description = {
-      ...attributeDescription,
-      name: attributeName,
-    };
-    attributes.set(attributeName, description);
-    if (description.isInverse) {
-      inverseAttributeIndex = inverseAttributeIndex.put(description.id, [
-        ...(inverseAttributeIndex.get(description.id) || []),
-        description,
-      ]);
-    } else {
-      forwardAttributeIndex = forwardAttributeIndex.put(description.id, [
-        ...(forwardAttributeIndex.get(description.id) || []),
-        description,
-      ]);
-    }
-  }
-
-  for (const [_, attributeDescription] of attributes) {
-    if (attributeDescription.isLink) {
-      attributeDescription.encoder = idDescription.encoder;
-      attributeDescription.decoder = idDescription.decoder;
-    }
-  }
-
-  return { ids: idDescription, attributes, forwardAttributeIndex, inverseAttributeIndex };
 }

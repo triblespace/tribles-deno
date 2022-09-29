@@ -13,7 +13,7 @@ import {
 const { nameId, lastNameId, ageId, eyeColorId, lovesId, titlesId } =
   UFOID.namedCache();
 
-const knightsNS = namespace({
+const knightsNS = {
   [id]: { ...types.ufoid },
   name: { id: nameId, ...types.shortstring },
   lastName: { id: lastNameId, ...types.shortstring },
@@ -22,7 +22,7 @@ const knightsNS = namespace({
   loves: { id: lovesId, isLink: true },
   lovedBy: { id: lovesId, isLink: true, isInverse: true },
   titles: { id: titlesId, isMulti: true, ...types.shortstring },
-});
+};
 
 function kbWith(b, size) {
   // Add some data.
@@ -109,7 +109,7 @@ function kbQuery(b, size) {
   ]);
   b.start();
 
-  const results = [...q.run()];
+  const results = [...q];
 
   b.stop();
   console.log(results.length, knightskb.tribleset.count());
@@ -178,7 +178,7 @@ function kbDSQuery(b) {
   ]);
   b.start();
 
-  const results = [...q.run()];
+  const results = [...q];
   
   b.stop();
   console.log(results.length, peoplekb.tribleset.count());

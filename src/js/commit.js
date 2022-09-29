@@ -1,11 +1,13 @@
 import { TribleSet } from "./tribleset.js";
 import { TRIBLE_SIZE } from "./trible.js";
-import { id, KB, namespace } from "./kb.js";
+import { KB } from "./kb.js";
 import { types } from "./types.js";
 import { TribleSet } from "./tribleset.js";
 import { BlobCache } from "./blobcache.js";
 import { UFOID } from "./types/ufoid.js";
 import { commit_verify } from "./wasm.js";
+import { id, buildNamespace } from "./namespace.js";
+import { keychain, authNS } from "./auth.js";
 
 // Each commits starts with a 16 byte zero marker for framing.
 //
@@ -64,23 +66,25 @@ export function validateCommitSize(max_trible_count = commit_max_trible_count) {
   }
 }
 
-const { commitGroupId, commitSegmentId, creationStampId, shortMessageId, messageId, authorId } =
+const { commitGroupId, commitSegmentId, creationStampId, shortMessageId, messageId, authorId, signatureId } =
   UFOID.namedCache();
 
-const commitNS = namespace({
+const commitNS = {
   [id]: { ...types.ufoid },
   group: { id: commitGroupId, ...types.ufoid },
   segment: { id: commitSegmentId, ...types.subrange },
   createdAt: { id: creationStampId, ...types.geostamp },
   shortMessage: { id: shortMessageId, ...types.shortstring },
-  message: { id: messageId, ...types.longstring },
-  author: { id: authorId, ...types.blaked25519PubKey}
-});
+  message: { id: messageId, ...types.longstring }
+};
 
-export function withCommitMeta(kb, commitId) {
-  return kb.with(commitNS, () => [{
+const metaNS = {...commitNS, ...authNS};
+
+export function withCommitMeta(kb, commitId, pubkey) {
+  return kb.with(metaNS, () => [{
           [id]: commitId,
           createdAt: geostamp.stamp(),
+          pubkey,
         }]);
 }
 
@@ -138,29 +142,52 @@ export class Commit {
     if(!wasm.commit_verify(bytes)) {
       throw Error("Failed to verify commit!");
     }
-    const commitId = bytes.subarray(112, 128);
+    const commitId = bytes.slice(112, 128);
 
     const commitKB = baseKB.empty().withTribles(splitTribles(bytes.subarray(commit_header_size)));
     const currentKB = baseKB.union(commitKB);
 
+    //TODO check that commitID author = pubkey
+
     return new Commit(baseKB, commitKB, currentKB, commitId);
   }
 
-  serialize(privateKey) {
+  serialize() {
+    const [{pubkey}, second] = find(({ pubkey }) => [
+      this.commitKB.where(metaNS, [{
+          [id]: this.commitId,
+          pubkey,
+        }])]);
+
+    if(second) {
+      throw Error("Ambiguous public key for commit!");
+    }
+
+    const [{secretkey}] = find(({ secretkey }) => [
+      keychain.where(metaNS, [{
+          pubkey,
+          secretkey}])]);
+
+    if(!secretkey) {
+      throw Error("Missing secret key in keychain!");
+    }
+
     const tribles_count = this.commitKB.tribleset.count();
     const tribles = this.commitKB.tribleset.tribles();
+    
     let i = 0;
     for (const trible of tribles) { 
       wasm._global_commit_buffer_tribles.subarray(i * TRIBLE_SIZE, (i + 1) * TRIBLE_SIZE).set(trible);
       i += 1;
     }
-    return wasm.commit_sign(privateKey, tribles_count);
+    return wasm.commit_sign(secretkey, tribles_count);
   }
 
   where(ns, entities) {
+    const build_ns = buildNamespace(ns);
     return (vars) => {
-      const triples = entitiesToTriples(ns, () => vars.unnamed(), entities);
-      const triplesWithVars = precompileTriples(ns, vars, triples);
+      const triples = entitiesToTriples(build_ns, () => vars.unnamed(), entities);
+      const triplesWithVars = precompileTriples(build_ns, vars, triples);
 
       triplesWithVars.foreach(([e, a, v]) => {
         v.proposeBlobDB(currentKB.blobdb);
