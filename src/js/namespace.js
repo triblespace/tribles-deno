@@ -2,7 +2,7 @@ export const id = Symbol("id");
 
 const prebuild_cache = new WeakMap();
 
-export function buildNS(ns) {
+export function buildNamespace(ns) {
     if(prebuild_cache.has(ns)) {
         return prebuild_cache.get(ns);
     }
@@ -72,4 +72,49 @@ export function buildNS(ns) {
     prebuild_cache.set(ns, build_ns);
     return build_ns;
   }
-  
+
+export function validateNS(ns) {
+    const newUniqueAttributeIndex = emptyValuePACT.batch();
+    const newUniqueInverseAttributeIndex = emptyValuePACT.batch();
+
+    for (const {
+        id: encodedId,
+        isMulti,
+        isInverse,
+    } of ns.attributes.values()) {
+        if (!isMulti) {
+        if (isInverse) {
+            newUniqueInverseAttributeIndex.put(encodedId);
+        } else {
+            newUniqueAttributeIndex.put(encodedId);
+        }
+        }
+    }
+
+    const uniqueAttributeIndex = newUniqueAttributeIndex.complete();
+    const uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.complete();
+
+    return (commit) => {
+        for (const r of new Query(
+        new IntersectionConstraint([
+            indexConstraint(1, uniqueAttributeIndex),
+            commit.commitKB.tribleset.constraint(0, 1, 2),
+            commit.baseKB.tribleset.constraint(0, 1, 3),
+        ]))) {
+            if(!equalValue(r.get(2), r.get(3))) throw Error(
+            `Constraint violation: Multiple values for unique attribute.`
+            );
+        }
+
+        for (const r of new Query(
+        new IntersectionConstraint([
+            indexConstraint(1, uniqueInverseAttributeIndex),
+            commit.commitKB.tribleset.constraint(2, 1, 0),
+            commit.baseKB.tribleset.constraint(3, 1, 0),
+        ]))) {
+        if(!equalValue(r.get(2), r.get(3))) throw Error(
+            `Constraint violation: Multiple entities for unique attribute value.`
+        );
+        }
+    }
+}

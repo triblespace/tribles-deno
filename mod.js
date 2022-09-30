@@ -1,4 +1,4 @@
-import { Head, validateNS } from "./src/js/head.js";
+import { Head } from "./src/js/head.js";
 //import { WSConnector } from "./src/js/connectors/wsconnector.js";
 import {
   entitiesToTriples, KB
@@ -9,7 +9,7 @@ import { TribleSet } from "./src/js/tribleset.js";
 import { BlobCache } from "./src/js/blobcache.js";
 import { emptyTriblePACT, emptyValuePACT, makePACT } from "./src/js/pact.js";
 import { UFOID } from "./src/js/types/ufoid.js";
-import { id } from "./namespace.js";
+import { id, validateNS } from "./namespace.js";
 
 export {
   BlobCache,
