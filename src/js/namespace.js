@@ -1,3 +1,6 @@
+import { Query, indexConstraint, IntersectionConstraint } from "./query.js";
+import { emptyValuePACT } from "./pact.js";
+
 export const id = Symbol("id");
 
 const prebuild_cache = new WeakMap();

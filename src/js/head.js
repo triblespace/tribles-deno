@@ -1,55 +1,5 @@
-import { entitiesToTriples } from "./kb.js";
-import { Query, indexConstraint, IntersectionConstraint } from "./query.js";
-import { emptyValuePACT } from "./pact.js";
 import { UFOID } from "./types/ufoid.js";
 import { Commit, validateCommitSize } from "./commit.js";
-
-
-export function validateNS(ns) {
-  const newUniqueAttributeIndex = emptyValuePACT.batch();
-  const newUniqueInverseAttributeIndex = emptyValuePACT.batch();
-  
-  for (const {
-    id: encodedId,
-    isMulti,
-    isInverse,
-  } of ns.attributes.values()) {
-    if (!isMulti) {
-      if (isInverse) {
-        newUniqueInverseAttributeIndex.put(encodedId);
-      } else {
-        newUniqueAttributeIndex.put(encodedId);
-      }
-    }
-  }
-
-  const uniqueAttributeIndex = newUniqueAttributeIndex.complete();
-  const uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.complete();
-
-  return (commit) => {
-    for (const r of new Query(
-      new IntersectionConstraint([
-        indexConstraint(1, uniqueAttributeIndex),
-        commit.commitKB.tribleset.constraint(0, 1, 2),
-        commit.baseKB.tribleset.constraint(0, 1, 3),
-      ])).run()) {
-        if(!equalValue(r.get(2), r.get(3))) throw Error(
-          `Constraint violation: Multiple values for unique attribute.`
-        );
-    }
-
-    for (const r of new Query(
-      new IntersectionConstraint([
-        indexConstraint(1, uniqueInverseAttributeIndex),
-        commit.commitKB.tribleset.constraint(2, 1, 0),
-        commit.baseKB.tribleset.constraint(3, 1, 0),
-      ])).run()) {
-      if(!equalValue(r.get(2), r.get(3))) throw Error(
-        `Constraint violation: Multiple entities for unique attribute value.`
-      );
-    }
-  }
-}
 
 export class Head {
   constructor(initialKB, validationFn = validateCommitSize()) {

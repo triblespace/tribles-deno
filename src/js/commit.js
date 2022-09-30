@@ -8,6 +8,7 @@ import { UFOID } from "./types/ufoid.js";
 import { commit_verify } from "./wasm.js";
 import { id, buildNamespace } from "./namespace.js";
 import { keychain, authNS } from "./auth.js";
+import { entitiesToTriples } from "./kb.js";
 
 // Each commits starts with a 16 byte zero marker for framing.
 //
@@ -66,7 +67,7 @@ export function validateCommitSize(max_trible_count = commit_max_trible_count) {
   }
 }
 
-const { commitGroupId, commitSegmentId, creationStampId, shortMessageId, messageId, authorId, signatureId } =
+const { commitGroupId, commitSegmentId, creationStampId, shortMessageId, messageId, authoredById } =
   UFOID.namedCache();
 
 const commitNS = {
@@ -75,7 +76,8 @@ const commitNS = {
   segment: { id: commitSegmentId, ...types.subrange },
   createdAt: { id: creationStampId, ...types.geostamp },
   shortMessage: { id: shortMessageId, ...types.shortstring },
-  message: { id: messageId, ...types.longstring }
+  message: { id: messageId, ...types.longstring },
+  authoredBy: { id: authoredById, isLink: true },
 };
 
 const metaNS = {...commitNS, ...authNS};
