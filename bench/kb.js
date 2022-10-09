@@ -4,7 +4,6 @@ import {
   find,
   id,
   KB,
-  namespace,
   TribleSet,
   types,
   UFOID,
