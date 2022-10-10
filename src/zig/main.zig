@@ -1,6 +1,5 @@
 const std = @import("std");
-const blaked25519 = @import("./zig-ed25519-blake2b/d25519-blake2b.zig").Ed25519Blake2b;
-
+const ed25519 =  std.crypto.sign.Ed25519;
 const Blake2b256 = std.crypto.hash.blake2.Blake2b256;
 
 // # Hash
@@ -75,7 +74,7 @@ pub const commit_max_trible_count = 1020;
 const trible_size = 64;
 pub const commit_max_size = commit_header_size + (commit_max_trible_count * trible_size);
 
-export var global_commit_secret : [blaked25519.seed_length]u8 = [_]u8{0} ** blaked25519.seed_length;
+export var global_commit_secret : [ed25519.seed_length]u8 = [_]u8{0} ** ed25519.seed_length;
 export var global_commit_buffer : [commit_max_size]u8 = [_]u8{0} ** commit_max_size;
 
 
@@ -108,21 +107,27 @@ fn check_structure(commit_length: usize) bool {
 
 pub fn commit_verify(commit_length: usize) bool {
   check_structure(commit_length) or return false;
-  const msg = global_commit_buffer[112..commit_length];
-  blaked25519.verify(signature(), msg, pubkey()) catch return false;
+  
+  var digest: [Blake2b256.digest_length]u8 = undefined;
+  Blake2b256.hash(global_commit_buffer[112..commit_length], &digest, .{});
+
+  ed25519.verify(signature(), digest, pubkey()) catch return false;
   return true;
 }
 
 pub fn commit_sign(trible_count: usize) bool {
   const commit_length = trible_count * trible_size;
   check_structure(commit_length) or return false;
-  const key_pair = blaked25519.KeyPair.create(global_commit_secret) catch return false;
+  const key_pair = ed25519.KeyPair.create(global_commit_secret) catch return false;
   std.mem.set(u8, global_commit_buffer[0..16], 0);
   std.mem.copy(u8, global_commit_buffer[16..48], key_pair.public_key[0..]);
-  std.mem.copy(u8, global_commit_buffer[112..128], commit_id[0..]);
 
-  const msg = global_commit_buffer[112..commit_length];
-  const sig = blaked25519.sign(msg, key_pair, null) catch return false;
+  
+  var digest: [Blake2b256.digest_length]u8 = undefined;
+  Blake2b256.hash(global_commit_buffer[112..commit_length], &digest, .{});
+
+  const sig = ed25519.sign(digest, key_pair, null) catch return false;
+
   std.mem.copy(u8, global_commit_buffer[48..112], sig[0..]);
 
   return true;

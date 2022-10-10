@@ -1,3 +1,0 @@
-[submodule "src/zig/deps/zig-ed25519-blake2b"]
-	path = src/zig/deps/zig-ed25519-blake2b
-	url = git@github.com:cryptocode/zig-ed25519-blake2b.git

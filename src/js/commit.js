@@ -2,7 +2,6 @@ import { TribleSet } from "./tribleset.js";
 import { TRIBLE_SIZE } from "./trible.js";
 import { KB } from "./kb.js";
 import { types } from "./types.js";
-import { TribleSet } from "./tribleset.js";
 import { BlobCache } from "./blobcache.js";
 import { UFOID } from "./types/ufoid.js";
 import { commit_verify } from "./wasm.js";

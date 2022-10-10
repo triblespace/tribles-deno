@@ -9,7 +9,7 @@ import { TribleSet } from "./src/js/tribleset.js";
 import { BlobCache } from "./src/js/blobcache.js";
 import { emptyTriblePACT, emptyValuePACT, makePACT } from "./src/js/pact.js";
 import { UFOID } from "./src/js/types/ufoid.js";
-import { id, validateNS } from "./namespace.js";
+import { id, validateNS } from "./src/js/namespace.js";
 
 export {
   BlobCache,
