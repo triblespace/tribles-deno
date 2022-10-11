@@ -37,6 +37,10 @@ class IndexConstraint {
     bitset.set(this.variable);
   }
 
+  blocked(bitset) {
+    bitset.unsetAll();
+  }
+
   pushVariable(_variable) {}
 
   popVariable() {}
@@ -113,6 +117,10 @@ class RangeConstraint {
     bitset.set(this.variable);
   }
 
+  blocked(bitset) {
+    bitset.unsetAll();
+  }
+
   pushVariable(_variable) {}
 
   popVariable() {}
@@ -162,6 +170,10 @@ class ConstantConstraint {
     bitset.set(this.variable);
   }
 
+  blocked(bitset) {
+    bitset.unsetAll();
+  }
+
   pushVariable(_variable) {}
 
   popVariable() {}
@@ -177,7 +189,7 @@ export function constantConstraint(variable, constant) {
 }
 
 // TODO return single intersection constraint from multi TribleSet Trible
-// constraints -> allows us to have a zig only fast subconstraint
+// constraints -> allows us to have a wasm only fast subconstraint
 export const IntersectionConstraint = class {
   constructor(constraints) {
     this.constraints = constraints;
@@ -230,6 +242,15 @@ export const IntersectionConstraint = class {
     let b = (new ByteBitset()).unsetAll();
     for(const constraint of this.constraints) {
       constraint.variables(b);
+      bitset.setUnion(bitset, b);
+    }
+  }
+
+  blocked(bitset) {
+    bitset.unsetAll();
+    let b = (new ByteBitset()).unsetAll();
+    for(const constraint of this.constraints) {
+      constraint.blocked(b);
       bitset.setUnion(bitset, b);
     }
   }
@@ -311,6 +332,10 @@ export const MaskedConstraint = class {
   variables(bitset) {
     this.constraint.variables(bitset);
     bitset.setSubtraction(bitset, this.mask);
+  }
+
+  blocked(bitset) {
+    self.constraint.blocked(bitset);
   }
 
   pushVariable(variable) {
@@ -456,7 +481,11 @@ export class Query {
       let nextVariable;
       let nextVariableCosts = Number.MAX_VALUE;
 
-      for (const variable of this.unexploredVariables.entries()) {
+      const variables = new ByteBitset();
+      this.constraint.blocked(variables)
+      variables.setSubtraction(this.unexploredVariables, variables);
+
+      for (const variable of variables.entries()) {
         const costs = this.constraint.countVariable(variable);
         if(costs <= nextVariableCosts) {
           nextVariable = variable;
