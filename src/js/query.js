@@ -485,6 +485,8 @@ export class Query {
       this.constraint.blocked(variables)
       variables.setSubtraction(this.unexploredVariables, variables);
 
+      if(variables.isEmpty()) throw new Error("Can't evaluate query: blocked dead end.");
+      
       for (const variable of variables.entries()) {
         const costs = this.constraint.countVariable(variable);
         if(costs <= nextVariableCosts) {
