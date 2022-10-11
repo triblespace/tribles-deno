@@ -14,5 +14,3 @@ export const authNS = {
   authorFirstName: { id: firstNameId, ...types.shortstring },
   authorLastName: { id: lastNameId, ...types.shortstring },
 };
-
-export const keychain = new Head(new KB());

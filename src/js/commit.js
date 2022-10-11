@@ -6,7 +6,7 @@ import { BlobCache } from "./blobcache.js";
 import { UFOID } from "./types/ufoid.js";
 import { commit_verify } from "./wasm.js";
 import { id, buildNamespace } from "./namespace.js";
-import { keychain, authNS } from "./auth.js";
+import { authNS } from "./auth.js";
 import { entitiesToTriples } from "./kb.js";
 
 // Each commits starts with a 16 byte zero marker for framing.
@@ -153,35 +153,19 @@ export class Commit {
     return new Commit(baseKB, commitKB, currentKB, commitId);
   }
 
-  serialize() {
-    const [{pubkey}, second] = find(({ pubkey }) => [
-      this.commitKB.where(metaNS, [{
-          [id]: this.commitId,
-          pubkey,
-        }])]);
-
-    if(second) {
-      throw Error("Ambiguous public key for commit!");
-    }
-
-    const [{secretkey}] = find(({ secretkey }) => [
-      keychain.where(metaNS, [{
-          pubkey,
-          secretkey}])]);
-
-    if(!secretkey) {
-      throw Error("Missing secret key in keychain!");
-    }
+  serialize(secret) { // TODO replace this with WebCrypto Keypair once it supports ed25519.
+    wasm.setCommitId(this.commitId);
 
     const tribles_count = this.commitKB.tribleset.count();
     const tribles = this.commitKB.tribleset.tribles();
     
     let i = 0;
-    for (const trible of tribles) { 
-      wasm._global_commit_buffer_tribles.subarray(i * TRIBLE_SIZE, (i + 1) * TRIBLE_SIZE).set(trible);
+    for (const trible of tribles) {
+      wasm.setTrible(i, trible);
       i += 1;
     }
-    return wasm.commit_sign(secretkey, tribles_count);
+
+    return wasm.commit_sign(secret, tribles_count);
   }
 
   where(ns, entities) {

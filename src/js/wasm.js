@@ -106,29 +106,25 @@ const _global_commit_buffer = new Uint8Array(
   commit_max_size
 );
 
-const _global_commit_buffer_pubkey = new Uint8Array(
-  instance.exports.memory.buffer,
-  instance.exports._global_commit_buffer + 16,
-  32
-);
-
-const _global_commit_buffer_signature = new Uint8Array(
-  instance.exports.memory.buffer,
-  instance.exports._global_commit_buffer + 48,
-  64
-);
-
 const _global_commit_buffer_commitid = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports._global_commit_buffer + 112,
   16
 );
 
+export function setCommitId(commitId) {
+  _global_commit_buffer_commitid.set(commitId);
+}
+
 const _global_commit_buffer_tribles = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports._global_commit_buffer + 128,
   commit_max_trible_count * trible_size
 );
+
+export function setTrible(i, trible) {
+  _global_commit_buffer_tribles.subarray(i * TRIBLE_SIZE, (i + 1) * TRIBLE_SIZE).set(trible);
+}
 
 export function commit_verify(data) {
   _global_commit_buffer.set(data);

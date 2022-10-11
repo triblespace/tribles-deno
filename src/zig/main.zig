@@ -121,7 +121,6 @@ pub fn commit_sign(trible_count: usize) bool {
   const key_pair = ed25519.KeyPair.create(global_commit_secret) catch return false;
   std.mem.set(u8, global_commit_buffer[0..16], 0);
   std.mem.copy(u8, global_commit_buffer[16..48], key_pair.public_key[0..]);
-
   
   var digest: [Blake2b256.digest_length]u8 = undefined;
   Blake2b256.hash(global_commit_buffer[112..commit_length], &digest, .{});
