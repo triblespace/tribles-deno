@@ -5,7 +5,7 @@ import {
 } from "./src/js/kb.js";
 import { find } from "./src/js/query.js";
 import { types } from "./src/js/types.js";
-import { TribleSet } from "./src/js/tribleset.js";
+import { FOTribleSet, HOTribleSet } from "./src/js/tribleset.js";
 import { BlobCache } from "./src/js/blobcache.js";
 import { emptyTriblePACT, emptyValuePACT, makePACT } from "./src/js/pact.js";
 import { UFOID } from "./src/js/types/ufoid.js";
@@ -22,7 +22,8 @@ export {
   KB,
   makePACT,
   validateNS,
-  TribleSet,
+  FOTribleSet,
+  HOTribleSet,
   types,
   UFOID,
 };

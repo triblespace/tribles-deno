@@ -8,7 +8,7 @@ import {
   validateNS,
   id,
   KB,
-  TribleSet,
+  FOTribleSet,
   types,
   UFOID,
 } from "../mod.js";
@@ -24,7 +24,7 @@ Deno.test("unique constraint", () => {
     titles: { id: titlesId, ...types.shortstring, isMany: true },
   };
 
-  const head = new Head(new KB(new TribleSet(), new BlobCache()), validateNS(knightsNS));
+  const head = new Head(new KB(new FOTribleSet(), new BlobCache()), validateNS(knightsNS));
 
   head.commit(kb => kb.with(knightsNS, ([juliet]) => [
     {
@@ -61,7 +61,7 @@ Deno.test("unique inverse constraint", () => {
     hasMother: { id: motherOfId, isLink: true, isInverse:true },
   };
 
-  const head = new Head(new KB(new TribleSet(), new BlobCache()), validateNS(knightsNS));
+  const head = new Head(new KB(new FOTribleSet(), new BlobCache()), validateNS(knightsNS));
   head.commit(kb => kb.with(knightsNS, () => [
     {
       [id]: romeoId,

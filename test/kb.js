@@ -21,7 +21,7 @@ import {
   find,
   id,
   KB,
-  TribleSet,
+  FOTribleSet,
   types,
   UFOID,
 } from "../mod.js";
@@ -38,7 +38,7 @@ Deno.test("KB Find", () => {
   };
 
   // Add some data.
-  const memkb = new KB(new TribleSet(), new BlobCache());
+  const memkb = new KB(new FOTribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -103,7 +103,7 @@ Deno.test("KB Find Single", () => {
           titles: { id: titlesId, ...types.hex, isMulti: true },
         };
 
-        const knightskb = new KB(new TribleSet(), new BlobCache()).with(
+        const knightskb = new KB(new FOTribleSet(), new BlobCache()).with(
           knightsNS,
           () => [{ [id]: person.id, name: person.name, titles: person.titles }]
         );
@@ -133,7 +133,7 @@ Deno.test("find lower range", () => {
   };
 
   // Add some data.
-  const memkb = new KB(new TribleSet(), new BlobCache());
+  const memkb = new KB(new FOTribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -179,7 +179,7 @@ Deno.test("find upper bound", () => {
   };
 
   // Add some data.
-  const memkb = new KB(new TribleSet(), new BlobCache());
+  const memkb = new KB(new FOTribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -224,7 +224,7 @@ Deno.test("KB Walk", () => {
   };
 
   // Add some data.
-  const memkb = new KB(new TribleSet(), new BlobCache());
+  const memkb = new KB(new FOTribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -262,7 +262,7 @@ Deno.test("KB Walk ownKeys", () => {
   };
 
   // Add some data.
-  const memkb = new KB(new TribleSet(), new BlobCache());
+  const memkb = new KB(new FOTribleSet(), new BlobCache());
 
   const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
     {
@@ -304,7 +304,7 @@ Deno.test("TribleSet PACT segmentCount positive", () => {
   };
 
   // Add some data.
-  let knightskb = new KB(new TribleSet(), new BlobCache());
+  let knightskb = new KB(new FOTribleSet(), new BlobCache());
 
   knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
     {

@@ -4,7 +4,7 @@ import {
   find,
   id,
   KB,
-  TribleSet,
+  FOTribleSet,
   types,
   UFOID,
 } from "../mod.js";
@@ -25,7 +25,7 @@ const knightsNS = {
 
 function kbWith(b, size) {
   // Add some data.
-  let knightskb = new KB(new TribleSet(), new BlobCache());
+  let knightskb = new KB(new FOTribleSet(), new BlobCache());
 
   b.start();
   knightskb = knightskb.with(knightsNS, function* (ids) {
@@ -53,7 +53,7 @@ function kbWith(b, size) {
 
 function kbQuery(b, size) {
   // Add some data.
-  let knightskb = new KB(new TribleSet(), new BlobCache());
+  let knightskb = new KB(new FOTribleSet(), new BlobCache());
 
   knightskb = knightskb.with(knightsNS, function* (ids) {
     for (let i = 0; i < 1000; i++) {
@@ -121,7 +121,7 @@ function getRandomInt(max) {
 function kbDSQuery(b) {
   // Add some data.
 
-  let peoplekb = new KB(new TribleSet(), new BlobCache());
+  let peoplekb = new KB(new FOTribleSet(), new BlobCache());
   peoplekb = peoplekb.with(knightsNS, function* (ids) {
     for (let i = 0; i < 1250; i++) {
       const [ivan] = ids;
@@ -185,7 +185,7 @@ function kbDSQuery(b) {
 
 function kbWithPeople(b, size) {
   b.start();
-  let peoplekb = new KB(new TribleSet(), new BlobCache());
+  let peoplekb = new KB(new FOTribleSet(), new BlobCache());
 
   peoplekb = peoplekb.with(knightsNS, function* (ids) {
     for (let i = 0; i < size; i++) {

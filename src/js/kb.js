@@ -351,7 +351,7 @@ class IDSequence {
 export class KB {
   /**
    * Create a knowledge base with the gives tribles and blobs.
-   * @param {TribleSet} tribleset - The tribles stored.
+   * @param {} tribleset - The tribles stored.
    * @param {BlobCache} blobcache - The blobs associated with the tribles.
    */
   constructor(tribleset = new TribleSet(), blobcache = new BlobCache()) {
