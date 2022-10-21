@@ -221,7 +221,7 @@ function* entityToTriples(
       attributeDescription,
       `No attribute named '${attributeName}' in namespace.`
     );
-    if (attributeDescription.isMulti) {
+    if (attributeDescription.isMany) {
       for (const v of value) {
         if (attributeDescription.isLink && isPojo(v)) {
           yield* entityToTriples(

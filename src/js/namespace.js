@@ -1,5 +1,6 @@
 import { Query, indexConstraint, IntersectionConstraint } from "./query.js";
 import { emptyValuePACT } from "./pact.js";
+import { equalValue } from "./trible.js";
 
 export const id = Symbol("id");
 
@@ -84,10 +85,10 @@ export function validateNS(ns) {
 
     for (const {
         id: encodedId,
-        isMulti,
+        isMany,
         isInverse,
     } of build_ns.attributes.values()) {
-        if (!isMulti) {
+        if (!isMany) {
         if (isInverse) {
             newUniqueInverseAttributeIndex.put(encodedId);
         } else {
@@ -104,10 +105,11 @@ export function validateNS(ns) {
         new IntersectionConstraint([
             indexConstraint(1, uniqueAttributeIndex),
             commit.commitKB.tribleset.patternConstraint([[0, 1, 2]]),
-            commit.baseKB.tribleset.patternConstraint([[0, 1, 3]]),
+            commit.currentKB.tribleset.patternConstraint([[0, 1, 3]]),
         ]))) {
+            //console.log("result", r.get(2), r.get(3));
             if(!equalValue(r.get(2), r.get(3))) throw Error(
-            `Constraint violation: Multiple values for unique attribute.`
+            `constraint violation: multiple values for unique attribute`
             );
         }
 
@@ -115,10 +117,10 @@ export function validateNS(ns) {
         new IntersectionConstraint([
             indexConstraint(1, uniqueInverseAttributeIndex),
             commit.commitKB.tribleset.patternConstraint([[2, 1, 0]]),
-            commit.baseKB.tribleset.patternConstraint([[3, 1, 0]]),
+            commit.currentKB.tribleset.patternConstraint([[3, 1, 0]]),
         ]))) {
         if(!equalValue(r.get(2), r.get(3))) throw Error(
-            `Constraint violation: Multiple entities for unique attribute value.`
+            `constraint violation: multiple entities for unique attribute value`
         );
         }
     }

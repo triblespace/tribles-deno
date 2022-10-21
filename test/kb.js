@@ -34,7 +34,7 @@ Deno.test("KB Find", () => {
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true},
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring, isMulti: true },
+    titles: { id: titlesId, ...types.shortstring, isMany: true },
   };
 
   // Add some data.
@@ -100,7 +100,7 @@ Deno.test("KB Find Single", () => {
         const knightsNS = {
           [id]: { ...types.ufoid },
           name: { id: nameId, ...types.hex },
-          titles: { id: titlesId, ...types.hex, isMulti: true },
+          titles: { id: titlesId, ...types.hex, isMany: true },
         };
 
         const knightskb = new KB(new FOTribleSet(), new BlobCache()).with(
@@ -129,7 +129,7 @@ Deno.test("find lower range", () => {
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true},
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, isMulti: true, ...types.shortstring },
+    titles: { id: titlesId, isMany: true, ...types.shortstring },
   };
 
   // Add some data.
@@ -175,7 +175,7 @@ Deno.test("find upper bound", () => {
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, isMulti: true, ...types.shortstring },
+    titles: { id: titlesId, isMany: true, ...types.shortstring },
   };
 
   // Add some data.

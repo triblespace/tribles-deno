@@ -1,36 +1,37 @@
-const TRIBLE_SIZE = 64;
-const VALUE_SIZE = 32;
-const ID_SIZE = 16;
+export const TRIBLE_SIZE = 64;
+export const VALUE_SIZE = 32;
+export const ID_SIZE = 16;
 
-const E_SIZE = ID_SIZE;
-const A_SIZE = ID_SIZE;
-const V_SIZE = VALUE_SIZE;
+export const E_SIZE = ID_SIZE;
+export const A_SIZE = ID_SIZE;
+export const V_SIZE = VALUE_SIZE;
 
-const E_START = 0;
-const E_END = 16;
+export const E_START = 0;
+export const E_END = 16;
 
-const A_START = 16;
-const A_END = 32;
+export const A_START = 16;
+export const A_END = 32;
 
-const V_START = 32;
-const V_END = 64;
+export const V_START = 32;
+export const V_END = 64;
 
-const V1_START = 32;
-const V1_END = 48;
+export const V1_START = 32;
+export const V1_END = 48;
 
-const V2_START = 48;
-const V2_END = 64;
+export const V2_START = 48;
+export const V2_END = 64;
 
-const E = (trible) => trible.subarray(E_START, E_END);
-const A = (trible) => trible.subarray(A_START, A_END);
-const V = (trible) => trible.subarray(V_START, V_END);
-const V1 = (trible) => trible.subarray(V1_START, V1_END);
-const V2 = (trible) => trible.subarray(V2_START, V2_END);
+export const E = (trible) => trible.subarray(E_START, E_END);
+export const A = (trible) => trible.subarray(A_START, A_END);
+export const V = (trible) => trible.subarray(V_START, V_END);
+export const V1 = (trible) => trible.subarray(V1_START, V1_END);
+export const V2 = (trible) => trible.subarray(V2_START, V2_END);
 
-function scrambleEAV(trible) {
+export function scrambleEAV(trible) {
   return trible;
 }
-function scrambleEVA(trible) {
+
+export function scrambleEVA(trible) {
   const indexOrderedKey = new Uint8Array(64);
   indexOrderedKey.set(E(trible), 0);
   indexOrderedKey.set(V(trible), 16);
@@ -38,7 +39,8 @@ function scrambleEVA(trible) {
   indexOrderedKey.__cached_hash = trible.__cached_hash;
   return indexOrderedKey;
 }
-function scrambleAEV(trible) {
+
+export function scrambleAEV(trible) {
   const indexOrderedKey = new Uint8Array(64);
   indexOrderedKey.set(A(trible), 0);
   indexOrderedKey.set(E(trible), 16);
@@ -46,7 +48,8 @@ function scrambleAEV(trible) {
   indexOrderedKey.__cached_hash = trible.__cached_hash;
   return indexOrderedKey;
 }
-function scrambleAVE(trible) {
+
+export function scrambleAVE(trible) {
   const indexOrderedKey = new Uint8Array(64);
   indexOrderedKey.set(A(trible), 0);
   indexOrderedKey.set(V(trible), 16);
@@ -54,7 +57,8 @@ function scrambleAVE(trible) {
   indexOrderedKey.__cached_hash = trible.__cached_hash;
   return indexOrderedKey;
 }
-function scrambleVEA(trible) {
+
+export function scrambleVEA(trible) {
   const indexOrderedKey = new Uint8Array(64);
   indexOrderedKey.set(V(trible), 0);
   indexOrderedKey.set(E(trible), 32);
@@ -62,7 +66,8 @@ function scrambleVEA(trible) {
   indexOrderedKey.__cached_hash = trible.__cached_hash;
   return indexOrderedKey;
 }
-function scrambleVAE(trible) {
+
+export function scrambleVAE(trible) {
   const indexOrderedKey = new Uint8Array(64);
   indexOrderedKey.set(V(trible), 0);
   indexOrderedKey.set(A(trible), 32);
@@ -71,12 +76,12 @@ function scrambleVAE(trible) {
   return indexOrderedKey;
 }
 
-const zero = (v) => {
+export const zero = (v) => {
   const view = new Uint32Array(v.buffer, v.byteOffset, 4);
   return view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0;
 };
 
-const equalId = (idA, idB) => {
+export const equalId = (idA, idB) => {
   const viewA = new Uint32Array(idA.buffer, idA.byteOffset, 4);
   const viewB = new Uint32Array(idB.buffer, idB.byteOffset, 4);
   return (
@@ -87,7 +92,7 @@ const equalId = (idA, idB) => {
   );
 };
 
-const equal = (tribleA, tribleB) => {
+export const equal = (tribleA, tribleB) => {
   const viewA = new Uint32Array(tribleA.buffer, tribleA.byteOffset, 16);
   const viewB = new Uint32Array(tribleB.buffer, tribleB.byteOffset, 16);
   for (let i = 0; i < 16; i++) {
@@ -96,7 +101,7 @@ const equal = (tribleA, tribleB) => {
   return true;
 };
 
-const equalValue = (valueA, valueB) => {
+export const equalValue = (valueA, valueB) => {
   const viewA = new Uint32Array(valueA.buffer, valueA.byteOffset, 8);
   const viewB = new Uint32Array(valueB.buffer, valueB.byteOffset, 8);
   for (let i = 0; i < 8; i++) {
@@ -105,26 +110,3 @@ const equalValue = (valueA, valueB) => {
   return true;
 };
 
-export {
-  A,
-  A_SIZE,
-  E,
-  E_SIZE,
-  equal,
-  equalId,
-  equalValue,
-  ID_SIZE,
-  scrambleAEV,
-  scrambleAVE,
-  scrambleEAV,
-  scrambleEVA,
-  scrambleVAE,
-  scrambleVEA,
-  TRIBLE_SIZE,
-  V,
-  V1,
-  V2,
-  V_SIZE,
-  VALUE_SIZE,
-  zero,
-};

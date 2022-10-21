@@ -57,7 +57,7 @@ const commit_max_trible_count = 1020;
 
 export function validateCommitSize(max_trible_count = commit_max_trible_count) {
   return (commit) => {
-    if(commit.commitKB.count() > max_trible_count) throw Error(
+    if(commit.commitKB.tribleset.count() > max_trible_count) throw Error(
       `Commit too large: Commits must not contain more than ${max_trible_count} tribles.`
     );
   }

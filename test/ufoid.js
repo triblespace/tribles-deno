@@ -17,7 +17,7 @@ Deno.test("withTime is valid", () => {
   fc.assert(
     fc.property(time, (v) => {
       const id = UFOID.withTime(time);
-      assert(UFOID.validate(id));
+      UFOID.validate(id);
     })
   );
 });

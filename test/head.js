@@ -11,6 +11,7 @@ import {
   FOTribleSet,
   types,
   UFOID,
+  find
 } from "../mod.js";
 
 const { nameId, lovesId, titlesId, motherOfId, romeoId } = UFOID.namedCache();
@@ -41,15 +42,14 @@ Deno.test("unique constraint", () => {
     },
   ]));
 
-  assertThrows(
-    () => {
-      head.commit((kb, commitID) => kb.with(knightsNS, () => [{
-        [id]: romeoId,
-        name: "Bob",
-      }]));
-    },
-    Error,
-    ""
+  assertThrows(() => {
+    head.commit((kb, commitID) => kb.with(knightsNS, () => [{
+      [id]: romeoId,
+      name: "Bob",
+    }]));
+  },
+  Error,
+  "constraint violation: multiple values for unique attribute"
   );
 });
 
@@ -69,12 +69,11 @@ Deno.test("unique inverse constraint", () => {
     },
     {
       name: "Lady Montague",
-      motherOf: romeoId,
+      motherOf: [romeoId],
     },
   ]));
 
-  assertThrows(
-    () => {
+  assertThrows(() => {
       head.commit(kb => kb.with(knightsNS, () => [
         {
           name: "Lady Impostor",
@@ -83,6 +82,6 @@ Deno.test("unique inverse constraint", () => {
       ]));
     },
     Error,
-    ""
+    "constraint violation: multiple entities for unique attribute value"
   );
 });

@@ -19,7 +19,7 @@ export class Head {
 
     this._validationFn(commit);
 
-    this._kb = currentKB;
+    this._current_kb = currentKB;
 
     for (const sub of this._subscriptions) {
       sub(commit);

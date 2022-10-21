@@ -27,15 +27,23 @@ export const UFOID = {
   },
 
   validate(id) {
-    if (!(id instanceof Uint8Array && id.length === 32)) return false;
+    if(!(id instanceof Uint8Array)) {
+      console.log(`-> ${id.constructor}\n`);
+      throw Error(`invalid ufoid: expected value to be Uint8Array found ${typeof id}`);
+    }
+    if (id.length !== 32) {
+      throw Error("invalid ufoid: expected length to be 32");
+    }
     const a = new Uint32Array(id.buffer, id.byteOffset, 8);
-    return (
-      a[0] === 0 &&
-      a[1] === 0 &&
-      a[2] === 0 &&
-      a[3] === 0 &&
-      (a[4] !== 0 || a[5] !== 0 || a[6] !== 0 || a[7] !== 0)
-    );
+    if(a[0] !== 0 ||
+       a[1] !== 0 ||
+       a[2] !== 0 ||
+       a[3] !== 0) {
+      throw Error("invalid ufoid: value must be zero padded");
+    }
+    if(a[4] === 0 && a[5] === 0 && a[6] === 0 && a[7] !== 0) {
+      throw Error("invalid ufoid: value must be zero padded");
+    }
   },
 
   anon() {
@@ -65,13 +73,13 @@ export const UFOID = {
           return id;
         },
         set: function (_, attr) {
-          throw TypeError("Error: Named UFOID cache is not writable.");
+          throw TypeError("named UFOID cache is not writable");
         },
         deleteProperty: function (_, attr, value) {
-          throw TypeError("Error: Named UFOID cache is not writable.");
+          throw TypeError("named UFOID cache is not writable");
         },
         setPrototypeOf: function (_) {
-          throw TypeError("Error: Named UFOID cache is not writable.");
+          throw TypeError("named UFOID cache is not writable");
         },
         isExtensible: function (_) {
           return true;
@@ -80,7 +88,7 @@ export const UFOID = {
           return false;
         },
         defineProperty: function (_, attr) {
-          throw TypeError("Error: Named UFOID cache is not writable.");
+          throw TypeError("named UFOID cache is not writable");
         },
       }
     );
@@ -101,9 +109,7 @@ export const UFOID = {
 // Schema
 
 function ufoidEncoder(v, b) {
-  if (!UFOID.validate(v)) {
-    throw Error(`Provided value is not an encodable ufoid:${v}`);
-  }
+  UFOID.validate(v)
   b.set(v);
   return null;
 }
