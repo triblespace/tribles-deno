@@ -26,7 +26,7 @@ Deno.test("unique constraint", () => {
 
   const head = new Head(new KB(new FOTribleSet(), new BlobCache()), validateNS(knightsNS));
 
-  head.commit(kb => kb.with(knightsNS, ([juliet]) => [
+  head.commit((kb, commitID) => kb.with(knightsNS, ([juliet]) => [
     {
       [id]: romeoId,
       name: "Romeo",
@@ -43,7 +43,7 @@ Deno.test("unique constraint", () => {
 
   assertThrows(
     () => {
-      head.commit(kb => kb.with(knightsNS, () => [{
+      head.commit((kb, commitID) => kb.with(knightsNS, () => [{
         [id]: romeoId,
         name: "Bob",
       }]));

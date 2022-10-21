@@ -1,46 +1,93 @@
-import { emptyValuePACT } from "./pact.js";
+import { emptyValuePACT, emptyValueIdIdTriblePACT } from "./pact.js";
+import { scrambleVAE } from "./trible.js";
 
-class BlobCache {
-  constructor(blobs = emptyValuePACT, missHandlers = new Set()) {
-    this.blobs = blobs;
-    this.missHandlers = missHandlers;
+export class BlobCache {
+  constructor(uncommitted = emptyValueIdIdTriblePACT, cached = emptyValuePACT, onMiss = async () => {throw Error("Cache-miss not implemented.");}) {
+    this.uncommitted = uncommitted;
+    this.cached = cached;
+    this.onMiss = onMiss;
   }
 
-  put(key, blob) {
-    return new BlobCache(this.blobs.put(key, blob));
+  put(trible, blob) {
+    let cached = this.cached;
+    let new_or_cached_blob = blob;
+
+    const key = V(trible);
+    const cached_blob = this.cached.get(key).deref();
+    if(cached_blob === undefined) {
+      cached = cached.put(key, new WeakRef(blob));
+    } else {
+      new_or_cached_blob = cached_blob;
+    }
+    const uncommitted = this.uncommitted.put(scrambleVAE(trible), new_or_cached_blob);
+    return new BlobCache(uncommitted, cached, this.onMiss);
   }
 
   async get(key) {
-    let blob = await this.blobs.get(key);
+    let blob = this.cached.get(key).deref();
 
     if (blob === undefined) {
-      for (const missHandler of this.missHandlers) {
-        blob = await missHandler(key);
-        if (blob !== undefined) break;
-      }
+      if(uncommitted.getPrefix(key))
+
+      blob = await this.onMiss(key);
       if (blob === undefined) {
         throw Error("No blob for key.");
       }
-      this.cache = this.cache.put(key, blob);
+      this.cache = this.cache.put(key, new WeakRef(blob));
     }
     return blob;
   }
 
   empty() {
-    return new BlobCache();
+    return new BlobCache(this.uncommitted.empty(), this.cached.empty(), this.onMiss);
   }
 
-  merge(other) {
+  union(other) {
+    if(this.onMiss !== other.onMiss) {
+      throw new Error("Can only operate on two BlobCaches with the same onMiss handler.");
+    }
     return new BlobCache(
-      this.blobs.union(other.blobs),
-      new Set([...this.missHandlers, ...other.missHandlers])
+      this.uncommitted.union(other.uncommitted),
+      this.cached.union(other.cached),
+      this.onMiss
     );
   }
 
-  shrink(tribleset) {
-    const blobs = this.blobs.intersect(tribleset.VEA);
-    return new BlobCache(blobs, this.missHandlers);
+  subtract(other) {
+    if(this.onMiss !== other.onMiss) {
+      throw new Error("Can only operate on two BlobCaches with the same onMiss handler.");
+    }
+    return new BlobCache(
+      this.uncommitted.subtract(other.uncommitted),
+      this.cached.union(other.cached),
+      this.onMiss
+    );
   }
-}
 
-export { BlobCache };
+  difference(other) {
+    if(this.onMiss !== other.onMiss) {
+      throw new Error("Can only operate on two BlobCaches with the same onMiss handler.");
+    }
+    return new BlobCache(
+      this.uncommitted.difference(other.uncommitted),
+      this.cached.union(other.cached),
+      this.onMiss
+    );
+  }
+
+  intersect(other) {
+    if(this.onMiss !== other.onMiss) {
+      throw new Error("Can only operate on two BlobCaches with the same onMiss handler.");
+    }
+    return new BlobCache(
+      this.uncommitted.intersect(other.uncommitted),
+      this.cached.union(other.cached),
+      this.onMiss
+    );
+  }
+
+  onCommit(syncFn) {
+
+  }
+
+}

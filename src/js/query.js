@@ -335,7 +335,7 @@ export const MaskedConstraint = class {
   }
 
   blocked(bitset) {
-    self.constraint.blocked(bitset);
+    this.constraint.blocked(bitset);
   }
 
   pushVariable(variable) {

@@ -80,11 +80,13 @@ export function validateNS(ns) {
     const newUniqueAttributeIndex = emptyValuePACT.batch();
     const newUniqueInverseAttributeIndex = emptyValuePACT.batch();
 
+    const build_ns = buildNamespace(ns);
+
     for (const {
         id: encodedId,
         isMulti,
         isInverse,
-    } of ns.attributes.values()) {
+    } of build_ns.attributes.values()) {
         if (!isMulti) {
         if (isInverse) {
             newUniqueInverseAttributeIndex.put(encodedId);
@@ -101,8 +103,8 @@ export function validateNS(ns) {
         for (const r of new Query(
         new IntersectionConstraint([
             indexConstraint(1, uniqueAttributeIndex),
-            commit.commitKB.tribleset.constraint(0, 1, 2),
-            commit.baseKB.tribleset.constraint(0, 1, 3),
+            commit.commitKB.tribleset.patternConstraint([[0, 1, 2]]),
+            commit.baseKB.tribleset.patternConstraint([[0, 1, 3]]),
         ]))) {
             if(!equalValue(r.get(2), r.get(3))) throw Error(
             `Constraint violation: Multiple values for unique attribute.`
@@ -112,8 +114,8 @@ export function validateNS(ns) {
         for (const r of new Query(
         new IntersectionConstraint([
             indexConstraint(1, uniqueInverseAttributeIndex),
-            commit.commitKB.tribleset.constraint(2, 1, 0),
-            commit.baseKB.tribleset.constraint(3, 1, 0),
+            commit.commitKB.tribleset.patternConstraint([[2, 1, 0]]),
+            commit.baseKB.tribleset.patternConstraint([[3, 1, 0]]),
         ]))) {
         if(!equalValue(r.get(2), r.get(3))) throw Error(
             `Constraint violation: Multiple entities for unique attribute value.`

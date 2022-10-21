@@ -1,10 +1,7 @@
-import { TribleSet } from "./tribleset.js";
 import { TRIBLE_SIZE } from "./trible.js";
-import { KB } from "./kb.js";
 import { types } from "./types.js";
-import { BlobCache } from "./blobcache.js";
 import { UFOID } from "./types/ufoid.js";
-import { commit_verify } from "./wasm.js";
+import { commit_verify, setCommitId, setTrible, commit_sign } from "./wasm.js";
 import { id, buildNamespace } from "./namespace.js";
 import { authNS } from "./auth.js";
 import { entitiesToTriples } from "./kb.js";
@@ -140,7 +137,7 @@ export class Commit {
   }
 
   static deserialize(baseKB, bytes) {
-    if(!wasm.commit_verify(bytes)) {
+    if(!commit_verify(bytes)) {
       throw Error("Failed to verify commit!");
     }
     const commitId = bytes.slice(112, 128);
@@ -154,18 +151,18 @@ export class Commit {
   }
 
   serialize(secret) { // TODO replace this with WebCrypto Keypair once it supports ed25519.
-    wasm.setCommitId(this.commitId);
+    setCommitId(this.commitId);
 
     const tribles_count = this.commitKB.tribleset.count();
     const tribles = this.commitKB.tribleset.tribles();
     
     let i = 0;
     for (const trible of tribles) {
-      wasm.setTrible(i, trible);
+      setTrible(i, trible);
       i += 1;
     }
 
-    return wasm.commit_sign(secret, tribles_count);
+    return commit_sign(secret, tribles_count);
   }
 
   where(ns, entities) {

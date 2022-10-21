@@ -88,7 +88,7 @@ class FOMemTribleConstraint {
     switch(this.state) {
       case stack_empty: throw new error("unreachable");
 
-      case stack_e: this.eavCursor.push(byte); this.evaCursor.push(byte); return;
+      case stack_e: this.eavCursor.push(byte); return;
       case stack_a: this.aevCursor.push(byte); this.aveCursor.push(byte); return;
 
       case stack_ea: this.eavCursor.push(byte); return;
@@ -105,7 +105,7 @@ class FOMemTribleConstraint {
     switch(this.state) {
       case stack_empty: throw new error("unreachable");
 
-      case stack_e: this.eavCursor.pop(); this.evaCursor.pop(); return;
+      case stack_e: this.eavCursor.pop(); return;
       case stack_a: this.aevCursor.pop(); this.aveCursor.pop(); return;
 
       case stack_ea: this.eavCursor.pop(); return;

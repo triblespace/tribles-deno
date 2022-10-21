@@ -1,17 +1,18 @@
 import { UFOID } from "./types/ufoid.js";
 import { Commit, validateCommitSize } from "./commit.js";
+import { KB } from "../../build/trible.js";
 
 export class Head {
   constructor(initialKB, validationFn = validateCommitSize()) {
-    this._kb = initialKB;
+    this._current_kb = initialKB;
     this._validationFn = validationFn;
     this._subscriptions = new Set();
   }
 
-  commit(fn) {
+  commit(commitFunction) {
     const commitId = UFOID.now();
-    const baseKB = this._kb;
-    const currentKB = fn(baseKB, commitId);
+    const baseKB = this._current_kb;
+    const currentKB = commitFunction(baseKB, commitId);
     const commitKB = currentKB.subtract(baseKB);
     
     const commit = new Commit(baseKB, commitKB, currentKB, commitId);
@@ -26,7 +27,7 @@ export class Head {
   }
 
   peek() {
-    return this._kb;
+    return this._current_kb;
   }
 
   sub(fn) {

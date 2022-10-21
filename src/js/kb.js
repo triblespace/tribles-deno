@@ -14,7 +14,7 @@ import {
   V,
   VALUE_SIZE,
 } from "./trible.js";
-import { TribleSet } from "./tribleset.js";
+import { FOTribleSet } from "./tribleset.js";
 import { BlobCache } from "./blobcache.js";
 import { id, buildNamespace } from "./namespace.js";
 
@@ -265,7 +265,7 @@ export function* entitiesToTriples(build_ns, unknownFactory, entities) {
   }
 }
 
-function* triplesToTribles(build_ns, triples, blobFn = (key, blob) => {}) {
+function* triplesToTribles(build_ns, triples, blobFn = (trible, blob) => {}) {
   for (const [e, a, v] of triples) {
     const attributeDescription = build_ns.attributes.get(a);
 
@@ -284,7 +284,7 @@ function* triplesToTribles(build_ns, triples, blobFn = (key, blob) => {}) {
     }
 
     if (blob) {
-      blobFn(encodedValue, blob);
+      blobFn(trible, blob);
     }
     yield trible;
   }
@@ -351,10 +351,10 @@ class IDSequence {
 export class KB {
   /**
    * Create a knowledge base with the gives tribles and blobs.
-   * @param {} tribleset - The tribles stored.
+   * @param {FOTribleSet} tribleset - The tribles stored.
    * @param {BlobCache} blobcache - The blobs associated with the tribles.
    */
-  constructor(tribleset = new TribleSet(), blobcache = new BlobCache()) {
+  constructor(tribleset = new FOTribleSet(), blobcache = new BlobCache()) {
     this.tribleset = tribleset;
     this.blobcache = blobcache;
   }
@@ -421,25 +421,25 @@ export class KB {
 
   union(other) {
     const tribleset = this.tribleset.union(other.tribleset);
-    const blobcache = this.blobcache.merge(other.blobcache);
+    const blobcache = this.blobcache.union(other.blobcache);
     return new KB(tribleset, blobcache);
   }
 
   subtract(other) {
     const tribleset = this.tribleset.subtract(other.tribleset);
-    const blobcache = this.blobcache.merge(other.blobcache).shrink(tribleset);
+    const blobcache = this.blobcache.subtract(other.blobcache);
     return new KB(tribleset, blobcache);
   }
 
   difference(other) {
     const tribleset = this.tribleset.difference(other.tribleset);
-    const blobcache = this.blobcache.merge(other.blobcache).shrink(tribleset);
+    const blobcache = this.blobcache.difference(other.blobcache);
     return new KB(tribleset, blobcache);
   }
 
   intersect(other) {
     const tribleset = this.tribleset.intersect(other.tribleset);
-    const blobcache = this.blobcache.merge(other.blobcache).shrink(tribleset);
+    const blobcache = this.blobcache.intersect(other.blobcache);
     return new KB(tribleset, blobcache);
   }
 }
