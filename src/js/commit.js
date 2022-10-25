@@ -165,6 +165,10 @@ export class Commit {
     return commit_sign(secret, tribles_count);
   }
 
+  flush(storeFn) {
+    this.commitKB.blobcache.flush(storeFn);
+  }
+
   where(ns, entities) {
     const build_ns = buildNamespace(ns);
     return (vars) => {
@@ -172,7 +176,7 @@ export class Commit {
       const triplesWithVars = precompileTriples(build_ns, vars, triples);
 
       triplesWithVars.foreach(([e, a, v]) => {
-        v.proposeBlobDB(currentKB.blobdb);
+        v.proposeBlobCache(currentKB.blobcache);
       });
       return [
         ...triplesWithVars.map(([e, a, v]) =>

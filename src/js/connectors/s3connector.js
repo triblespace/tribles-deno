@@ -1,6 +1,6 @@
 import { S3Bucket } from "https://deno.land/x/s3@0.3.0/mod.ts";
 
-class S3Connector {
+class S3BlobCache {
   constructor(
     config,
     bucket = new S3Bucket(config),

@@ -68,7 +68,84 @@ const PaddedCursor = class {
   // <<< Interface API
 }
 
-const makePACT = function (segments, segmentSize = 32) {
+
+export class SegmentConstraint {
+  constructor(pact, segmentVariables) {
+    if (pact.segments.length !== segmentVariables.length) {
+      throw new Error('Number of segment variables must match the number of segments.')
+    }
+    if (new Set(segmentVariables).size !== segmentVariables.length) {
+      throw new Error('Segment variables must be uniqe. Use explicit equality when inner constraints are required.')
+    }
+
+    this.nextVariableIndex = 0;
+    this.cursor = new PaddedCursor(pact.cursor(), pact.segments, 32);
+    this.segmentVariables = segmentVariables;
+  }
+
+  peekByte() {
+    if(this.nextVariableIndex === 0) {
+      throw new error("unreachable")
+    }
+    return this.cursor.peek();
+  }
+
+  proposeByte(bitset) {
+    if(this.nextVariableIndex === 0) {
+      throw new error("unreachable")
+    }
+    this.cursor.propose(bitset);
+  }
+
+  pushByte(byte) {
+    if(this.nextVariableIndex === 0) {
+      throw new error("unreachable")
+    }
+    this.cursor.push(byte);
+  }
+
+  popByte() {
+    if(this.nextVariableIndex === 0) {
+      throw new error("unreachable")
+    }
+    this.cursor.pop();
+  }
+
+  variables(bitset) {
+    bitset.unsetAll();
+    for(const variable of this.segmentVariables) {
+      bitset.set(variable);
+    }
+  }
+
+  blocked(bitset) {
+    bitset.unsetAll();
+    for(let i = this.nextVariableIndex + 1; i < this.segmentVariables.length; i++) {
+      bitset.set(this.segmentVariables[i]);
+    }
+  }
+
+  pushVariable(variable) {
+    if(this.segmentVariables[this.nextVariableIndex] === variable) {
+      this.nextVariableIndex++;
+    }
+  }
+
+  popVariable() {
+    if(this.nextVariableIndex === 0) {
+      throw new error("unreachable")
+    }
+    this.nextVariableIndex--;
+  }
+
+  countVariable(variable) {
+    if(this.segmentVariables[this.nextVariableIndex] === variable) {
+      return this.cursor.segmentCount();
+    }
+  }
+}
+
+const makePACT = function (segments) {
   const KEY_LENGTH = segments.reduce((a, n) => a + n, 0);
   if (KEY_LENGTH > 128) {
     throw Error("Compressed key must not be longer than 128 bytes.");
@@ -509,11 +586,10 @@ const makePACT = function (segments, segmentSize = 32) {
   };
 
   PACTTree = class {
-    static segments = segments;
-
     constructor(child = null) {
       this.keyLength = KEY_LENGTH;
       this.child = child;
+      this.segments = segments;
     }
 
     batch() {
@@ -886,6 +962,7 @@ const makePACT = function (segments, segmentSize = 32) {
 
   return new PACTTree();
 };
+
 
 const emptyIdIdValueTriblePACT = makePACT([ID_SIZE, ID_SIZE, VALUE_SIZE]);
 const emptyIdValueIdTriblePACT = makePACT([ID_SIZE, VALUE_SIZE, ID_SIZE]);

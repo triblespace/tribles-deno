@@ -13,7 +13,7 @@ function S3BlobConnector(
       const request = await bucket.getObject(hashToName(hash));
       return request.body;
     },
-    syncHandler: async (txn) => {
+    flushHandler: async (txn) => {
       for (const [key, blob] of txn.commitKB.blobcache.blobs.entries()) {
         await bucket.putObject(hashToName(key), blob);
       }

@@ -1,4 +1,4 @@
-import { emptyValuePACT, emptyValueIdIdTriblePACT } from "./pact.js";
+import { emptyValuePACT, emptyValueIdIdTriblePACT, SegmentConstraint } from "./pact.js";
 import { scrambleVAE } from "./trible.js";
 
 export class BlobCache {
@@ -36,6 +36,20 @@ export class BlobCache {
       this.cache = this.cache.put(key, new WeakRef(blob));
     }
     return blob;
+  }
+
+  async flush(storeFn) {
+    for (const r of new Query(
+      new IntersectionConstraint([
+        new MaskedConstraint(new SegmentConstraint(this.uncommitted, [0, 1, 2]), [1, 2]),
+      ]),
+    )) {
+      const v = r.get(1);
+      const blob = this.cached.get(v);
+      await storeFn(blob);
+    }
+
+    this.uncommitted = this.uncommitted.empty();
   }
 
   empty() {
@@ -84,10 +98,6 @@ export class BlobCache {
       this.cached.union(other.cached),
       this.onMiss
     );
-  }
-
-  onCommit(syncFn) {
-
   }
 
 }
