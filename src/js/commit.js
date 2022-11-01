@@ -165,8 +165,8 @@ export class Commit {
     return commit_sign(secret, tribles_count);
   }
 
-  async flush(storeFn) {
-    await this.commitKB.blobcache.flush(storeFn);
+  async flush() {
+    return await this.commitKB.blobcache.flush();
   }
 
   where(ns, entities) {

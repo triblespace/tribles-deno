@@ -20,7 +20,7 @@ const knightsNS = {
   age: { id: ageId, ...types.shortstring },
   loves: { id: lovesId, isLink: true },
   lovedBy: { id: lovesId, isLink: true, isInverse: true },
-  titles: { id: titlesId, isMulti: true, ...types.shortstring },
+  titles: { id: titlesId, isMany: true, ...types.shortstring },
 };
 
 function kbWith(b, size) {

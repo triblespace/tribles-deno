@@ -2,10 +2,13 @@ import { emptyValuePACT, emptyValueIdIdTriblePACT, SegmentConstraint } from "./p
 import { scrambleVAE } from "./trible.js";
 
 export class BlobCache {
-  constructor(uncommitted = emptyValueIdIdTriblePACT, cached = emptyValuePACT, onMiss = async () => {throw Error("Cache-miss not implemented.");}) {
+  constructor(onMiss = async () => {throw Error("Cache-miss not implemented.");},
+              onFlush = async () => {throw Error("Flush not implemented.");},
+              uncommitted = emptyValueIdIdTriblePACT, cached = emptyValuePACT,) {
     this.uncommitted = uncommitted;
     this.cached = cached;
     this.onMiss = onMiss;
+    this.onFlush = onFlush;
   }
 
   put(trible, blob) {
@@ -20,7 +23,7 @@ export class BlobCache {
       new_or_cached_blob = cached_blob;
     }
     const uncommitted = this.uncommitted.put(scrambleVAE(trible), new_or_cached_blob);
-    return new BlobCache(uncommitted, cached, this.onMiss);
+    return new BlobCache(this.onMiss, this.onFlush, uncommitted, cached);
   }
 
   async get(key) {
@@ -38,7 +41,7 @@ export class BlobCache {
     return blob;
   }
 
-  async flush(storeFn) {
+  async flush() {
     for (const r of new Query(
       new IntersectionConstraint([
         new MaskedConstraint(new SegmentConstraint(this.uncommitted, [0, 1, 2]), [1, 2]),
@@ -46,10 +49,12 @@ export class BlobCache {
     )) {
       const v = r.get(1);
       const blob = this.cached.get(v);
-      await storeFn(blob);
+      await this.onFlush(v, blob);
     }
 
+    const flushed = this.uncommitted;
     this.uncommitted = this.uncommitted.empty();
+    return flushed;
   }
 
   empty() {
@@ -60,10 +65,14 @@ export class BlobCache {
     if(this.onMiss !== other.onMiss) {
       throw new Error("Can only operate on two BlobCaches with the same onMiss handler.");
     }
+    if(this.onFlush !== other.onFlush) {
+      throw new Error("Can only operate on two BlobCaches with the same onFlush handler.");
+    }
     return new BlobCache(
+      this.onMiss,
+      this.onFlush,
       this.uncommitted.union(other.uncommitted),
-      this.cached.union(other.cached),
-      this.onMiss
+      this.cached.union(other.cached)
     );
   }
 
@@ -71,10 +80,14 @@ export class BlobCache {
     if(this.onMiss !== other.onMiss) {
       throw new Error("Can only operate on two BlobCaches with the same onMiss handler.");
     }
+    if(this.onFlush !== other.onFlush) {
+      throw new Error("Can only operate on two BlobCaches with the same onFlush handler.");
+    }
     return new BlobCache(
+      this.onMiss,
+      this.onFlush,
       this.uncommitted.subtract(other.uncommitted),
-      this.cached.union(other.cached),
-      this.onMiss
+      this.cached.union(other.cached)
     );
   }
 
@@ -82,10 +95,14 @@ export class BlobCache {
     if(this.onMiss !== other.onMiss) {
       throw new Error("Can only operate on two BlobCaches with the same onMiss handler.");
     }
+    if(this.onFlush !== other.onFlush) {
+      throw new Error("Can only operate on two BlobCaches with the same onFlush handler.");
+    }
     return new BlobCache(
+      this.onMiss,
+      this.onFlush,
       this.uncommitted.difference(other.uncommitted),
-      this.cached.union(other.cached),
-      this.onMiss
+      this.cached.union(other.cached)
     );
   }
 
@@ -93,10 +110,14 @@ export class BlobCache {
     if(this.onMiss !== other.onMiss) {
       throw new Error("Can only operate on two BlobCaches with the same onMiss handler.");
     }
+    if(this.onFlush !== other.onFlush) {
+      throw new Error("Can only operate on two BlobCaches with the same onFlush handler.");
+    }
     return new BlobCache(
+      this.onMiss,
+      this.onFlush,
       this.uncommitted.intersect(other.uncommitted),
-      this.cached.union(other.cached),
-      this.onMiss
+      this.cached.union(other.cached)
     );
   }
 
