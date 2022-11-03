@@ -1,28 +1,34 @@
 import { UFOID } from "./types/ufoid.js";
 import { Commit, validateCommitSize } from "./commit.js";
-import { KB } from "../../build/trible.js";
 
+/**
+ * Heads are a mutable container type for KBs.
+ * They manage commit validation and custom logic
+ * via middlewares, and provide a means to subscribe to changes. 
+ */
 export class Head {
-  constructor(initialKB, validationFn = validateCommitSize()) {
+  constructor(initialKB, middleware = validateCommitSize()) {
     this._current_kb = initialKB;
-    this._validationFn = validationFn;
+    this._middleware = middleware;
     this._subscriptions = new Set();
   }
 
-  commit(commitFunction) {
+  /**
+   * 
+   * @param {function} commitFn 
+   */
+  async commit(commitFn) {
     const commitId = UFOID.now();
     const baseKB = this._current_kb;
-    const currentKB = commitFunction(baseKB, commitId);
+    const currentKB = commitFn(baseKB, commitId);
     const commitKB = currentKB.subtract(baseKB);
     
-    const commit = new Commit(baseKB, commitKB, currentKB, commitId);
+    let commit = await this._middleware(new Commit(commitId, baseKB, commitKB, currentKB));
 
-    this._validationFn(commit);
-
-    this._current_kb = currentKB;
+    this._current_kb = commit.currentKB;
 
     for (const sub of this._subscriptions) {
-      sub(commit);
+      await sub(commit);
     }
   }
 

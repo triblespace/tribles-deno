@@ -60,6 +60,7 @@ export function validateCommitSize(max_trible_count = commit_max_trible_count) {
     if(commit.commitKB.tribleset.count() > max_trible_count) throw Error(
       `Commit too large: Commits must not contain more than ${max_trible_count} tribles.`
     );
+    return commit;
   }
 }
 
@@ -129,11 +130,11 @@ export class NoveltyConstraint {
 }
 
 export class Commit {
-  constructor(baseKB, commitKB, currentKB, commitId) {
+  constructor(commitId, baseKB, commitKB, currentKB) {
+    this.commitId = commitId;
     this.baseKB = baseKB;
     this.currentKB = currentKB;
     this.commitKB = commitKB;
-    this.commitId = commitId;
   }
 
   static deserialize(baseKB, bytes) {
@@ -165,8 +166,8 @@ export class Commit {
     return commit_sign(secret, tribles_count);
   }
 
-  async flush() {
-    return await this.commitKB.blobcache.flush();
+  blobs() {
+    return this.commitKB.blobcache.strongBlobs();
   }
 
   where(ns, entities) {
