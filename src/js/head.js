@@ -23,12 +23,13 @@ export class Head {
     const currentKB = commitFn(baseKB, commitId);
     const commitKB = currentKB.subtract(baseKB);
     
-    let commit = await this._middleware(new Commit(commitId, baseKB, commitKB, currentKB));
+    let commits = await this._middleware([new Commit(commitId, baseKB, commitKB, currentKB)]);
 
-    this._current_kb = commit.currentKB;
-
-    for (const sub of this._subscriptions) {
-      await sub(commit);
+    for (const commit of commits) {
+      this._current_kb = commit.currentKB;
+      for (const sub of this._subscriptions) {
+        await sub(commit);
+      }
     }
   }
 
