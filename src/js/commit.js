@@ -4,7 +4,8 @@ import { UFOID } from "./types/ufoid.js";
 import { id, buildNamespace } from "./namespace.js";
 import { authNS } from "./auth.js";
 import { entitiesToTriples } from "./kb.js";
-import { serialize, deserialize } from "./tribleset.js";
+import { serialize as tribleSerialize, deserialize as tribleDeserialize } from "./tribleset.js";
+import { serialize as blobSerialize, deserialize as blobDeserialize } from "./blobcache.js";
 
 // Each commits starts with a 16 byte zero marker for framing.
 //
@@ -139,11 +140,15 @@ export class Commit {
     this.commitKB = commitKB;
   }
 
-  static deserialize(baseKB, bytes) {
-    const {metaId, pubkey, dataset} = deserialize(baseKB.tribleset, bytes);
-
+  static deserialize(baseKB, tribleBytes, blobBytes) {
     const commitKB = baseKB.empty();
+
+    const {metaId, pubkey, dataset} = tribleDeserialize(commitKB.tribleset, tribleBytes);
+    const blobdata = blobDeserialize(dataset, blobBytes);
+
     commitKB.tribleset = dataset;
+    commitKB.blobcache = blobdata;
+    
     const currentKB = baseKB.union(commitKB);
 
     //TODO check that metaID author = pubkey
@@ -152,9 +157,9 @@ export class Commit {
   }
 
   serialize(secret) { // TODO replace this with WebCrypto Keypair once it supports ed25519.
-    const tribles = serialize(this.commitKB.tribleset, this.commitId, secret);
-
-    return {tribles};
+    const tribles = tribleSerialize(this.commitKB.tribleset, this.commitId, secret);
+    const blobs = blobSerialize
+    return {tribles, blobs};
   }
 
   where(ns, entities) {
