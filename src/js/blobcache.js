@@ -1,6 +1,17 @@
 import { emptyValuePACT, emptyValueIdIdTriblePACT, SegmentConstraint } from "./pact.js";
 import { scrambleVAE } from "./trible.js";
 
+export function deserialize(tribleset, blobcache, bytes) {
+  //TODO load blobs as strong blobs with matches form tribleset
+  //TODO load other blobs as weak blobs
+  return blobdata;
+}
+
+export function serialize(blobcache) {
+  blobcache.strongBlobs();
+  return bytes;
+}
+
 export class BlobCache {
   constructor(onMiss = async () => {},
               strong = emptyValueIdIdTriblePACT,

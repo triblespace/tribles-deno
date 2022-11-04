@@ -54,7 +54,7 @@ export fn blake2b256_finish() void {
 //                         │                               │
 // ┌──────────────────────────────────────────────┐┌──────────────┐
 // ┌──────────────────────────────────────────────┐┌──────────────┐
-// │                  signature                   ││  commit id   │
+// │                  signature                   ││   meta id    │
 // └──────────────────────────────────────────────┘└──────────────┘
 //
 //                              64 byte
@@ -66,68 +66,68 @@ export fn blake2b256_finish() void {
 //                                 │
 //                              trible
 
-pub const commit_header_size = 128;
+pub const serialize_header_size = 128;
 /// This limit enforces compatibility with UDP, DDS, WebRTC and friends.
 /// Since the entire datamodel is build on calm consistency there is no
 /// real need for large "transactions" except for metadata austerity.
-pub const commit_max_trible_count = 1020;
+pub const serialize_max_trible_count = 1020;
 const trible_size = 64;
-pub const commit_max_size = commit_header_size + (commit_max_trible_count * trible_size);
+pub const serialize_max_size = serialize_header_size + (serialize_max_trible_count * trible_size);
 
-export var global_commit_secret : [ed25519.seed_length]u8 = [_]u8{0} ** ed25519.seed_length;
-export var global_commit_buffer : [commit_max_size]u8 = [_]u8{0} ** commit_max_size;
+export var global_serialize_secret : [ed25519.seed_length]u8 = [_]u8{0} ** ed25519.seed_length;
+export var global_serialize_buffer : [serialize_max_size]u8 = [_]u8{0} ** serialize_max_size;
 
 
 
 fn pubkey() [32]u8 {
-  return global_commit_buffer[16..48];
+  return global_serialize_buffer[16..48];
 }
 
 fn signature() [64]u8 {
-  return global_commit_buffer[48..112];
+  return global_serialize_buffer[48..112];
 }
 
-fn check_structure(commit_length: usize) bool {
+fn check_structure(serialize_length: usize) bool {
   // Commits must at least contain one trible.
-  if(commit_length < commit_header_size + trible_size) return false;
+  if(serialize_length < serialize_header_size + trible_size) return false;
   // Commits must include at most 1020 tribles to fit into UDP, DDS, RTC, ...
-  if(commit_max_size < commit_length) return false;
+  if(serialize_max_size < serialize_length) return false;
   // Commit length must be a multiple of the trible size.
-  if((commit_length % trible_size) != 0) return false;
+  if((serialize_length % trible_size) != 0) return false;
   // Commits must start with a frame marker.
-  if(!std.mem.allEqual(u8, global_commit_buffer[0..16], 0)) return false;
+  if(!std.mem.allEqual(u8, global_serialize_buffer[0..16], 0)) return false;
   // Commits may not contain other frame markers.
   var i: usize = trible_size;
-  while(i < commit_length):(i += trible_size){
-      if(std.mem.allEqual(u8, global_commit_buffer[i..i+trible_size], 0)) return false;
+  while(i < serialize_length):(i += trible_size){
+      if(std.mem.allEqual(u8, global_serialize_buffer[i..i+trible_size], 0)) return false;
   }
 
   return true;
 }
 
-pub fn commit_verify(commit_length: usize) bool {
-  check_structure(commit_length) or return false;
+pub fn verify(length: usize) bool {
+  check_structure(length) or return false;
   
   var digest: [Blake2b256.digest_length]u8 = undefined;
-  Blake2b256.hash(global_commit_buffer[112..commit_length], &digest, .{});
+  Blake2b256.hash(global_serialize_buffer[112..length], &digest, .{});
 
   ed25519.verify(signature(), digest, pubkey()) catch return false;
   return true;
 }
 
-pub fn commit_sign(trible_count: usize) bool {
-  const commit_length = trible_count * trible_size;
-  check_structure(commit_length) or return false;
-  const key_pair = ed25519.KeyPair.create(global_commit_secret) catch return false;
-  std.mem.set(u8, global_commit_buffer[0..16], 0);
-  std.mem.copy(u8, global_commit_buffer[16..48], key_pair.public_key[0..]);
+pub fn sign(trible_count: usize) bool {
+  const length = trible_count * trible_size;
+  check_structure(length) or return false;
+  const key_pair = ed25519.KeyPair.create(global_serialize_secret) catch return false;
+  std.mem.set(u8, global_serialize_buffer[0..16], 0);
+  std.mem.copy(u8, global_serialize_buffer[16..48], key_pair.public_key[0..]);
   
   var digest: [Blake2b256.digest_length]u8 = undefined;
-  Blake2b256.hash(global_commit_buffer[112..commit_length], &digest, .{});
+  Blake2b256.hash(global_serialize_buffer[112..length], &digest, .{});
 
   const sig = ed25519.sign(digest, key_pair, null) catch return false;
 
-  std.mem.copy(u8, global_commit_buffer[48..112], sig[0..]);
+  std.mem.copy(u8, global_serialize_buffer[48..112], sig[0..]);
 
   return true;
 }

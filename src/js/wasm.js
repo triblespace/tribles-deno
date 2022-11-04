@@ -89,50 +89,50 @@ export function blake2b256(data, out) {
 }
 
 // # Commits
-const commit_header_size = 128;
-const commit_max_trible_count = 1020;
+const serialize_header_size = 128;
+const serialize_max_trible_count = 1020;
 const trible_size = 64;
-const commit_max_size = commit_header_size + (commit_max_trible_count * trible_size);
-const commit_secret_size = 32;
+const serialize_max_size = serialize_header_size + (serialize_max_trible_count * trible_size);
+const serialize_secret_size = 32;
 
-const _global_commit_secret = new Uint8Array(
+const _global_serialize_secret = new Uint8Array(
   instance.exports.memory.buffer,
-  instance.exports._global_commit_secret,
-  commit_secret_size
+  instance.exports._global_serialize_secret,
+  serialize_secret_size
 );
-const _global_commit_buffer = new Uint8Array(
+const _global_serialize_buffer = new Uint8Array(
   instance.exports.memory.buffer,
-  instance.exports._global_commit_buffer,
-  commit_max_size
+  instance.exports._global_serialize_buffer,
+  serialize_max_size
 );
 
-const _global_commit_buffer_commitid = new Uint8Array(
+const _global_serialize_buffer_metaid = new Uint8Array(
   instance.exports.memory.buffer,
-  instance.exports._global_commit_buffer + 112,
+  instance.exports._global_serialize_buffer + 112,
   16
 );
 
-export function setCommitId(commitId) {
-  _global_commit_buffer_commitid.set(commitId);
+export function setMetaId(metaId) {
+  _global_serialize_buffer_metaid.set(metaId);
 }
 
-const _global_commit_buffer_tribles = new Uint8Array(
+const _global_serialize_buffer_tribles = new Uint8Array(
   instance.exports.memory.buffer,
-  instance.exports._global_commit_buffer + 128,
-  commit_max_trible_count * trible_size
+  instance.exports._global_serialize_buffer + 128,
+  serialize_max_trible_count * trible_size
 );
 
 export function setTrible(i, trible) {
-  _global_commit_buffer_tribles.subarray(i * TRIBLE_SIZE, (i + 1) * TRIBLE_SIZE).set(trible);
+  _global_serialize_buffer_tribles.subarray(i * TRIBLE_SIZE, (i + 1) * TRIBLE_SIZE).set(trible);
 }
 
-export function commit_verify(data) {
-  _global_commit_buffer.set(data);
-  return instance.exports.commit_verify(data.length);
+export function verify(data) {
+  _global_serialize_buffer.set(data);
+  return instance.exports.verify(data.length);
 }
 
-export function commit_sign(secret, trible_count) {
-  _global_commit_secret.set(secret);
-  if(!instance.exports.commit_sign(trible_count)) throw "Failed to sign commit!";
-  return _global_commit_buffer.subarray(0, _global_commit_buffer_tribles + trible_count * trible_size);
+export function sign(secret, trible_count) {
+  _global_serialize_secret.set(secret);
+  if(!instance.exports.sign(trible_count)) throw "Failed to sign tribles!";
+  return _global_serialize_buffer.subarray(0, _global_serialize_buffer_tribles + trible_count * trible_size);
 }

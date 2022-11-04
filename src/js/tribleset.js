@@ -15,6 +15,7 @@ import {
 import {
   IntersectionConstraint,
 } from "./query.js";
+import { verify, setMetaId, setTrible, sign } from "./wasm.js";
 
 const BUFFER_SIZE = 64;
 
@@ -34,6 +35,33 @@ const stack_aev = 12;
 const stack_ave = 13;
 const stack_vea = 14;
 const stack_vae = 15;
+
+export function deserialize(tribleset, bytes) {
+  if(!commit_verify(bytes)) {
+    throw Error("Failed to verify serialized tribleset!");
+  }
+  const pubkey = bytes.slice(16, 48);
+  const metaId = bytes.slice(112, 128);
+
+  const dataset = tribleset.with(splitTribles(bytes.subarray(commit_header_size)));
+
+  return {pubkey, metaId, dataset};
+}
+
+export function serialize(tribleset, metaId, secret) { // TODO replace this with WebCrypto Keypair once it supports ed25519.
+  setMetaId(metaId);
+
+  const tribles_count = tribleset.count();
+  const tribles = tribleset.tribles();
+  
+  let i = 0;
+  for (const trible of tribles) {
+    setTrible(i, trible);
+    i += 1;
+  }
+
+  return sign(secret, tribles_count);
+}
 
 class FOMemTribleConstraint {
   constructor(tribleSet, e, a, v) {

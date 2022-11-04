@@ -1,10 +1,10 @@
 import { TRIBLE_SIZE } from "./trible.js";
 import { types } from "./types.js";
 import { UFOID } from "./types/ufoid.js";
-import { commit_verify, setCommitId, setTrible, commit_sign } from "./wasm.js";
 import { id, buildNamespace } from "./namespace.js";
 import { authNS } from "./auth.js";
 import { entitiesToTriples } from "./kb.js";
+import { serialize, deserialize } from "./tribleset.js";
 
 // Each commits starts with a 16 byte zero marker for framing.
 //
@@ -140,36 +140,21 @@ export class Commit {
   }
 
   static deserialize(baseKB, bytes) {
-    if(!commit_verify(bytes)) {
-      throw Error("Failed to verify commit!");
-    }
-    const commitId = bytes.slice(112, 128);
+    const {metaId, pubkey, dataset} = deserialize(baseKB.tribleset, bytes);
 
-    const commitKB = baseKB.empty().withTribles(splitTribles(bytes.subarray(commit_header_size)));
+    const commitKB = baseKB.empty();
+    commitKB.tribleset = dataset;
     const currentKB = baseKB.union(commitKB);
 
-    //TODO check that commitID author = pubkey
+    //TODO check that metaID author = pubkey
 
-    return new Commit(baseKB, commitKB, currentKB, commitId);
+    return new Commit(baseKB, commitKB, currentKB, metaId);
   }
 
   serialize(secret) { // TODO replace this with WebCrypto Keypair once it supports ed25519.
-    setCommitId(this.commitId);
+    const tribles = serialize(this.commitKB.tribleset, this.commitId, secret);
 
-    const tribles_count = this.commitKB.tribleset.count();
-    const tribles = this.commitKB.tribleset.tribles();
-    
-    let i = 0;
-    for (const trible of tribles) {
-      setTrible(i, trible);
-      i += 1;
-    }
-
-    return commit_sign(secret, tribles_count);
-  }
-
-  blobs() {
-    return this.commitKB.blobcache.strongBlobs();
+    return {tribles};
   }
 
   where(ns, entities) {
