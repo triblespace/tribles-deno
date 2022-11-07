@@ -314,6 +314,10 @@ export class FOTribleSet {
     return this.EAV.keys();
   }
 
+  tripleConstraint([e, a, v]) {
+    return new FOMemTribleConstraint(this, e, a, v);
+  }
+
   patternConstraint(triples) {
     return new IntersectionConstraint(triples.map(([e,a,v]) => new FOMemTribleConstraint(this, e, a, v)));
   }
@@ -699,6 +703,10 @@ export class HOTribleSet {
    */
   tribles() {
     return this.EAV.keys();
+  }
+
+  tripleConstraint([e, a, v]) {
+    return new HOMemTribleConstraint(this, e, a, v);
   }
 
   patternConstraint(triples) {

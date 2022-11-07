@@ -5,7 +5,14 @@ import {
   ByteBitsetArray
 } from "./bitset.js";
 
-const inmemoryCosts = 1;
+export const UPPER_START = 0;
+export const UPPER_END = 16;
+
+export const LOWER_START = 16;
+export const LOWER_END = 32;
+
+export const UPPER = (value) => value.subarray(UPPER_START, UPPER_END);
+export const LOWER = (value) => value.subarray(LOWER_START, LOWER_END);
 
 // This constraint is used when there is a fixed number of possible values for a variable.
 // As with a collection where items should exist in, or when enumerating attributes from a namespace

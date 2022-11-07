@@ -7,25 +7,25 @@ export const A_SIZE = ID_SIZE;
 export const V_SIZE = VALUE_SIZE;
 
 export const E_START = 0;
-export const E_END = 16;
+export const E_END = E_SIZE;
 
-export const A_START = 16;
-export const A_END = 32;
+export const A_START = E_SIZE;
+export const A_END = E_SIZE+A_SIZE;
 
-export const V_START = 32;
-export const V_END = 64;
+export const V_START = E_SIZE+A_SIZE;
+export const V_END = E_SIZE+A_SIZE+V_SIZE;
 
-export const V1_START = 32;
-export const V1_END = 48;
+export const V_UPPER_START = 32;
+export const V_UPPER_END = 48;
 
-export const V2_START = 48;
-export const V2_END = 64;
+export const V_LOWER_START = 48;
+export const V_LOWER_END = 64;
 
 export const E = (trible) => trible.subarray(E_START, E_END);
 export const A = (trible) => trible.subarray(A_START, A_END);
 export const V = (trible) => trible.subarray(V_START, V_END);
-export const V1 = (trible) => trible.subarray(V1_START, V1_END);
-export const V2 = (trible) => trible.subarray(V2_START, V2_END);
+export const V_UPPER = (trible) => trible.subarray(V_UPPER_START, V_UPPER_END);
+export const V_LOWER = (trible) => trible.subarray(V_LOWER_START, V_LOWER_END);
 
 export function scrambleEAV(trible) {
   return trible;
@@ -109,4 +109,3 @@ export const equalValue = (valueA, valueB) => {
   }
   return true;
 };
-

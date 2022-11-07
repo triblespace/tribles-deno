@@ -1,4 +1,3 @@
-import { emptyValuePACT } from "./pact.js";
 import {
   constantConstraint,
   indexConstraint,
