@@ -17,8 +17,7 @@ export class Head {
    * 
    * @param {function} commitFn 
    */
-  async commit(commitFn) {
-    const commitId = UFOID.now();
+  async commit(commitFn, commitId = UFOID.now()) {
     const baseKB = this._current_kb;
     const currentKB = commitFn(baseKB, commitId);
     const commitKB = currentKB.subtract(baseKB);
