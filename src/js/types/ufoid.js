@@ -103,6 +103,10 @@ export const UFOID = {
 
   toHex(id) {
     return Array.from(id.subarray(16, 32)).map(byte => byte.toString(16).padStart(2, "0")).join('');
+  },
+  
+  toUint32Array(id) {
+    return new Uint32Array(id.buffer, 16, 4);
   }
 };
 
