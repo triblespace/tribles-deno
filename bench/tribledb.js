@@ -1,7 +1,6 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
 import { FOTribleSet } from "../src/js/tribleset.js";
-import { UFOID } from "../src/js/ufoid.js";
-import { ufoid } from "../src/js/types/ufoid.js";
+import { UFOID, schema as ufoid } from "../src/js/types/ufoid.js";
 
 function generateRandomSample(size, sharing_prob = 0.1) {
   const facts = [];
@@ -78,13 +77,13 @@ function generateUfoidSample(size) {
   crypto.getRandomValues(fact);
   for (let i = 0; i < size; i++) {
     if (0.1 >= Math.random()) {
-      ufoid.encoder(UFOID.now(), e);
+      ufoid.encodeId(UFOID.now(), e);
     }
     if (0.1 >= Math.random()) {
-      ufoid.encoder(UFOID.now(), a);
+      ufoid.encodeId(UFOID.now(), a);
     }
     if (0.8 >= Math.random()) {
-      ufoid.encoder(UFOID.now(), v);
+      ufoid.encodeValue(UFOID.now(), v);
     }
     facts.push(Uint8Array.from(fact));
   }

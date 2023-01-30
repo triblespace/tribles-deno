@@ -1,6 +1,6 @@
 import { emptyValuePACT, emptyValueIdIdTriblePACT, SegmentConstraint } from "./pact.js";
 import { scrambleVAE, TRIBLE_SIZE, E, A, V } from "./trible.js";
-import { blake2b256, hash_equal } from "../wasm.js";
+import { blake2b256, hash_equal } from "./wasm.js";
 import {
   IntersectionConstraint,
   MaskedConstraint,

@@ -112,8 +112,13 @@ export const UFOID = {
 
 // Schema
 
+function encodeId(v, b) {
+  b.set(v.subarray(16, 32));
+  return null;
+}
+
 function ufoidEncoder(v, b) {
-  UFOID.validate(v)
+  UFOID.validate(v);
   b.set(v);
   return null;
 }
@@ -123,6 +128,8 @@ function ufoidDecoder(b, blob) {
 }
 
 export const schema = {
+  encodeId: encodeId,
+  encodeValue: ufoidEncoder,
   encoder: ufoidEncoder,
   decoder: ufoidDecoder,
   factory: UFOID.now,
