@@ -215,7 +215,7 @@ class FOMemTribleConstraint {
       }
   }
 
-  countVariable(variable) {
+  variableCosts(variable) {
       if(this.eVar === variable) {
         switch(this.state) {
           case stack_empty: return this.eavCursor.segmentCount();
@@ -571,7 +571,7 @@ class HOMemTribleConstraint {
       }
   }
 
-  countVariable(variable) {
+  variableCosts(variable) {
       if(this.eVar === variable) {
         switch(this.state) {
           case stack_empty: return this.eavCursor.segmentCount();

@@ -52,7 +52,7 @@ class IndexConstraint {
 
   popVariable() {}
 
-  countVariable(_variable) {
+  variableCosts(_variable) {
     return this.cursor.segmentCount();
   }
 }
@@ -132,7 +132,7 @@ class RangeConstraint {
 
   popVariable() {}
 
-  countVariable(_variable) {
+  variableCosts(_variable) {
     return Number.MAX_VALUE;
   }
 }
@@ -185,7 +185,7 @@ class ConstantConstraint {
 
   popVariable() {}
 
-  countVariable(_variable) {
+  variableCosts(_variable) {
     return 1;
   }
 }
@@ -293,13 +293,13 @@ export const IntersectionConstraint = class {
     }
   }
 
-  countVariable(variable) {
+  variableCosts(variable) {
     let min = Number.MAX_VALUE
     let b = (new ByteBitset()).unsetAll();
     for(const constraint of this.constraints) {
       constraint.variables(b);
       if(b.has(variable)) {
-        min = Math.min(min, constraint.countVariable(variable));
+        min = Math.min(min, constraint.variableCosts(variable));
       }
     }
 
@@ -353,8 +353,8 @@ export const MaskedConstraint = class {
     this.constraint.popVariable();
   }
 
-  countVariable(variable) {
-    return this.constraint.countVariable(variable);
+  variableCosts(variable) {
+    return this.constraint.variableCosts(variable);
   }
 };
 
@@ -495,7 +495,7 @@ export class Query {
       if(variables.isEmpty()) throw new Error("Can't evaluate query: blocked dead end.");
       
       for (const variable of variables.entries()) {
-        const costs = this.constraint.countVariable(variable);
+        const costs = this.constraint.variableCosts(variable);
         if(costs <= nextVariableCosts) {
           nextVariable = variable;
           nextVariableCosts = costs;
@@ -505,8 +505,8 @@ export class Query {
 
       this.unexploredVariables.unset(nextVariable);
       this.constraint.pushVariable(nextVariable);
-      const segments = VariableIterator(this.constraint, this.bindings.get(nextVariable));
-      for (const _ of segments) {
+      const variableAssignments = VariableIterator(this.constraint, this.bindings.get(nextVariable));
+      for (const _ of variableAssignments) {
         yield* this.__resolve();
       }
       this.constraint.popVariable();

@@ -138,7 +138,7 @@ export class SegmentConstraint {
     this.nextVariableIndex--;
   }
 
-  countVariable(variable) {
+  variableCosts(variable) {
     if(this.segmentVariables[this.nextVariableIndex] === variable) {
       return this.cursor.segmentCount();
     }
