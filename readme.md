@@ -170,7 +170,7 @@ capabilities. These can be roughly categorized as follows:
 The resulting structure looks like this:
 
 ```
-┌────────┐
+                  ┌────────┐
                   │  PACT  │
                   └────────┘             Unstructured
 ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
