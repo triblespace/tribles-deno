@@ -90,7 +90,7 @@ export function blake2b256(data, out) {
 
 // # Commits
 const serialize_header_size = 128;
-const serialize_max_trible_count = 1020;
+const serialize_max_trible_count = 1021;
 const trible_size = 64;
 const serialize_max_size = serialize_header_size + (serialize_max_trible_count * trible_size);
 const serialize_secret_size = 32;

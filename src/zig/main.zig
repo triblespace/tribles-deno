@@ -70,7 +70,7 @@ pub const serialize_header_size = 128;
 /// This limit enforces compatibility with UDP, DDS, WebRTC and friends.
 /// Since the entire datamodel is build on calm consistency there is no
 /// real need for large "transactions" except for metadata austerity.
-pub const serialize_max_trible_count = 1020;
+pub const serialize_max_trible_count = 1021;
 const trible_size = 64;
 pub const serialize_max_size = serialize_header_size + (serialize_max_trible_count * trible_size);
 
@@ -90,7 +90,7 @@ fn signature() [64]u8 {
 fn check_structure(serialize_length: usize) bool {
   // Commits must at least contain one trible.
   if(serialize_length < serialize_header_size + trible_size) return false;
-  // Commits must include at most 1020 tribles to fit into UDP, DDS, RTC, ...
+  // Commits must include at most 1021 tribles to fit into UDP, DDS, RTC, ...
   if(serialize_max_size < serialize_length) return false;
   // Commit length must be a multiple of the trible size.
   if((serialize_length % trible_size) != 0) return false;

@@ -53,7 +53,7 @@ import { serialize as blobSerialize, deserialize as blobDeserialize } from "./bl
 //                              trible
 
 const commit_header_size = 128;
-const commit_max_trible_count = 1020;
+const commit_max_trible_count = 1021;
 
 
 export function validateCommitSize(max_trible_count = commit_max_trible_count) {
