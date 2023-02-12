@@ -190,7 +190,7 @@ The resulting structure looks like this:
 ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
                        ▼
                 ╔════════════╗
-                ║    Head     ║                Mutable
+                ║    Head    ║                Mutable
                 ╚════════════╝         & Subscribable
 ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─▲─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
         ┌────────────┬─┴───────┐
