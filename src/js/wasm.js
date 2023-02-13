@@ -1,4 +1,4 @@
-import { buffer } from "../../build/wasmdata.js";
+import { buffer } from "./wasmdata.js";
 
 const module = await WebAssembly.compile(buffer);
 export const instance = await WebAssembly.instantiate(module, {});
