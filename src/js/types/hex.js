@@ -6,14 +6,14 @@ import {
 function hexEncoder(v, b) {
   if (v.length !== 64) {
     throw Error(
-      "Couldn't encode hex value: Length must be exactly 64 (left padded with 0s)."
+      "Couldn't encode hex value: Length must be exactly 64 (left padded with 0s).",
     );
   }
   const bytes = decodeString(v);
   for (let i = 0; i < bytes.length - b.length; i++) {
     if (bytes[i] !== 0) {
       throw Error(
-        "Couldn't encode hex value as id: Too large non zero prefix."
+        "Couldn't encode hex value as id: Too large non zero prefix.",
       );
     }
   }

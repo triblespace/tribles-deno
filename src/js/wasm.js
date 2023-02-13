@@ -7,25 +7,25 @@ export const instance = await WebAssembly.instantiate(module, {});
 const _global_hash_secret = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports.global_hash_secret,
-  16
+  16,
 );
 
 const _global_hash_this = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports.global_hash_this,
-  16
+  16,
 );
 
 const _global_hash_other = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports.global_hash_other,
-  16
+  16,
 );
 
 const _global_hash_data = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports.global_hash_data,
-  64
+  64,
 );
 
 crypto.getRandomValues(_global_hash_secret);
@@ -65,17 +65,17 @@ const blake_buffer_size = 1024;
 const _global_blake2b256_out = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports.global_blake2b256_out,
-  blake2b256_digest_size
+  blake2b256_digest_size,
 );
 const _global_blake2b256_buffer = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports.global_blake2b256_buffer,
-  blake_buffer_size
+  blake_buffer_size,
 );
 
 export function blake2b256(data, out) {
   let i = 0;
-  for(; (i + blake_buffer_size) < data.length; i+= blake_buffer_size) {
+  for (; (i + blake_buffer_size) < data.length; i += blake_buffer_size) {
     _global_blake2b256_buffer.set(data.subarray(i, i + blake_buffer_size), i);
 
     instance.exports.blake2b256_update(blake_buffer_size);
@@ -92,24 +92,25 @@ export function blake2b256(data, out) {
 const serialize_header_size = 128;
 const serialize_max_trible_count = 1021;
 const trible_size = 64;
-const serialize_max_size = serialize_header_size + (serialize_max_trible_count * trible_size);
+const serialize_max_size = serialize_header_size +
+  (serialize_max_trible_count * trible_size);
 const serialize_secret_size = 32;
 
 const _global_serialize_secret = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports._global_serialize_secret,
-  serialize_secret_size
+  serialize_secret_size,
 );
 const _global_serialize_buffer = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports._global_serialize_buffer,
-  serialize_max_size
+  serialize_max_size,
 );
 
 const _global_serialize_buffer_metaid = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports._global_serialize_buffer + 112,
-  16
+  16,
 );
 
 export function setMetaId(metaId) {
@@ -119,11 +120,14 @@ export function setMetaId(metaId) {
 const _global_serialize_buffer_tribles = new Uint8Array(
   instance.exports.memory.buffer,
   instance.exports._global_serialize_buffer + 128,
-  serialize_max_trible_count * trible_size
+  serialize_max_trible_count * trible_size,
 );
 
 export function setTrible(i, trible) {
-  _global_serialize_buffer_tribles.subarray(i * TRIBLE_SIZE, (i + 1) * TRIBLE_SIZE).set(trible);
+  _global_serialize_buffer_tribles.subarray(
+    i * TRIBLE_SIZE,
+    (i + 1) * TRIBLE_SIZE,
+  ).set(trible);
 }
 
 export function verify(data) {
@@ -133,6 +137,9 @@ export function verify(data) {
 
 export function sign(secret, trible_count) {
   _global_serialize_secret.set(secret);
-  if(!instance.exports.sign(trible_count)) throw "Failed to sign tribles!";
-  return _global_serialize_buffer.subarray(0, _global_serialize_buffer_tribles + trible_count * trible_size);
+  if (!instance.exports.sign(trible_count)) throw "Failed to sign tribles!";
+  return _global_serialize_buffer.subarray(
+    0,
+    _global_serialize_buffer_tribles + trible_count * trible_size,
+  );
 }

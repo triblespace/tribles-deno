@@ -18,7 +18,7 @@ Deno.test("withTime is valid", () => {
     fc.property(time, (v) => {
       const id = UFOID.withTime(time);
       UFOID.validate(id);
-    })
+    }),
   );
 });
 
@@ -27,7 +27,7 @@ Deno.test("decoder->encoder roundtrip", () => {
     .array(fc.nat(255), { minLength: 16, maxLength: 16 })
     .map(
       (a) =>
-        new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...a])
+        new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...a]),
     );
 
   fc.assert(
@@ -36,6 +36,6 @@ Deno.test("decoder->encoder roundtrip", () => {
       const vb = new Uint8Array(32);
       types.ufoid.encoder(encoded, vb);
       assertEquals(vb, v);
-    })
+    }),
   );
 });

@@ -8,7 +8,6 @@ import { schema as biguint256_schema } from "./types/biguint256.js";
 import { schema as hex_schema } from "./types/hex.js";
 //import { schema as float64_schema } from "./types/float64.js"; //TODO Fix to use lexicographical sorting.
 
-
 export const types = {
   ufoid: ufoid_schema,
   uuid: uuid_schema,

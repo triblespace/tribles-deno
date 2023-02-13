@@ -11,10 +11,10 @@ export function ctz32(n) {
   return 32 - Math.clz32(~n);
 }
 
-function popcnt32 (n) {
-  n = n - ((n >> 1) & 0x55555555)
-  n = (n & 0x33333333) + ((n >> 2) & 0x33333333)
-  return ((n + (n >> 4) & 0xF0F0F0F) * 0x1010101) >> 24
+function popcnt32(n) {
+  n = n - ((n >> 1) & 0x55555555);
+  n = (n & 0x33333333) + ((n >> 2) & 0x33333333);
+  return ((n + (n >> 4) & 0xF0F0F0F) * 0x1010101) >> 24;
 }
 
 export class ByteBitset {
@@ -28,7 +28,7 @@ export class ByteBitset {
 
   *entries() {
     for (let wordPosition = 0; wordPosition < 8; wordPosition++) {
-      for (let mask = 0xffffffff; ; ) {
+      for (let mask = 0xffffffff;;) {
         const c = Math.clz32(this.u32array[wordPosition] & mask);
         if (c === 32) break;
         yield (wordPosition << 5) + c;
@@ -39,13 +39,13 @@ export class ByteBitset {
 
   count() {
     return popcnt32(this.u32array[0]) +
-           popcnt32(this.u32array[1]) +
-           popcnt32(this.u32array[2]) +
-           popcnt32(this.u32array[3]) +
-           popcnt32(this.u32array[4]) +
-           popcnt32(this.u32array[5]) +
-           popcnt32(this.u32array[6]) +
-           popcnt32(this.u32array[7]);
+      popcnt32(this.u32array[1]) +
+      popcnt32(this.u32array[2]) +
+      popcnt32(this.u32array[3]) +
+      popcnt32(this.u32array[4]) +
+      popcnt32(this.u32array[5]) +
+      popcnt32(this.u32array[6]) +
+      popcnt32(this.u32array[7]);
   }
 
   has(byte) {
@@ -83,10 +83,10 @@ export class ByteBitset {
     }
     return null;
   }
- 
+
   drainNext() {
     const byte = this.next(0);
-    if(byte !== null) {
+    if (byte !== null) {
       this.unset(byte);
     }
     return byte;
@@ -94,14 +94,14 @@ export class ByteBitset {
 
   drainPrev() {
     const byte = this.prev(255);
-    if(byte !== null) {
+    if (byte !== null) {
       this.unset(byte);
     }
     return byte;
   }
 
   singleIntersect(byte) {
-    if(this.has(byte)){
+    if (this.has(byte)) {
       this.unsetAll();
       this.set(byte);
     } else {
@@ -109,7 +109,6 @@ export class ByteBitset {
     }
     return this;
   }
-  
 
   setAll() {
     this.u32array[0] = ~0;
@@ -138,7 +137,11 @@ export class ByteBitset {
   setRange(fromByte, toByte) {
     let fromWordPosition = fromByte >>> 5;
     let toWordPosition = toByte >>> 5;
-    for (let wordPosition = 0; wordPosition < fromWordPosition; wordPosition++) {
+    for (
+      let wordPosition = 0;
+      wordPosition < fromWordPosition;
+      wordPosition++
+    ) {
       this.u32array[wordPosition] = 0;
     }
 
@@ -153,7 +156,7 @@ export class ByteBitset {
     }
 
     this.u32array[toWordPosition] = ~(~highBit32 >>> toByte);
-    
+
     for (
       let wordPosition = toWordPosition + 1;
       wordPosition < 8;
@@ -276,14 +279,13 @@ export class ByteBitset {
   }
 }
 
-
 export class ByteBitsetArray {
   constructor(length) {
     this.length = length;
-    this.buffer = new Uint32Array(length*8);
+    this.buffer = new Uint32Array(length * 8);
   }
 
   get(offset) {
-    return new ByteBitset(this.buffer.subarray(offset*8, (offset+1)*8));
+    return new ByteBitset(this.buffer.subarray(offset * 8, (offset + 1) * 8));
   }
 }

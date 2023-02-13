@@ -1,8 +1,6 @@
 import { Head } from "./src/js/head.js";
 //import { WSConnector } from "./src/js/connectors/wsconnector.js";
-import {
-  entitiesToTriples, KB
-} from "./src/js/kb.js";
+import { entitiesToTriples, KB } from "./src/js/kb.js";
 import { find } from "./src/js/query.js";
 import { types } from "./src/js/types.js";
 import { FOTribleSet, HOTribleSet } from "./src/js/tribleset.js";
@@ -13,17 +11,17 @@ import { id, validateNS } from "./src/js/namespace.js";
 
 export {
   BlobCache,
-  Head,
   emptyTriblePACT,
   emptyValuePACT,
   entitiesToTriples,
   find,
+  FOTribleSet,
+  Head,
+  HOTribleSet,
   id,
   KB,
   makePACT,
-  validateNS,
-  FOTribleSet,
-  HOTribleSet,
   types,
   UFOID,
+  validateNS,
 };

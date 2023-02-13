@@ -1,7 +1,8 @@
 import { S3Bucket } from "https://deno.land/x/s3@0.3.0/mod.ts";
 
 function hashToName(hash) {
-  return Array.from(hash).map(byte => byte.toString(16).padStart(2, "0")).join('');
+  return Array.from(hash).map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function S3BlobConnector(
@@ -17,7 +18,7 @@ function S3BlobConnector(
       for (const [key, blob] of txn.commitKB.blobcache.blobs.entries()) {
         await bucket.putObject(hashToName(key), blob);
       }
-    }
+    },
   };
 }
 

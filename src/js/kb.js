@@ -6,16 +6,10 @@ import {
   Query,
   Variable,
 } from "./query.js";
-import {
-  A,
-  E,
-  TRIBLE_SIZE,
-  V,
-  VALUE_SIZE,
-} from "./trible.js";
+import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
 import { FOTribleSet } from "./tribleset.js";
 import { BlobCache } from "./blobcache.js";
-import { id, buildNamespace } from "./namespace.js";
+import { buildNamespace, id } from "./namespace.js";
 
 const assert = (test, message) => {
   if (!test) {
@@ -36,9 +30,9 @@ const lookup = (build_ns, kb, eId, attributeName) => {
     new IntersectionConstraint([
       constantConstraint(0, eId),
       constantConstraint(1, aId),
-      kb.tribleset.patternConstraint([(isInverse ? [2, 1, 0] : [0, 1, 2])]),
+      kb.tribleset.patternConstraint([isInverse ? [2, 1, 0] : [0, 1, 2]]),
     ]),
-    (r) => r.get(2)
+    (r) => r.get(2),
   );
 
   if (!isMany) {
@@ -56,7 +50,7 @@ const lookup = (build_ns, kb, eId, attributeName) => {
       results.push(
         isLink
           ? entityProxy(build_ns, kb, value)
-          : decoder(value.slice(), async () => await kb.blobcache.get(value))
+          : decoder(value.slice(), async () => await kb.blobcache.get(value)),
       );
     }
     return {
@@ -93,7 +87,7 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
       },
       set: function (_, _attributeName) {
         throw TypeError(
-          "Error: Entities are not writable, please use 'with' on the walked KB."
+          "Error: Entities are not writable, please use 'with' on the walked KB.",
         );
       },
       has: function (o, attributeName) {
@@ -115,19 +109,19 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
           new IntersectionConstraint([
             constantConstraint(0, eId),
             constantConstraint(1, aId),
-            kb.tribleset.patternConstraint([(isInverse ? [2, 1, 0] : [0, 1, 2])]),
-          ])
+            kb.tribleset.patternConstraint([isInverse ? [2, 1, 0] : [0, 1, 2]]),
+          ]),
         )[Symbol.iterator]().next();
         return !done;
       },
       deleteProperty: function (_, attr) {
         throw TypeError(
-          "Error: Entities are not writable, furthermore KBs are append only."
+          "Error: Entities are not writable, furthermore KBs are append only.",
         );
       },
       setPrototypeOf: function (_) {
         throw TypeError(
-          "Error: Entities are not writable and can only be POJOs."
+          "Error: Entities are not writable and can only be POJOs.",
         );
       },
       isExtensible: function (_) {
@@ -138,7 +132,7 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
       },
       defineProperty: function (_, attr) {
         throw TypeError(
-          "Error: Entities are not writable, please use 'with' on the walked KB."
+          "Error: Entities are not writable, please use 'with' on the walked KB.",
         );
       },
       getOwnPropertyDescriptor: function (o, attributeName) {
@@ -165,34 +159,44 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
       },
       ownKeys: function (_) {
         const attrs = [id];
-        for (const r of new Query(
-          new IntersectionConstraint([
-            constantConstraint(0, eId),
-            indexConstraint(1, build_ns.forwardAttributeIndex),
-            new MaskedConstraint(kb.tribleset.patternConstraint([[0, 1, 2]]), [2]),
-          ]),
-        )) {
+        for (
+          const r of new Query(
+            new IntersectionConstraint([
+              constantConstraint(0, eId),
+              indexConstraint(1, build_ns.forwardAttributeIndex),
+              new MaskedConstraint(
+                kb.tribleset.patternConstraint([[0, 1, 2]]),
+                [2],
+              ),
+            ]),
+          )
+        ) {
           const a = r.get(1);
           attrs.push(
-            ...build_ns.forwardAttributeIndex.get(a).map((attr) => attr.name)
+            ...build_ns.forwardAttributeIndex.get(a).map((attr) => attr.name),
           );
         }
 
-        for (const r of new Query(
-          new IntersectionConstraint([
-            constantConstraint(0, eId),
-            indexConstraint(1, build_ns.inverseAttributeIndex),
-            new MaskedConstraint(kb.tribleset.patternConstraint([[2, 1, 0]]), [2]),
-          ])
-        )) {
+        for (
+          const r of new Query(
+            new IntersectionConstraint([
+              constantConstraint(0, eId),
+              indexConstraint(1, build_ns.inverseAttributeIndex),
+              new MaskedConstraint(
+                kb.tribleset.patternConstraint([[2, 1, 0]]),
+                [2],
+              ),
+            ]),
+          )
+        ) {
           const a = r.get(1);
           attrs.push(
-            ...build_ns.inverseAttributeIndex.get(a).map((attr) => attr.name)
+            ...build_ns.inverseAttributeIndex.get(a).map((attr) => attr.name),
           );
         }
         return attrs;
       },
-    }
+    },
   );
 };
 
@@ -208,7 +212,7 @@ function* entityToTriples(
   unknownFactory,
   parentId,
   parentAttributeName,
-  entity
+  entity,
 ) {
   const entityId = entity[id] || unknownFactory();
   if (parentId !== null) {
@@ -218,7 +222,7 @@ function* entityToTriples(
     const attributeDescription = build_ns.attributes.get(attributeName);
     assert(
       attributeDescription,
-      `No attribute named '${attributeName}' in namespace.`
+      `No attribute named '${attributeName}' in namespace.`,
     );
     if (attributeDescription.isMany) {
       for (const v of value) {
@@ -228,7 +232,7 @@ function* entityToTriples(
             unknownFactory,
             entityId,
             attributeName,
-            v
+            v,
           );
         } else {
           if (attributeDescription.isInverse) {
@@ -245,7 +249,7 @@ function* entityToTriples(
           unknownFactory,
           entityId,
           attributeName,
-          value
+          value,
         );
       } else {
         if (attributeDescription.isInverse) {
@@ -278,7 +282,7 @@ function* triplesToTribles(build_ns, triples, blobFn = (trible, blob) => {}) {
       blob = encoder(v, encodedValue);
     } catch (err) {
       throw Error(
-        `Couldn't encode '${v}' as value for attribute '${a}':\n${err}`
+        `Couldn't encode '${v}' as value for attribute '${a}':\n${err}`,
       );
     }
 
@@ -385,7 +389,11 @@ export class KB {
     const {
       factory: idFactory,
     } = build_ns.ids;
-    const triples = entitiesToTriples(build_ns, idFactory, entitygen(new IDSequence(idFactory)));
+    const triples = entitiesToTriples(
+      build_ns,
+      idFactory,
+      entitygen(new IDSequence(idFactory)),
+    );
     let newBlobCache = this.blobcache;
     const tribles = triplesToTribles(build_ns, triples, (key, blob) => {
       newBlobCache = newBlobCache.put(key, blob);
@@ -415,12 +423,18 @@ export class KB {
   where(ns, entities) {
     const build_ns = buildNamespace(ns);
     return (vars) => {
-      const triples = entitiesToTriples(build_ns, () => vars.unnamed(), entities);
+      const triples = entitiesToTriples(
+        build_ns,
+        () => vars.unnamed(),
+        entities,
+      );
       const triplesWithVars = precompileTriples(build_ns, vars, triples);
       for (const [_e, _a, v] of triplesWithVars) {
         v.proposeBlobCache(this.blobcache);
       }
-      return this.tribleset.patternConstraint(triplesWithVars.map(([e, a, v]) => [e.index, a.index, v.index]));
+      return this.tribleset.patternConstraint(
+        triplesWithVars.map(([e, a, v]) => [e.index, a.index, v.index]),
+      );
     };
   }
 

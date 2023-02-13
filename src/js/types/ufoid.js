@@ -27,21 +27,25 @@ export const UFOID = {
   },
 
   validate(id) {
-    if(!(id instanceof Uint8Array)) {
+    if (!(id instanceof Uint8Array)) {
       console.log(`-> ${id.constructor}\n`);
-      throw Error(`invalid ufoid: expected value to be Uint8Array found ${typeof id}`);
+      throw Error(
+        `invalid ufoid: expected value to be Uint8Array found ${typeof id}`,
+      );
     }
     if (id.length !== 32) {
       throw Error("invalid ufoid: expected length to be 32");
     }
     const a = new Uint32Array(id.buffer, id.byteOffset, 8);
-    if(a[0] !== 0 ||
-       a[1] !== 0 ||
-       a[2] !== 0 ||
-       a[3] !== 0) {
+    if (
+      a[0] !== 0 ||
+      a[1] !== 0 ||
+      a[2] !== 0 ||
+      a[3] !== 0
+    ) {
       throw Error("invalid ufoid: value must be zero padded");
     }
-    if(a[4] === 0 && a[5] === 0 && a[6] === 0 && a[7] !== 0) {
+    if (a[4] === 0 && a[5] === 0 && a[6] === 0 && a[7] !== 0) {
       throw Error("invalid ufoid: value must be zero padded");
     }
   },
@@ -90,24 +94,27 @@ export const UFOID = {
         defineProperty: function (_, attr) {
           throw TypeError("named UFOID cache is not writable");
         },
-      }
+      },
     );
   },
 
   fromHex(str) {
     let bytes = new Uint8Array(32);
-    for (let i = 0; i < 16; i += 1)
-      bytes[16+i] = parseInt(str.substr(i*2, 2), 16);
+    for (let i = 0; i < 16; i += 1) {
+      bytes[16 + i] = parseInt(str.substr(i * 2, 2), 16);
+    }
     return bytes;
   },
 
   toHex(id) {
-    return Array.from(id.subarray(16, 32)).map(byte => byte.toString(16).padStart(2, "0")).join('');
+    return Array.from(id.subarray(16, 32)).map((byte) =>
+      byte.toString(16).padStart(2, "0")
+    ).join("");
   },
-  
+
   toUint32Array(id) {
     return new Uint32Array(id.buffer, 16, 4);
-  }
+  },
 };
 
 // Schema

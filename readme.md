@@ -164,8 +164,8 @@ capabilities. These can be roughly categorized as follows:
   safe transaction semantics, and allow for subscriptions to the applied
   changes.
 - Communication beyond the program: Connectors provide means to send and receive
-  data from and to Heades. This could be over the network for use with tools like
-  `trible archive` or or to store and load data to or from disk.
+  data from and to Heades. This could be over the network for use with tools
+  like `trible archive` or or to store and load data to or from disk.
 
 The resulting structure looks like this:
 

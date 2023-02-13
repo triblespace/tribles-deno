@@ -5,7 +5,7 @@ class S3BlobCache {
     config,
     bucket = new S3Bucket(config),
     pendingWrites = [],
-    localBlobCache = new Map()
+    localBlobCache = new Map(),
   ) {
     this.config = config;
     this.bucket = bucket;
@@ -41,7 +41,7 @@ class S3BlobCache {
       this.config,
       this.bucket,
       pendingWrites,
-      this.localBlobCache
+      this.localBlobCache,
     );
   }
 
@@ -66,7 +66,7 @@ class S3BlobCache {
       .map((r) => r.reason);
     if (reasons.length !== 0) {
       const e = Error(
-        "Couldn't flush S3BlobCache, some puts returned errors. See error.reasons for more info."
+        "Couldn't flush S3BlobCache, some puts returned errors. See error.reasons for more info.",
       );
       e.reasons = reasons;
       throw e;

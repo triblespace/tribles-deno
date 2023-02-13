@@ -1,6 +1,6 @@
 import { ID_SIZE, VALUE_SIZE } from "./trible.js";
-import { hash_digest, hash_combine, hash_equal, hash_update } from "./wasm.js";
-import {ByteBitset} from "./bitset.js";
+import { hash_combine, hash_digest, hash_equal, hash_update } from "./wasm.js";
+import { ByteBitset } from "./bitset.js";
 
 // Perstistent Adaptive Cuckoo Trie (PACT)
 
@@ -22,7 +22,7 @@ const PaddedCursor = class {
     let depth = 0;
     for (const s of segments) {
       const pad = segment_size - s;
-      
+
       depth += pad;
       for (let j = pad; j < segment_size; j++) {
         this.padding.unset(depth);
@@ -40,16 +40,16 @@ const PaddedCursor = class {
 
   propose(bitset) {
     if (this.padding.has(this.depth)) {
-        bitset.unsetAll();
-        bitset.set(0);
+      bitset.unsetAll();
+      bitset.set(0);
     } else {
-        this.cursor.propose(bitset);
+      this.cursor.propose(bitset);
     }
   }
 
   push(key_fragment) {
     if (!this.padding.has(this.depth)) {
-        this.cursor.push(key_fragment);
+      this.cursor.push(key_fragment);
     }
     this.depth += 1;
   }
@@ -62,20 +62,23 @@ const PaddedCursor = class {
   }
 
   segmentCount() {
-      return this.cursor.segmentCount();
+    return this.cursor.segmentCount();
   }
 
   // <<< Interface API
-}
-
+};
 
 export class SegmentConstraint {
   constructor(pact, segmentVariables) {
     if (pact.segments.length !== segmentVariables.length) {
-      throw new Error('Number of segment variables must match the number of segments.')
+      throw new Error(
+        "Number of segment variables must match the number of segments.",
+      );
     }
     if (new Set(segmentVariables).size !== segmentVariables.length) {
-      throw new Error('Segment variables must be uniqe. Use explicit equality when inner constraints are required.')
+      throw new Error(
+        "Segment variables must be uniqe. Use explicit equality when inner constraints are required.",
+      );
     }
 
     this.nextVariableIndex = 0;
@@ -84,62 +87,66 @@ export class SegmentConstraint {
   }
 
   peekByte() {
-    if(this.nextVariableIndex === 0) {
-      throw new error("unreachable")
+    if (this.nextVariableIndex === 0) {
+      throw new error("unreachable");
     }
     return this.cursor.peek();
   }
 
   proposeByte(bitset) {
-    if(this.nextVariableIndex === 0) {
-      throw new error("unreachable")
+    if (this.nextVariableIndex === 0) {
+      throw new error("unreachable");
     }
     this.cursor.propose(bitset);
   }
 
   pushByte(byte) {
-    if(this.nextVariableIndex === 0) {
-      throw new error("unreachable")
+    if (this.nextVariableIndex === 0) {
+      throw new error("unreachable");
     }
     this.cursor.push(byte);
   }
 
   popByte() {
-    if(this.nextVariableIndex === 0) {
-      throw new error("unreachable")
+    if (this.nextVariableIndex === 0) {
+      throw new error("unreachable");
     }
     this.cursor.pop();
   }
 
   variables(bitset) {
     bitset.unsetAll();
-    for(const variable of this.segmentVariables) {
+    for (const variable of this.segmentVariables) {
       bitset.set(variable);
     }
   }
 
   blocked(bitset) {
     bitset.unsetAll();
-    for(let i = this.nextVariableIndex + 1; i < this.segmentVariables.length; i++) {
+    for (
+      let i = this.nextVariableIndex + 1;
+      i < this.segmentVariables.length;
+      i++
+    ) {
       bitset.set(this.segmentVariables[i]);
     }
   }
 
   pushVariable(variable) {
-    if(this.segmentVariables[this.nextVariableIndex] === variable) {
+    if (this.segmentVariables[this.nextVariableIndex] === variable) {
       this.nextVariableIndex++;
     }
   }
 
   popVariable() {
-    if(this.nextVariableIndex === 0) {
-      throw new error("unreachable")
+    if (this.nextVariableIndex === 0) {
+      throw new error("unreachable");
     }
     this.nextVariableIndex--;
   }
 
   variableCosts(variable) {
-    if(this.segmentVariables[this.nextVariableIndex] === variable) {
+    if (this.segmentVariables[this.nextVariableIndex] === variable) {
       return this.cursor.segmentCount();
     }
   }
@@ -209,7 +216,7 @@ const makePACT = function (segments) {
     leftNode,
     rightNode,
     depth = 0,
-    key = new Uint8Array(KEY_LENGTH)
+    key = new Uint8Array(KEY_LENGTH),
   ) {
     if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
       return leftNode;
@@ -276,7 +283,7 @@ const makePACT = function (segments) {
       hash,
       count,
       segmentCount,
-      {}
+      {},
     );
   }
 
@@ -284,10 +291,11 @@ const makePACT = function (segments) {
     leftNode,
     rightNode,
     depth = 0,
-    key = new Uint8Array(KEY_LENGTH)
+    key = new Uint8Array(KEY_LENGTH),
   ) {
-    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH)
+    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
       return null;
+    }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
       const leftByte = leftNode.peek(depth);
@@ -343,7 +351,7 @@ const makePACT = function (segments) {
       hash,
       count,
       segmentCount,
-      {}
+      {},
     );
   }
 
@@ -351,7 +359,7 @@ const makePACT = function (segments) {
     leftNode,
     rightNode,
     depth = 0,
-    key = new Uint8Array(KEY_LENGTH)
+    key = new Uint8Array(KEY_LENGTH),
   ) {
     if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
       return leftNode;
@@ -402,7 +410,7 @@ const makePACT = function (segments) {
       hash,
       count,
       segmentCount,
-      {}
+      {},
     );
   }
 
@@ -410,10 +418,11 @@ const makePACT = function (segments) {
     leftNode,
     rightNode,
     depth = 0,
-    key = new Uint8Array(KEY_LENGTH)
+    key = new Uint8Array(KEY_LENGTH),
   ) {
-    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH)
+    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
       return null;
+    }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
       const leftByte = leftNode.peek(depth);
@@ -480,13 +489,14 @@ const makePACT = function (segments) {
       hash,
       count,
       segmentCount,
-      {}
+      {},
     );
   }
 
   function _isSubsetOf(leftNode, rightNode, depth = 0) {
-    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH)
+    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
       return true;
+    }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
       if (leftNode.peek(depth) !== rightNode.peek(depth)) break;
@@ -516,8 +526,9 @@ const makePACT = function (segments) {
   }
 
   function _isIntersecting(leftNode, rightNode, depth = 0) {
-    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH)
+    if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
       return true;
+    }
     const maxDepth = Math.min(leftNode.branchDepth, rightNode.branchDepth);
     for (; depth < maxDepth; depth++) {
       if (leftNode.peek(depth) !== rightNode.peek(depth)) {
@@ -768,8 +779,11 @@ const makePACT = function (segments) {
     }
 
     put(depth, key, value, owner) {
-      while (depth < KEY_LENGTH && this.key[depth - this.depth] === key[depth])
+      while (
+        depth < KEY_LENGTH && this.key[depth - this.depth] === key[depth]
+      ) {
         depth += 1;
+      }
 
       if (depth === KEY_LENGTH) {
         return this;
@@ -795,7 +809,7 @@ const makePACT = function (segments) {
         hash,
         2,
         2,
-        owner
+        owner,
       );
     }
   };
@@ -809,7 +823,7 @@ const makePACT = function (segments) {
       hash,
       count,
       segmentCount,
-      owner
+      owner,
     ) {
       this.key = key;
       this.branchDepth = branchDepth;
@@ -846,7 +860,7 @@ const makePACT = function (segments) {
 
     propose(depth, bitset) {
       if (depth < this.branchDepth) {
-        bitset.unsetAll()
+        bitset.unsetAll();
         bitset.set(this.key[depth]);
       } else {
         bitset.setFrom(this.childbits);
@@ -886,8 +900,7 @@ const makePACT = function (segments) {
           if (hash_equal(oldChildHash, nchild.hash)) return this;
           hash = hash_update(this.hash, oldChildHash, nchild.hash);
           count = this._count - oldChildCount + nchild.count();
-          segmentCount =
-            this._segmentCount -
+          segmentCount = this._segmentCount -
             oldChildSegmentCount +
             nchild.segmentCount(this.branchDepth);
 
@@ -925,7 +938,7 @@ const makePACT = function (segments) {
           hash,
           count,
           segmentCount,
-          owner
+          owner,
         );
       }
 
@@ -941,10 +954,9 @@ const makePACT = function (segments) {
       nchildbits.set(rindex);
       const count = this._count + 1;
       // We need to check if this insered moved our branchDepth across a segment boundary.
-      const segmentCount =
-        SEGMENT_LUT[depth] === SEGMENT_LUT[this.branchDepth]
-          ? this._segmentCount + 1
-          : 2;
+      const segmentCount = SEGMENT_LUT[depth] === SEGMENT_LUT[this.branchDepth]
+        ? this._segmentCount + 1
+        : 2;
       const hash = hash_combine(this.hash, nchild.hash);
 
       return new PACTNode(
@@ -955,14 +967,13 @@ const makePACT = function (segments) {
         hash,
         count,
         segmentCount,
-        owner
+        owner,
       );
     }
   };
 
   return new PACTTree();
 };
-
 
 const emptyIdIdValueTriblePACT = makePACT([ID_SIZE, ID_SIZE, VALUE_SIZE]);
 const emptyIdValueIdTriblePACT = makePACT([ID_SIZE, VALUE_SIZE, ID_SIZE]);
@@ -981,5 +992,5 @@ export {
   emptyValuePACT,
   makePACT,
   PACTHash,
-  PaddedCursor
+  PaddedCursor,
 };

@@ -25,12 +25,14 @@ function similarity3Decoder(b, blob) {
   const yz = view.getFloat32(24);
   const scale = view.getFloat32(28);
 
-  return { translation: {x, y, z},
-           rotation: {s, bv: {xy, xz, yz}},
-           scale };
+  return {
+    translation: { x, y, z },
+    rotation: { s, bv: { xy, xz, yz } },
+    scale,
+  };
 }
 
-export const schema = { 
+export const schema = {
   encoder: similarity3Encoder,
   decoder: similarity3Decoder,
 };

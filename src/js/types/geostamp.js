@@ -18,10 +18,9 @@ function geostampDecoder(b, blob) {
 }
 
 function stamp() {
-  
 }
 
-export const schema = { 
+export const schema = {
   encoder: geostampEncoder,
   decoder: geostampDecoder,
 };

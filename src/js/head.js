@@ -4,7 +4,7 @@ import { Commit, validateCommitSize } from "./commit.js";
 /**
  * Heads are a mutable container type for KBs.
  * They manage commit validation and custom logic
- * via middlewares, and provide a means to subscribe to changes. 
+ * via middlewares, and provide a means to subscribe to changes.
  */
 export class Head {
   constructor(initialKB, middleware = validateCommitSize()) {
@@ -14,15 +14,16 @@ export class Head {
   }
 
   /**
-   * 
-   * @param {function} commitFn 
+   * @param {function} commitFn
    */
   async commit(commitFn, commitId = UFOID.now()) {
     const baseKB = this._current_kb;
     const currentKB = commitFn(baseKB, commitId);
     const commitKB = currentKB.subtract(baseKB);
-    
-    let commits = await this._middleware([new Commit(commitId, baseKB, commitKB, currentKB)]);
+
+    let commits = await this._middleware([
+      new Commit(commitId, baseKB, commitKB, currentKB),
+    ]);
 
     for (const commit of commits) {
       this._current_kb = commit.currentKB;

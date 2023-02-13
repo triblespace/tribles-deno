@@ -16,15 +16,7 @@ import {
 } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
 import { equal, equalValue } from "../src/js/trible.js";
-import {
-  BlobCache,
-  find,
-  id,
-  KB,
-  FOTribleSet,
-  types,
-  UFOID,
-} from "../mod.js";
+import { BlobCache, find, FOTribleSet, id, KB, types, UFOID } from "../mod.js";
 
 const { nameId, lovesId, titlesId } = UFOID.namedCache();
 
@@ -32,7 +24,7 @@ Deno.test("KB Find", () => {
   const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId, isLink: true},
+    loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring, isMany: true },
   };
@@ -68,7 +60,7 @@ Deno.test("KB Find", () => {
       { name: "Romeo", title: "prince" },
       { name: "Juliet", title: "princess" },
       { name: "Juliet", title: "the lady" },
-    ])
+    ]),
   );
 });
 
@@ -105,7 +97,7 @@ Deno.test("KB Find Single", () => {
 
         const knightskb = new KB(new FOTribleSet(), new BlobCache()).with(
           knightsNS,
-          () => [{ [id]: person.id, name: person.name, titles: person.titles }]
+          () => [{ [id]: person.id, name: person.name, titles: person.titles }],
         );
 
         /// Query some data.
@@ -116,10 +108,10 @@ Deno.test("KB Find Single", () => {
         ]);
         assertEquals(
           results,
-          new Set([{ name: person.name, title: person.titles[0] }])
+          new Set([{ name: person.name, title: person.titles[0] }]),
         );
-      }
-    )
+      },
+    ),
   );
 });
 
@@ -127,7 +119,7 @@ Deno.test("find lower range", () => {
   const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId, isLink: true},
+    loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, isMany: true, ...types.shortstring },
   };
@@ -160,7 +152,7 @@ Deno.test("find lower range", () => {
           },
         ]),
       ],
-      knightskb.blobcache
+      knightskb.blobcache,
     ),
   ];
   assertEquals(results, [
@@ -218,7 +210,7 @@ Deno.test("KB Walk", () => {
   const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId, isLink: true},
+    loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring },
   };
@@ -288,7 +280,7 @@ Deno.test("KB Walk ownKeys", () => {
   ];
   assertEquals(
     new Set(Reflect.ownKeys(knightskb.walk(knightsNS, romeo))),
-    new Set([id, "name", "titles", "loves", "lovedBy"])
+    new Set([id, "name", "titles", "loves", "lovedBy"]),
   );
 });
 
@@ -298,7 +290,7 @@ Deno.test("TribleSet PACT segmentCount positive", () => {
   const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId, isLink: true},
+    loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring },
   };

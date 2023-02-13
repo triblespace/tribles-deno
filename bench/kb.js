@@ -1,16 +1,8 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
-import {
-  BlobCache,
-  find,
-  id,
-  KB,
-  FOTribleSet,
-  types,
-  UFOID,
-} from "../mod.js";
+import { BlobCache, find, FOTribleSet, id, KB, types, UFOID } from "../mod.js";
 
-const { nameId, lastNameId, ageId, eyeColorId, lovesId, titlesId } =
-  UFOID.namedCache();
+const { nameId, lastNameId, ageId, eyeColorId, lovesId, titlesId } = UFOID
+  .namedCache();
 
 const knightsNS = {
   [id]: { ...types.ufoid },
@@ -178,7 +170,7 @@ function kbDSQuery(b) {
   b.start();
 
   const results = [...q];
-  
+
   b.stop();
   console.log(results.length, peoplekb.tribleset.count());
 }

@@ -1,17 +1,23 @@
 import { TRIBLE_SIZE } from "./trible.js";
 import { types } from "./types.js";
 import { UFOID } from "./types/ufoid.js";
-import { id, buildNamespace } from "./namespace.js";
+import { buildNamespace, id } from "./namespace.js";
 import { authNS } from "./auth.js";
 import { entitiesToTriples } from "./kb.js";
-import { serialize as tribleSerialize, deserialize as tribleDeserialize } from "./tribleset.js";
-import { serialize as blobSerialize, deserialize as blobDeserialize } from "./blobcache.js";
+import {
+  deserialize as tribleDeserialize,
+  serialize as tribleSerialize,
+} from "./tribleset.js";
+import {
+  deserialize as blobDeserialize,
+  serialize as blobSerialize,
+} from "./blobcache.js";
 
 // Each commits starts with a 16 byte zero marker for framing.
 //
 //   Note that the use of nil/zero ids is invalid in tribles, which allows
 //   us to use it in this fashion without data transparency issues.
-// 
+//
 // This is followed by a blaked25519 plublic key used to sign the commit
 // and the corresponding signature.
 //
@@ -55,20 +61,27 @@ import { serialize as blobSerialize, deserialize as blobDeserialize } from "./bl
 const commit_header_size = 128;
 const commit_max_trible_count = 1021;
 
-
 export function validateCommitSize(max_trible_count = commit_max_trible_count) {
   return (commits) => {
     for (const commit of commits) {
-      if(commit.commitKB.tribleset.count() > max_trible_count) throw Error(
-        `Commit too large: Commits must not contain more than ${max_trible_count} tribles.`
-      );
+      if (commit.commitKB.tribleset.count() > max_trible_count) {
+        throw Error(
+          `Commit too large: Commits must not contain more than ${max_trible_count} tribles.`,
+        );
+      }
     }
     return commits;
-  }
+  };
 }
 
-const { commitGroupId, commitSegmentId, creationStampId, shortMessageId, messageId, authoredById } =
-  UFOID.namedCache();
+const {
+  commitGroupId,
+  commitSegmentId,
+  creationStampId,
+  shortMessageId,
+  messageId,
+  authoredById,
+} = UFOID.namedCache();
 
 const commitNS = {
   [id]: { ...types.ufoid },
@@ -80,14 +93,14 @@ const commitNS = {
   authoredBy: { id: authoredById, isLink: true },
 };
 
-const metaNS = {...commitNS, ...authNS};
+const metaNS = { ...commitNS, ...authNS };
 
 export function withCommitMeta(kb, commitId, pubkey) {
   return kb.with(metaNS, () => [{
-          [id]: commitId,
-          createdAt: geostamp.stamp(),
-          pubkey,
-        }]);
+    [id]: commitId,
+    createdAt: geostamp.stamp(),
+    pubkey,
+  }]);
 }
 
 // TODO commit splitting for when you just want a helper to dump stuff
@@ -128,7 +141,6 @@ function* splitTribles(bytes) {
 
 export class NoveltyConstraint {
   constructor(baseKB, currentKB, triples) {
-
   }
 }
 
@@ -143,12 +155,15 @@ export class Commit {
   static deserialize(baseKB, tribleBytes, blobBytes) {
     const commitKB = baseKB.empty();
 
-    const {metaId, pubkey, dataset} = tribleDeserialize(commitKB.tribleset, tribleBytes);
+    const { metaId, pubkey, dataset } = tribleDeserialize(
+      commitKB.tribleset,
+      tribleBytes,
+    );
     const blobdata = blobDeserialize(dataset, blobBytes);
 
     commitKB.tribleset = dataset;
     commitKB.blobcache = blobdata;
-    
+
     const currentKB = baseKB.union(commitKB);
 
     //TODO check that metaID author = pubkey
@@ -157,15 +172,23 @@ export class Commit {
   }
 
   serialize(secret) { // TODO replace this with WebCrypto Keypair once it supports ed25519.
-    const tribles = tribleSerialize(this.commitKB.tribleset, this.commitId, secret);
-    const blobs = blobSerialize
-    return {tribles, blobs};
+    const tribles = tribleSerialize(
+      this.commitKB.tribleset,
+      this.commitId,
+      secret,
+    );
+    const blobs = blobSerialize;
+    return { tribles, blobs };
   }
 
   where(ns, entities) {
     const build_ns = buildNamespace(ns);
     return (vars) => {
-      const triples = entitiesToTriples(build_ns, () => vars.unnamed(), entities);
+      const triples = entitiesToTriples(
+        build_ns,
+        () => vars.unnamed(),
+        entities,
+      );
       const triplesWithVars = precompileTriples(build_ns, vars, triples);
 
       triplesWithVars.foreach(([e, a, v]) => {

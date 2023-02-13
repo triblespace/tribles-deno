@@ -10,10 +10,10 @@ export const E_START = 0;
 export const E_END = E_SIZE;
 
 export const A_START = E_SIZE;
-export const A_END = E_SIZE+A_SIZE;
+export const A_END = E_SIZE + A_SIZE;
 
-export const V_START = E_SIZE+A_SIZE;
-export const V_END = E_SIZE+A_SIZE+V_SIZE;
+export const V_START = E_SIZE + A_SIZE;
+export const V_END = E_SIZE + A_SIZE + V_SIZE;
 
 export const V_UPPER_START = 32;
 export const V_UPPER_END = 48;
