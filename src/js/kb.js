@@ -358,21 +358,34 @@ export class KB {
     this.blobcache = blobcache;
   }
 
-  withTribles(tribles) {
-    const tribleset = this.tribleset.with(tribles);
-    if (tribleset === this.tribleset) {
-      return this;
-    }
-    return new KB(tribleset, this.blobcache);
-  }
+  /**
+   * Generates entities to be inserted into a KB.
+   *
+   * @callback entityGenerator
+   * @param {IDSequence} ids
+   * @yields {Object}
+   */
 
-  with(ns, efn) {
+  /**
+   * Returns a collection of entities.
+   *
+   * @callback entityFunction
+   * @param {IDSequence} ids
+   * @returns {Array}
+   */
+
+  /**
+   * Stores entities in the immutable KB, returning a new one while preserving the old one.
+   * @param {Object} ns - The namespace used for attribute ids and value encoding.
+   * @param {entityFunction | entityGenerator} entities - A function/generator returning/yielding entities.
+   * @returns {KB} A new KB with the entities added to it.
+   */
+  with(ns, entities) {
     const build_ns = buildNamespace(ns);
     const {
       factory: idFactory,
     } = build_ns.ids;
-    const entities = efn(new IDSequence(idFactory));
-    const triples = entitiesToTriples(build_ns, idFactory, entities);
+    const triples = entitiesToTriples(build_ns, idFactory, entitygen(new IDSequence(idFactory)));
     let newBlobCache = this.blobcache;
     const tribles = triplesToTribles(build_ns, triples, (key, blob) => {
       newBlobCache = newBlobCache.put(key, blob);
@@ -381,6 +394,24 @@ export class KB {
     return new KB(newTribleSet, newBlobCache);
   }
 
+  /**
+   * Stores tribles in the immutable KB, returning a new one while preserving the old one.
+   * @param {Array} tribles - A function/generator returning/yielding entities.
+   * @returns {KB} A new KB with the entities added to it.
+   */
+  withTribles(tribles) {
+    const tribleset = this.tribleset.with(tribles);
+    if (tribleset === this.tribleset) {
+      return this;
+    }
+    return new KB(tribleset, this.blobcache);
+  }
+
+  /**
+   * Creates a query constrained over the contents of this KB.
+   * @param {Array} tribles - A function/generator returning/yielding a pattern of entities to be matched.
+   * @returns {Constraint} - A constraint that can be used in a `find` call.
+   */
   where(ns, entities) {
     const build_ns = buildNamespace(ns);
     return (vars) => {
@@ -393,49 +424,90 @@ export class KB {
     };
   }
 
+  /**
+   * Creates proxy object to walk the graph stored in this KB.
+   * @param {Object} ns - The namespace used for attribute ids and value encoding.
+   * @returns {Proxy} - A proxy emulating the graph of the KB.
+   */
   walk(ns, eId) {
     const build_ns = buildNamespace(ns);
     return entityProxy(build_ns, this, eId);
   }
 
+  /**
+   * Returns an empty KB with the same type of tribleset and blobcache as this KB.
+   * @returns {KB} - An empty KB.
+   */
   empty() {
     return new KB(this.tribleset.empty(), this.blobcache.empty());
   }
 
+  /**
+   * Checks if this KB is empty (doesn't contain any tribles).
+   * @returns {boolean}
+   */
   isEmpty() {
     return this.tribleset.isEmpty();
   }
 
+  /**
+   * Checks if this KB contains the same tribles as the other KB.
+   * @returns {boolean}
+   */
   isEqual(other) {
     return this.tribleset.isEqual(other.tribleset);
   }
 
+  /**
+   * Checks if the tribles of KB are a subset of the tribles in the other KB.
+   * @returns {boolean}
+   */
   isSubsetOf(other) {
     return this.tribleset.isSubsetOf(other.tribleset);
   }
 
+  /**
+   * Checks if some trible exists in both in this KB and the other KB.
+   * @returns {boolean}
+   */
   isIntersecting(other) {
     return this.tribleset.isIntersecting(other.tribleset);
   }
 
+  /**
+   * Returns a new KB containing everything in this KB and the other KB.
+   * @returns {KB}
+   */
   union(other) {
     const tribleset = this.tribleset.union(other.tribleset);
     const blobcache = this.blobcache.union(other.blobcache);
     return new KB(tribleset, blobcache);
   }
 
+  /**
+   * Returns a new KB containing only things from this KB that were not in the other KB.
+   * @returns {KB}
+   */
   subtract(other) {
     const tribleset = this.tribleset.subtract(other.tribleset);
     const blobcache = this.blobcache.subtract(other.blobcache);
     return new KB(tribleset, blobcache);
   }
 
+  /**
+   * Returns a new KB containing only things not common to this KB and the other KB.
+   * @returns {KB}
+   */
   difference(other) {
     const tribleset = this.tribleset.difference(other.tribleset);
     const blobcache = this.blobcache.difference(other.blobcache);
     return new KB(tribleset, blobcache);
   }
 
+  /**
+   * Returns a new KB containing only things common to this KB and the other KB.
+   * @returns {KB}
+   */
   intersect(other) {
     const tribleset = this.tribleset.intersect(other.tribleset);
     const blobcache = this.blobcache.intersect(other.blobcache);
