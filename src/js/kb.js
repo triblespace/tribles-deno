@@ -392,7 +392,7 @@ export class KB {
     const triples = entitiesToTriples(
       build_ns,
       idFactory,
-      entitygen(new IDSequence(idFactory)),
+      entities(new IDSequence(idFactory)),
     );
     let newBlobCache = this.blobcache;
     const tribles = triplesToTribles(build_ns, triples, (key, blob) => {
