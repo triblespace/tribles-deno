@@ -1,4 +1,4 @@
-import { assertThrows } from "https://deno.land/std@0.78.0/testing/asserts.ts";
+import { assertRejects } from "https://deno.land/std@0.177.0/testing/asserts.ts";
 
 import {
   BlobCache,
@@ -14,7 +14,7 @@ import {
 
 const { nameId, lovesId, titlesId, motherOfId, romeoId } = UFOID.namedCache();
 
-Deno.test("unique constraint", () => {
+Deno.test("unique constraint", async () => {
   const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
@@ -28,7 +28,9 @@ Deno.test("unique constraint", () => {
     validateNS(knightsNS),
   );
 
-  head.commit((kb, commitID) =>
+  debugger;
+
+  await head.commit((kb, commitID) =>
     kb.with(knightsNS, ([juliet]) => [
       {
         [id]: romeoId,
@@ -45,9 +47,9 @@ Deno.test("unique constraint", () => {
     ])
   );
 
-  assertThrows(
-    () => {
-      head.commit((kb, commitID) =>
+  assertRejects(
+    async () => {
+      await head.commit((kb, commitID) =>
         kb.with(knightsNS, () => [{
           [id]: romeoId,
           name: "Bob",
@@ -59,7 +61,7 @@ Deno.test("unique constraint", () => {
   );
 });
 
-Deno.test("unique inverse constraint", () => {
+Deno.test("unique inverse constraint", async () => {
   const knightsNS = {
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
@@ -71,7 +73,7 @@ Deno.test("unique inverse constraint", () => {
     new KB(new FOTribleSet(), new BlobCache()),
     validateNS(knightsNS),
   );
-  head.commit((kb) =>
+  await head.commit((kb) =>
     kb.with(knightsNS, () => [
       {
         [id]: romeoId,
@@ -84,9 +86,9 @@ Deno.test("unique inverse constraint", () => {
     ])
   );
 
-  assertThrows(
-    () => {
-      head.commit((kb) =>
+  assertRejects(
+    async () => {
+      await head.commit((kb) =>
         kb.with(knightsNS, () => [
           {
             name: "Lady Impostor",

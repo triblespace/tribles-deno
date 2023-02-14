@@ -82,7 +82,7 @@ export function buildNamespace(ns) {
   return build_ns;
 }
 
-export function validateNS(ns) {
+export function validateNS(ns, middleware = (commits) => commits) {
   const newUniqueAttributeIndex = emptyValuePACT.batch();
   const newUniqueInverseAttributeIndex = emptyValuePACT.batch();
 
@@ -107,38 +107,40 @@ export function validateNS(ns) {
   const uniqueAttributeIndex = newUniqueAttributeIndex.complete();
   const uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.complete();
 
-  return (commit) => {
-    for (
-      const r of new Query(
-        new IntersectionConstraint([
-          indexConstraint(1, uniqueAttributeIndex),
-          commit.commitKB.tribleset.patternConstraint([[0, 1, 2]]),
-          commit.currentKB.tribleset.patternConstraint([[0, 1, 3]]),
-        ]),
-      )
-    ) {
-      //console.log("result", r.get(2), r.get(3));
-      if (!equalValue(r.get(2), r.get(3))) {
-        throw Error(
-          `constraint violation: multiple values for unique attribute`,
-        );
+  return function*(commits) {
+    for (const commit of middleware(commits)) {
+      for (
+        const r of new Query(
+          new IntersectionConstraint([
+            indexConstraint(1, uniqueAttributeIndex),
+            commit.commitKB.tribleset.patternConstraint([[0, 1, 2]]),
+            commit.currentKB.tribleset.patternConstraint([[0, 1, 3]]),
+          ]),
+        )
+      ) {
+        if (!equalValue(r.get(2), r.get(3))) {
+          throw Error(
+            `constraint violation: multiple values for unique attribute`,
+          );
+        }
       }
-    }
 
-    for (
-      const r of new Query(
-        new IntersectionConstraint([
-          indexConstraint(1, uniqueInverseAttributeIndex),
-          commit.commitKB.tribleset.patternConstraint([[2, 1, 0]]),
-          commit.currentKB.tribleset.patternConstraint([[3, 1, 0]]),
-        ]),
-      )
-    ) {
-      if (!equalValue(r.get(2), r.get(3))) {
-        throw Error(
-          `constraint violation: multiple entities for unique attribute value`,
-        );
+      for (
+        const r of new Query(
+          new IntersectionConstraint([
+            indexConstraint(1, uniqueInverseAttributeIndex),
+            commit.commitKB.tribleset.patternConstraint([[2, 1, 0]]),
+            commit.currentKB.tribleset.patternConstraint([[3, 1, 0]]),
+          ]),
+        )
+      ) {
+        if (!equalValue(r.get(2), r.get(3))) {
+          throw Error(
+            `constraint violation: multiple entities for unique attribute value`,
+          );
+        }
       }
+      yield commit;
     }
   };
 }

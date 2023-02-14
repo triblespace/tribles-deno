@@ -7,7 +7,7 @@ import { Commit, validateCommitSize } from "./commit.js";
  * via middlewares, and provide a means to subscribe to changes.
  */
 export class Head {
-  constructor(initialKB, middleware = validateCommitSize()) {
+  constructor(initialKB, middleware = (commits) => commits) {
     this._current_kb = initialKB;
     this._middleware = middleware;
     this._subscriptions = new Set();
@@ -21,7 +21,7 @@ export class Head {
     const currentKB = commitFn(baseKB, commitId);
     const commitKB = currentKB.subtract(baseKB);
 
-    let commits = await this._middleware([
+    let commits = this._middleware([
       new Commit(commitId, baseKB, commitKB, currentKB),
     ]);
 

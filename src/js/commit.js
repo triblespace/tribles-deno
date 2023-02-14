@@ -61,16 +61,16 @@ import {
 const commit_header_size = 128;
 const commit_max_trible_count = 1021;
 
-export function validateCommitSize(max_trible_count = commit_max_trible_count) {
-  return (commits) => {
-    for (const commit of commits) {
+export function validateCommitSize(max_trible_count = commit_max_trible_count, middleware = (commits) => commits) {
+  return function*(commits) {
+    for (const commit of middleware(commits)) {
       if (commit.commitKB.tribleset.count() > max_trible_count) {
         throw Error(
           `Commit too large: Commits must not contain more than ${max_trible_count} tribles.`,
         );
       }
+      yield commit;
     }
-    return commits;
   };
 }
 
