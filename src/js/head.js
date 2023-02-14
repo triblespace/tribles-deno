@@ -14,7 +14,24 @@ export class Head {
   }
 
   /**
-   * @param {function} commitFn
+   * Adds facts to the passed knowledge base.
+   * The passed id can be used to attach metadata to this commit by using it as
+   * an id of an entity representing the commit itself.
+   *
+   * @callback commitFn
+   * @param {KB} basekb - the state of the knowledge base before the commit
+   * @param {Uint8Array} commitId - the entity id representing this commit
+   * @return {KB} The basekb extended with new data.
+   */
+
+  /**
+   * Change the contents of this head, using its middleware to change and
+   * validate the resulting commit(s).
+   *
+   * The async call returns when all subscribers are notified of the resulting commits.
+   *
+   * @param {commitFn} commitFn - A function that computes the changes to the stored KB.
+   * @param {Uint8Array=} commitId - the entity id representing this commit
    */
   async commit(commitFn, commitId = UFOID.now()) {
     const baseKB = this._current_kb;
@@ -33,14 +50,30 @@ export class Head {
     }
   }
 
+  /**
+   * Returns the current state of the KB stored in this head.
+   *
+   * @return {KB} The current KB.
+   */
   peek() {
     return this._current_kb;
   }
 
+  /**
+   * Adds the passed function to the list of subscribers.
+   * It will be called whenever a commit is created.
+   *
+   * @param {Function} fn - A callback to be fired whenever a commit is produced.
+   */
   sub(fn) {
     this._subscriptions.add(fn);
   }
 
+  /**
+   * Remove the passed function from the list of subscribers.
+   *
+   * @param {Function} fn - The callback to be removed.
+   */
   unsub(fn) {
     this._subscriptions.remove(fn);
   }

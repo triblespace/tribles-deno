@@ -1,5 +1,15 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
-import { BlobCache, find, FOTribleSet, id, KB, NS, IDOwner, types, UFOID } from "../mod.js";
+import {
+  BlobCache,
+  find,
+  FOTribleSet,
+  id,
+  IDOwner,
+  KB,
+  NS,
+  types,
+  UFOID,
+} from "../mod.js";
 
 const { nameId, lastNameId, ageId, eyeColorId, lovesId, titlesId } = UFOID
   .namedCache();
