@@ -1,5 +1,5 @@
 import { UFOID } from "./types/ufoid.js";
-import { Commit, validateCommitSize } from "./commit.js";
+import { Commit } from "./commit.js";
 
 /**
  * Heads are a mutable container type for KBs.
