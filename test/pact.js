@@ -1,8 +1,7 @@
 import {
   assert,
-  assertArrayIncludes,
   assertEquals,
-} from "https://deno.land/std@0.78.0/testing/asserts.ts";
+} from "https://deno.land/std@0.177.0/testing/asserts.ts";
 import fc from "https://cdn.skypack.dev/fast-check";
 
 /*
@@ -12,13 +11,10 @@ fc.configureGlobal({
 });
 */
 
-import {
-  decode,
-  encode,
-} from "https://deno.land/std@0.78.0/encoding/base64.ts";
+import { encode } from "https://deno.land/std@0.177.0/encoding/base64.ts";
 
-import { equal, equalValue } from "../src/js/trible.js";
-import { emptyTriblePACT, emptyValuePACT, makePACT } from "../src/js/pact.js";
+import { equalValue } from "../src/js/trible.js";
+import { emptyValuePACT, makePACT } from "../src/js/pact.js";
 
 const arb_number_of_segments = fc.integer({ min: 1, max: 3 });
 const arb_segment_size = fc.integer({ min: 1, max: 3 });

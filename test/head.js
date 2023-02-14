@@ -25,6 +25,8 @@ Deno.test("unique constraint", async () => {
   });
   const idOwner = new IDOwner(types.ufoid.factory);
 
+  const ctx = { ns: knightsNS, owner: idOwner };
+
   const head = new Head(
     new KB(new FOTribleSet(), new BlobCache()),
     knightsNS.validator(idOwner.validator()),
@@ -33,7 +35,7 @@ Deno.test("unique constraint", async () => {
   debugger;
 
   await head.commit((kb, commitID) =>
-    kb.with({ ns: knightsNS, owner: idOwner }, ([juliet]) => [
+    kb.with(ctx, ([juliet]) => [
       {
         [id]: romeoId,
         name: "Romeo",
@@ -52,7 +54,7 @@ Deno.test("unique constraint", async () => {
   assertRejects(
     async () => {
       await head.commit((kb, commitID) =>
-        kb.with({ ns: knightsNS, owner: idOwner }, () => [{
+        kb.with(ctx, () => [{
           [id]: romeoId,
           name: "Bob",
         }])
@@ -72,12 +74,14 @@ Deno.test("unique inverse constraint", async () => {
   });
   const idOwner = new IDOwner(types.ufoid.factory);
 
+  const ctx = { ns: knightsNS, owner: idOwner };
+
   const head = new Head(
     new KB(new FOTribleSet(), new BlobCache()),
     knightsNS.validator(idOwner.validator()),
   );
   await head.commit((kb) =>
-    kb.with({ ns: knightsNS, owner: idOwner }, () => [
+    kb.with(ctx, () => [
       {
         [id]: romeoId,
         name: "Romeo",
@@ -92,7 +96,7 @@ Deno.test("unique inverse constraint", async () => {
   assertRejects(
     async () => {
       await head.commit((kb) =>
-        kb.with({ ns: knightsNS, owner: idOwner }, () => [
+        kb.with(ctx, () => [
           {
             name: "Lady Impostor",
             motherOf: [romeoId],

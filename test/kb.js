@@ -1,21 +1,13 @@
 import {
   assert,
-  assertArrayIncludes,
   assertEquals,
-  assertThrows,
-} from "https://deno.land/std@0.78.0/testing/asserts.ts";
+} from "https://deno.land/std@0.177.0/testing/asserts.ts";
 import fc from "https://cdn.skypack.dev/fast-check";
 fc.configureGlobal({
   numRuns: Number.MAX_SAFE_INTEGER,
   interruptAfterTimeLimit: 1000 * 5,
 });
 
-import {
-  decode,
-  encode,
-} from "https://deno.land/std@0.78.0/encoding/base64.ts";
-
-import { equal, equalValue } from "../src/js/trible.js";
 import {
   BlobCache,
   find,
@@ -40,11 +32,12 @@ Deno.test("KB Find", () => {
   });
   const idOwner = new IDOwner(types.ufoid.factory);
 
+  const ctx = { ns: knightsNS, owner: idOwner };
   // Add some data.
   const memkb = new KB(new FOTribleSet(), new BlobCache());
 
   const knightskb = memkb.with(
-    { ns: knightsNS, owner: idOwner },
+    ctx,
     ([romeo, juliet]) => [
       {
         [id]: romeo,
@@ -64,7 +57,7 @@ Deno.test("KB Find", () => {
   // Query some data.
   const results = new Set([
     ...find(({ name, title }) => [
-      knightskb.where({ ns: knightsNS, owner: idOwner }, [{
+      knightskb.where(ctx, [{
         name: name,
         titles: [title],
       }]),
@@ -113,15 +106,17 @@ Deno.test("KB Find Single", () => {
         });
         const idOwner = new IDOwner(types.ufoid.factory);
 
+        const ctx = { ns: knightsNS, owner: idOwner };
+
         const knightskb = new KB(new FOTribleSet(), new BlobCache()).with(
-          { ns: knightsNS, owner: idOwner },
+          ctx,
           () => [{ [id]: person.id, name: person.name, titles: person.titles }],
         );
 
         /// Query some data.
         const results = new Set([
           ...find(({ name, title }) => [
-            knightskb.where({ ns: knightsNS, owner: idOwner }, [{
+            knightskb.where(ctx, [{
               name,
               titles: [title],
             }]),
@@ -146,11 +141,13 @@ Deno.test("find lower range", () => {
   });
   const idOwner = new IDOwner(types.ufoid.factory);
 
+  const ctx = { ns: knightsNS, owner: idOwner };
+
   // Add some data.
   const memkb = new KB(new FOTribleSet(), new BlobCache());
 
   const knightskb = memkb.with(
-    { ns: knightsNS, owner: idOwner },
+    ctx,
     ([romeo, juliet]) => [
       {
         [id]: romeo,
@@ -170,7 +167,7 @@ Deno.test("find lower range", () => {
   const results = [
     ...find(
       ({ name, title }) => [
-        knightskb.where({ ns: knightsNS, owner: idOwner }, [
+        knightskb.where(ctx, [
           {
             name: name.ranged({ lower: "K" }),
             titles: [title],
@@ -196,11 +193,13 @@ Deno.test("find upper bound", () => {
   });
   const idOwner = new IDOwner(types.ufoid.factory);
 
+  const ctx = { ns: knightsNS, owner: idOwner };
+
   // Add some data.
   const memkb = new KB(new FOTribleSet(), new BlobCache());
 
   const knightskb = memkb.with(
-    { ns: knightsNS, owner: idOwner },
+    ctx,
     ([romeo, juliet]) => [
       {
         [id]: romeo,
@@ -221,7 +220,7 @@ Deno.test("find upper bound", () => {
 
   const results = [
     ...find(({ name, title }) => [
-      knightskb.where({ ns: knightsNS, owner: idOwner }, [
+      knightskb.where(ctx, [
         {
           name: name.ranged({ upper: "K" }),
           titles: [title],
@@ -245,11 +244,13 @@ Deno.test("KB Walk", () => {
   });
   const idOwner = new IDOwner(types.ufoid.factory);
 
+  const ctx = { ns: knightsNS, owner: idOwner };
+
   // Add some data.
   const memkb = new KB(new FOTribleSet(), new BlobCache());
 
   const knightskb = memkb.with(
-    { ns: knightsNS, owner: idOwner },
+    ctx,
     ([romeo, juliet]) => [
       {
         [id]: romeo,
@@ -269,13 +270,13 @@ Deno.test("KB Walk", () => {
   debugger;
   const [{ romeo }] = [
     ...find(({ romeo }) => [
-      knightskb.where({ ns: knightsNS, owner: idOwner }, [
+      knightskb.where(ctx, [
         { [id]: romeo, name: "Romeo" },
       ]),
     ]),
   ];
   assertEquals(
-    knightskb.walk({ ns: knightsNS, owner: idOwner }, romeo).loves.name,
+    knightskb.walk(ctx, romeo).loves.name,
     "Juliet",
   );
 });
@@ -290,11 +291,13 @@ Deno.test("KB Walk ownKeys", () => {
   });
   const idOwner = new IDOwner(types.ufoid.factory);
 
+  const ctx = { ns: knightsNS, owner: idOwner };
+
   // Add some data.
   const memkb = new KB(new FOTribleSet(), new BlobCache());
 
   const knightskb = memkb.with(
-    { ns: knightsNS, owner: idOwner },
+    ctx,
     ([romeo, juliet]) => [
       {
         [id]: romeo,
@@ -313,14 +316,14 @@ Deno.test("KB Walk ownKeys", () => {
   // Query some data.
   const [{ romeo }] = [
     ...find(({ romeo }) => [
-      knightskb.where({ ns: knightsNS, owner: idOwner }, [
+      knightskb.where(ctx, [
         { [id]: romeo, name: "Romeo" },
       ]),
     ]),
   ];
   assertEquals(
     new Set(
-      Reflect.ownKeys(knightskb.walk({ ns: knightsNS, owner: idOwner }, romeo)),
+      Reflect.ownKeys(knightskb.walk(ctx, romeo)),
     ),
     new Set([id, "name", "titles", "loves", "lovedBy"]),
   );
@@ -338,11 +341,13 @@ Deno.test("TribleSet PACT segmentCount positive", () => {
   });
   const idOwner = new IDOwner(types.ufoid.factory);
 
+  const ctx = { ns: knightsNS, owner: idOwner };
+
   // Add some data.
   let knightskb = new KB(new FOTribleSet(), new BlobCache());
 
   knightskb = knightskb.with(
-    { ns: knightsNS, owner: idOwner },
+    ctx,
     ([romeo, juliet]) => [
       {
         [id]: romeo,
@@ -360,7 +365,7 @@ Deno.test("TribleSet PACT segmentCount positive", () => {
   );
   for (let i = 1; i < size; i++) {
     knightskb = knightskb.with(
-      { ns: knightsNS, owner: idOwner },
+      ctx,
       ([romeo, juliet]) => [
         {
           [id]: romeo,
