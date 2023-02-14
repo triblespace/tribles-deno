@@ -107,7 +107,7 @@ export function validateNS(ns, middleware = (commits) => commits) {
   const uniqueAttributeIndex = newUniqueAttributeIndex.complete();
   const uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.complete();
 
-  return function*(commits) {
+  return function* (commits) {
     for (const commit of middleware(commits)) {
       for (
         const r of new Query(

@@ -61,8 +61,11 @@ import {
 const commit_header_size = 128;
 const commit_max_trible_count = 1021;
 
-export function validateCommitSize(max_trible_count = commit_max_trible_count, middleware = (commits) => commits) {
-  return function*(commits) {
+export function validateCommitSize(
+  max_trible_count = commit_max_trible_count,
+  middleware = (commits) => commits,
+) {
+  return function* (commits) {
     for (const commit of middleware(commits)) {
       if (commit.commitKB.tribleset.count() > max_trible_count) {
         throw Error(
