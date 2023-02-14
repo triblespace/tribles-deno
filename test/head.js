@@ -6,32 +6,34 @@ import {
   FOTribleSet,
   Head,
   id,
+  IDOwner,
   KB,
+  NS,
   types,
   UFOID,
-  validateNS,
 } from "../mod.js";
 
 const { nameId, lovesId, titlesId, motherOfId, romeoId } = UFOID.namedCache();
 
 Deno.test("unique constraint", async () => {
-  const knightsNS = {
+  const knightsNS = new NS({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring, isMany: true },
-  };
+  });
+  const idOwner = new IDOwner(types.ufoid.factory);
 
   const head = new Head(
     new KB(new FOTribleSet(), new BlobCache()),
-    validateNS(knightsNS),
+    knightsNS.validator(idOwner.validator()),
   );
 
   debugger;
 
   await head.commit((kb, commitID) =>
-    kb.with(knightsNS, ([juliet]) => [
+    kb.with({ ns: knightsNS, owner: idOwner }, ([juliet]) => [
       {
         [id]: romeoId,
         name: "Romeo",
@@ -50,7 +52,7 @@ Deno.test("unique constraint", async () => {
   assertRejects(
     async () => {
       await head.commit((kb, commitID) =>
-        kb.with(knightsNS, () => [{
+        kb.with({ ns: knightsNS, owner: idOwner }, () => [{
           [id]: romeoId,
           name: "Bob",
         }])
@@ -62,19 +64,20 @@ Deno.test("unique constraint", async () => {
 });
 
 Deno.test("unique inverse constraint", async () => {
-  const knightsNS = {
+  const knightsNS = new NS({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     motherOf: { id: motherOfId, isLink: true, isMany: true },
     hasMother: { id: motherOfId, isLink: true, isInverse: true },
-  };
+  });
+  const idOwner = new IDOwner(types.ufoid.factory);
 
   const head = new Head(
     new KB(new FOTribleSet(), new BlobCache()),
-    validateNS(knightsNS),
+    knightsNS.validator(idOwner.validator()),
   );
   await head.commit((kb) =>
-    kb.with(knightsNS, () => [
+    kb.with({ ns: knightsNS, owner: idOwner }, () => [
       {
         [id]: romeoId,
         name: "Romeo",
@@ -89,7 +92,7 @@ Deno.test("unique inverse constraint", async () => {
   assertRejects(
     async () => {
       await head.commit((kb) =>
-        kb.with(knightsNS, () => [
+        kb.with({ ns: knightsNS, owner: idOwner }, () => [
           {
             name: "Lady Impostor",
             motherOf: [romeoId],

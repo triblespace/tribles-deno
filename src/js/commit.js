@@ -1,7 +1,7 @@
 import { TRIBLE_SIZE } from "./trible.js";
 import { types } from "./types.js";
 import { UFOID } from "./types/ufoid.js";
-import { buildNamespace, id } from "./namespace.js";
+import { id } from "./namespace.js";
 import { authNS } from "./auth.js";
 import { entitiesToTriples } from "./kb.js";
 import {
@@ -180,19 +180,19 @@ export class Commit {
       this.commitId,
       secret,
     );
-    const blobs = blobSerialize;
+    const blobs = blobSerialize(this.commitKB.blobcache);
     return { tribles, blobs };
   }
 
-  where(ns, entities) {
-    const build_ns = buildNamespace(ns);
+  where(ctx, entities) {
+    const ns = ctx.ns;
     return (vars) => {
       const triples = entitiesToTriples(
-        build_ns,
+        ns,
         () => vars.unnamed(),
         entities,
       );
-      const triplesWithVars = precompileTriples(build_ns, vars, triples);
+      const triplesWithVars = precompileTriples(ns, vars, triples);
 
       triplesWithVars.foreach(([e, a, v]) => {
         v.proposeBlobCache(currentKB.blobcache);

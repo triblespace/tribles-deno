@@ -9,7 +9,7 @@ import {
 import { A, E, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
 import { FOTribleSet } from "./tribleset.js";
 import { BlobCache } from "./blobcache.js";
-import { buildNamespace, id } from "./namespace.js";
+import { id } from "./namespace.js";
 
 const assert = (test, message) => {
   if (!test) {
@@ -17,14 +17,14 @@ const assert = (test, message) => {
   }
 };
 
-const lookup = (build_ns, kb, eId, attributeName) => {
+const lookup = (ns, kb, eId, attributeName) => {
   let {
     id: aId,
     decoder,
     isLink,
     isInverse,
     isMany,
-  } = build_ns.attributes.get(attributeName);
+  } = ns.attributes.get(attributeName);
 
   const res = new Query(
     new IntersectionConstraint([
@@ -41,7 +41,7 @@ const lookup = (build_ns, kb, eId, attributeName) => {
     return {
       found: true,
       result: isLink
-        ? entityProxy(build_ns, kb, value)
+        ? entityProxy(ns, kb, value)
         : decoder(value.slice(), async () => await kb.blobcache.get(value)),
     };
   } else {
@@ -49,7 +49,7 @@ const lookup = (build_ns, kb, eId, attributeName) => {
     for (const value of res) {
       results.push(
         isLink
-          ? entityProxy(build_ns, kb, value)
+          ? entityProxy(ns, kb, value)
           : decoder(value.slice(), async () => await kb.blobcache.get(value)),
       );
     }
@@ -60,12 +60,12 @@ const lookup = (build_ns, kb, eId, attributeName) => {
   }
 };
 
-const entityProxy = function entityProxy(build_ns, kb, eId) {
+const entityProxy = function entityProxy(ns, kb, eId) {
   return new Proxy(
     { [id]: eId },
     {
       get: function (o, attributeName) {
-        if (!build_ns.attributes.has(attributeName)) {
+        if (!ns.attributes.has(attributeName)) {
           return undefined;
         }
 
@@ -73,7 +73,7 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
           return o[attributeName];
         }
 
-        const { found, result } = lookup(build_ns, kb, eId, attributeName);
+        const { found, result } = lookup(ns, kb, eId, attributeName);
         if (found) {
           Object.defineProperty(o, attributeName, {
             value: result,
@@ -91,7 +91,7 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
         );
       },
       has: function (o, attributeName) {
-        if (!build_ns.attributes.has(attributeName)) {
+        if (!ns.attributes.has(attributeName)) {
           return false;
         }
 
@@ -99,7 +99,7 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
           id: aId,
           isInverse,
           isMany,
-        } = build_ns.attributes.get(attributeName);
+        } = ns.attributes.get(attributeName);
         if (
           attributeName in o || isMany
         ) {
@@ -136,7 +136,7 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
         );
       },
       getOwnPropertyDescriptor: function (o, attributeName) {
-        if (!build_ns.attributes.has(attributeName)) {
+        if (!ns.attributes.has(attributeName)) {
           return undefined;
         }
 
@@ -144,7 +144,7 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
           return Object.getOwnPropertyDescriptor(o, attributeName);
         }
 
-        const { found, result } = lookup(build_ns, kb, eId, attributeName);
+        const { found, result } = lookup(ns, kb, eId, attributeName);
         if (found) {
           const property = {
             value: result,
@@ -163,7 +163,7 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
           const r of new Query(
             new IntersectionConstraint([
               constantConstraint(0, eId),
-              indexConstraint(1, build_ns.forwardAttributeIndex),
+              indexConstraint(1, ns.forwardAttributeIndex),
               new MaskedConstraint(
                 kb.tribleset.patternConstraint([[0, 1, 2]]),
                 [2],
@@ -173,7 +173,7 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
         ) {
           const a = r.get(1);
           attrs.push(
-            ...build_ns.forwardAttributeIndex.get(a).map((attr) => attr.name),
+            ...ns.forwardAttributeIndex.get(a).map((attr) => attr.name),
           );
         }
 
@@ -181,7 +181,7 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
           const r of new Query(
             new IntersectionConstraint([
               constantConstraint(0, eId),
-              indexConstraint(1, build_ns.inverseAttributeIndex),
+              indexConstraint(1, ns.inverseAttributeIndex),
               new MaskedConstraint(
                 kb.tribleset.patternConstraint([[2, 1, 0]]),
                 [2],
@@ -191,7 +191,7 @@ const entityProxy = function entityProxy(build_ns, kb, eId) {
         ) {
           const a = r.get(1);
           attrs.push(
-            ...build_ns.inverseAttributeIndex.get(a).map((attr) => attr.name),
+            ...ns.inverseAttributeIndex.get(a).map((attr) => attr.name),
           );
         }
         return attrs;
@@ -208,7 +208,7 @@ const isPojo = (obj) => {
 };
 
 function* entityToTriples(
-  build_ns,
+  ns,
   unknownFactory,
   parentId,
   parentAttributeName,
@@ -219,7 +219,7 @@ function* entityToTriples(
     yield [parentId, parentAttributeName, entityId];
   }
   for (const [attributeName, value] of Object.entries(entity)) {
-    const attributeDescription = build_ns.attributes.get(attributeName);
+    const attributeDescription = ns.attributes.get(attributeName);
     assert(
       attributeDescription,
       `No attribute named '${attributeName}' in namespace.`,
@@ -228,7 +228,7 @@ function* entityToTriples(
       for (const v of value) {
         if (attributeDescription.isLink && isPojo(v)) {
           yield* entityToTriples(
-            build_ns,
+            ns,
             unknownFactory,
             entityId,
             attributeName,
@@ -245,7 +245,7 @@ function* entityToTriples(
     } else {
       if (attributeDescription.isLink && isPojo(value)) {
         yield* entityToTriples(
-          build_ns,
+          ns,
           unknownFactory,
           entityId,
           attributeName,
@@ -268,9 +268,9 @@ export function* entitiesToTriples(build_ns, unknownFactory, entities) {
   }
 }
 
-function* triplesToTribles(build_ns, triples, blobFn = (trible, blob) => {}) {
+function* triplesToTribles(ns, triples, blobFn = (trible, blob) => {}) {
   for (const [e, a, v] of triples) {
-    const attributeDescription = build_ns.attributes.get(a);
+    const attributeDescription = ns.attributes.get(a);
 
     const trible = new Uint8Array(TRIBLE_SIZE);
     E(trible).set(e.subarray(16, 32));
@@ -293,11 +293,11 @@ function* triplesToTribles(build_ns, triples, blobFn = (trible, blob) => {}) {
   }
 }
 
-const precompileTriples = (build_ns, vars, triples) => {
-  const { encoder: idEncoder, decoder: idDecoder } = build_ns.ids;
+const precompileTriples = (ns, vars, triples) => {
+  const { encoder: idEncoder, decoder: idDecoder } = ns.ids;
   const precompiledTriples = [];
   for (const [e, a, v] of triples) {
-    const attributeDescription = build_ns.attributes.get(a);
+    const attributeDescription = ns.attributes.get(a);
     let eVar;
     let aVar;
     let vVar;
@@ -336,19 +336,6 @@ const precompileTriples = (build_ns, vars, triples) => {
   return precompiledTriples;
 };
 
-class IDSequence {
-  constructor(factory) {
-    this.factory = factory;
-  }
-
-  [Symbol.iterator]() {
-    return this;
-  }
-  next() {
-    return { value: this.factory() };
-  }
-}
-
 /** A persistent immutable knowledge base that stores tribles and blobs,
     providing a (JSON) tree based interface to access and create the graph within.*/
 export class KB {
@@ -380,22 +367,21 @@ export class KB {
 
   /**
    * Stores entities in the immutable KB, returning a new one while preserving the old one.
-   * @param {Object} ns - The namespace used for attribute ids and value encoding.
+   * @param {Object} ctx - The context used for ids, attributes, and value encoding.
    * @param {entityFunction | entityGenerator} entities - A function/generator returning/yielding entities.
    * @returns {KB} A new KB with the entities added to it.
    */
-  with(ns, entities) {
-    const build_ns = buildNamespace(ns);
-    const {
-      factory: idFactory,
-    } = build_ns.ids;
+  with(ctx, entities) {
+    const ns = ctx.ns;
+    const idOwner = ctx.owner;
+
     const triples = entitiesToTriples(
-      build_ns,
-      idFactory,
-      entities(new IDSequence(idFactory)),
+      ns,
+      () => idOwner.next().value,
+      entities(idOwner),
     );
     let newBlobCache = this.blobcache;
-    const tribles = triplesToTribles(build_ns, triples, (key, blob) => {
+    const tribles = triplesToTribles(ns, triples, (key, blob) => {
       newBlobCache = newBlobCache.put(key, blob);
     });
     const newTribleSet = this.tribleset.with(tribles);
@@ -417,18 +403,19 @@ export class KB {
 
   /**
    * Creates a query constrained over the contents of this KB.
-   * @param {Array} tribles - A function/generator returning/yielding a pattern of entities to be matched.
+   * @param {Object} ctx - The context used for ids, attributes, and value encoding.
+   * @param {Array} entities - A function/generator returning/yielding a pattern of entities to be matched.
    * @returns {Constraint} - A constraint that can be used in a `find` call.
    */
-  where(ns, entities) {
-    const build_ns = buildNamespace(ns);
+  where(ctx, entities) {
+    const buildNS = ctx.ns;
     return (vars) => {
       const triples = entitiesToTriples(
-        build_ns,
+        buildNS,
         () => vars.unnamed(),
         entities,
       );
-      const triplesWithVars = precompileTriples(build_ns, vars, triples);
+      const triplesWithVars = precompileTriples(buildNS, vars, triples);
       for (const [_e, _a, v] of triplesWithVars) {
         v.proposeBlobCache(this.blobcache);
       }
@@ -440,12 +427,12 @@ export class KB {
 
   /**
    * Creates proxy object to walk the graph stored in this KB.
-   * @param {Object} ns - The namespace used for attribute ids and value encoding.
+   * @param {Object} ctx - The context used for ids, attributes, and value encoding.
    * @returns {Proxy} - A proxy emulating the graph of the KB.
    */
-  walk(ns, eId) {
-    const build_ns = buildNamespace(ns);
-    return entityProxy(build_ns, this, eId);
+  walk(ctx, eId) {
+    const buildNS = ctx.ns;
+    return entityProxy(buildNS, this, eId);
   }
 
   /**

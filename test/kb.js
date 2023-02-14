@@ -16,41 +16,58 @@ import {
 } from "https://deno.land/std@0.78.0/encoding/base64.ts";
 
 import { equal, equalValue } from "../src/js/trible.js";
-import { BlobCache, find, FOTribleSet, id, KB, types, UFOID } from "../mod.js";
+import {
+  BlobCache,
+  find,
+  FOTribleSet,
+  id,
+  IDOwner,
+  KB,
+  NS,
+  types,
+  UFOID,
+} from "../mod.js";
 
 const { nameId, lovesId, titlesId } = UFOID.namedCache();
 
 Deno.test("KB Find", () => {
-  const knightsNS = {
+  const knightsNS = new NS({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring, isMany: true },
-  };
+  });
+  const idOwner = new IDOwner(types.ufoid.factory);
 
   // Add some data.
   const memkb = new KB(new FOTribleSet(), new BlobCache());
 
-  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
-    {
-      [id]: romeo,
-      name: "Romeo",
-      titles: ["fool", "prince"],
-      loves: juliet,
-    },
-    {
-      [id]: juliet,
-      name: "Juliet",
-      titles: ["the lady", "princess"],
-      loves: romeo,
-    },
-  ]);
+  const knightskb = memkb.with(
+    { ns: knightsNS, owner: idOwner },
+    ([romeo, juliet]) => [
+      {
+        [id]: romeo,
+        name: "Romeo",
+        titles: ["fool", "prince"],
+        loves: juliet,
+      },
+      {
+        [id]: juliet,
+        name: "Juliet",
+        titles: ["the lady", "princess"],
+        loves: romeo,
+      },
+    ],
+  );
 
   // Query some data.
   const results = new Set([
     ...find(({ name, title }) => [
-      knightskb.where(knightsNS, [{ name: name, titles: [title] }]),
+      knightskb.where({ ns: knightsNS, owner: idOwner }, [{
+        name: name,
+        titles: [title],
+      }]),
     ]),
   ]);
   assertEquals(
@@ -89,21 +106,25 @@ Deno.test("KB Find Single", () => {
       arbitraryId,
       arbitraryPerson,
       (nameId, titlesId, person) => {
-        const knightsNS = {
+        const knightsNS = new NS({
           [id]: { ...types.ufoid },
           name: { id: nameId, ...types.hex },
           titles: { id: titlesId, ...types.hex, isMany: true },
-        };
+        });
+        const idOwner = new IDOwner(types.ufoid.factory);
 
         const knightskb = new KB(new FOTribleSet(), new BlobCache()).with(
-          knightsNS,
+          { ns: knightsNS, owner: idOwner },
           () => [{ [id]: person.id, name: person.name, titles: person.titles }],
         );
 
         /// Query some data.
         const results = new Set([
           ...find(({ name, title }) => [
-            knightskb.where(knightsNS, [{ name, titles: [title] }]),
+            knightskb.where({ ns: knightsNS, owner: idOwner }, [{
+              name,
+              titles: [title],
+            }]),
           ]),
         ]);
         assertEquals(
@@ -116,36 +137,40 @@ Deno.test("KB Find Single", () => {
 });
 
 Deno.test("find lower range", () => {
-  const knightsNS = {
+  const knightsNS = new NS({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, isMany: true, ...types.shortstring },
-  };
+  });
+  const idOwner = new IDOwner(types.ufoid.factory);
 
   // Add some data.
   const memkb = new KB(new FOTribleSet(), new BlobCache());
 
-  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
-    {
-      [id]: romeo,
-      name: "Romeo",
-      titles: ["fool", "prince"],
-      loves: juliet,
-    },
-    {
-      [id]: juliet,
-      name: "Juliet",
-      titles: ["the lady", "princess"],
-      loves: romeo,
-    },
-  ]);
+  const knightskb = memkb.with(
+    { ns: knightsNS, owner: idOwner },
+    ([romeo, juliet]) => [
+      {
+        [id]: romeo,
+        name: "Romeo",
+        titles: ["fool", "prince"],
+        loves: juliet,
+      },
+      {
+        [id]: juliet,
+        name: "Juliet",
+        titles: ["the lady", "princess"],
+        loves: romeo,
+      },
+    ],
+  );
   // Query some data.
   const results = [
     ...find(
       ({ name, title }) => [
-        knightskb.where(knightsNS, [
+        knightskb.where({ ns: knightsNS, owner: idOwner }, [
           {
             name: name.ranged({ lower: "K" }),
             titles: [title],
@@ -162,37 +187,41 @@ Deno.test("find lower range", () => {
 });
 
 Deno.test("find upper bound", () => {
-  const knightsNS = {
+  const knightsNS = new NS({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, isMany: true, ...types.shortstring },
-  };
+  });
+  const idOwner = new IDOwner(types.ufoid.factory);
 
   // Add some data.
   const memkb = new KB(new FOTribleSet(), new BlobCache());
 
-  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
-    {
-      [id]: romeo,
-      name: "Romeo",
-      titles: ["fool", "prince"],
-      loves: juliet,
-    },
-    {
-      [id]: juliet,
-      name: "Juliet",
-      titles: ["the lady", "princess"],
-      loves: romeo,
-    },
-  ]);
+  const knightskb = memkb.with(
+    { ns: knightsNS, owner: idOwner },
+    ([romeo, juliet]) => [
+      {
+        [id]: romeo,
+        name: "Romeo",
+        titles: ["fool", "prince"],
+        loves: juliet,
+      },
+      {
+        [id]: juliet,
+        name: "Juliet",
+        titles: ["the lady", "princess"],
+        loves: romeo,
+      },
+    ],
+  );
 
   // Query some data.
 
   const results = [
     ...find(({ name, title }) => [
-      knightskb.where(knightsNS, [
+      knightskb.where({ ns: knightsNS, owner: idOwner }, [
         {
           name: name.ranged({ upper: "K" }),
           titles: [title],
@@ -207,79 +236,92 @@ Deno.test("find upper bound", () => {
 });
 
 Deno.test("KB Walk", () => {
-  const knightsNS = {
+  const knightsNS = new NS({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring },
-  };
+  });
+  const idOwner = new IDOwner(types.ufoid.factory);
 
   // Add some data.
   const memkb = new KB(new FOTribleSet(), new BlobCache());
 
-  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
-    {
-      [id]: romeo,
-      name: "Romeo",
-      titles: ["fool", "prince"],
-      loves: juliet,
-    },
-    {
-      [id]: juliet,
-      name: "Juliet",
-      titles: ["the lady", "princess"],
-      loves: romeo,
-    },
-  ]);
+  const knightskb = memkb.with(
+    { ns: knightsNS, owner: idOwner },
+    ([romeo, juliet]) => [
+      {
+        [id]: romeo,
+        name: "Romeo",
+        titles: ["fool", "prince"],
+        loves: juliet,
+      },
+      {
+        [id]: juliet,
+        name: "Juliet",
+        titles: ["the lady", "princess"],
+        loves: romeo,
+      },
+    ],
+  );
   // Query some data.
   debugger;
   const [{ romeo }] = [
     ...find(({ romeo }) => [
-      knightskb.where(knightsNS, [
-        { [id]: romeo, name: "Romeo" },
-      ]),
-    ]),
-  ];
-  assertEquals(knightskb.walk(knightsNS, romeo).loves.name, "Juliet");
-});
-
-Deno.test("KB Walk ownKeys", () => {
-  const knightsNS = {
-    [id]: { ...types.ufoid },
-    name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId, isLink: true },
-    lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring },
-  };
-
-  // Add some data.
-  const memkb = new KB(new FOTribleSet(), new BlobCache());
-
-  const knightskb = memkb.with(knightsNS, ([romeo, juliet]) => [
-    {
-      [id]: romeo,
-      name: "Romeo",
-      titles: ["fool", "prince"],
-      loves: juliet,
-    },
-    {
-      [id]: juliet,
-      name: "Juliet",
-      titles: ["the lady", "princess"],
-      loves: romeo,
-    },
-  ]);
-  // Query some data.
-  const [{ romeo }] = [
-    ...find(({ romeo }) => [
-      knightskb.where(knightsNS, [
+      knightskb.where({ ns: knightsNS, owner: idOwner }, [
         { [id]: romeo, name: "Romeo" },
       ]),
     ]),
   ];
   assertEquals(
-    new Set(Reflect.ownKeys(knightskb.walk(knightsNS, romeo))),
+    knightskb.walk({ ns: knightsNS, owner: idOwner }, romeo).loves.name,
+    "Juliet",
+  );
+});
+
+Deno.test("KB Walk ownKeys", () => {
+  const knightsNS = new NS({
+    [id]: { ...types.ufoid },
+    name: { id: nameId, ...types.shortstring },
+    loves: { id: lovesId, isLink: true },
+    lovedBy: { id: lovesId, isLink: true, isInverse: true },
+    titles: { id: titlesId, ...types.shortstring },
+  });
+  const idOwner = new IDOwner(types.ufoid.factory);
+
+  // Add some data.
+  const memkb = new KB(new FOTribleSet(), new BlobCache());
+
+  const knightskb = memkb.with(
+    { ns: knightsNS, owner: idOwner },
+    ([romeo, juliet]) => [
+      {
+        [id]: romeo,
+        name: "Romeo",
+        titles: ["fool", "prince"],
+        loves: juliet,
+      },
+      {
+        [id]: juliet,
+        name: "Juliet",
+        titles: ["the lady", "princess"],
+        loves: romeo,
+      },
+    ],
+  );
+  // Query some data.
+  const [{ romeo }] = [
+    ...find(({ romeo }) => [
+      knightskb.where({ ns: knightsNS, owner: idOwner }, [
+        { [id]: romeo, name: "Romeo" },
+      ]),
+    ]),
+  ];
+  assertEquals(
+    new Set(
+      Reflect.ownKeys(knightskb.walk({ ns: knightsNS, owner: idOwner }, romeo)),
+    ),
     new Set([id, "name", "titles", "loves", "lovedBy"]),
   );
 });
@@ -287,46 +329,53 @@ Deno.test("KB Walk ownKeys", () => {
 Deno.test("TribleSet PACT segmentCount positive", () => {
   const size = 3;
 
-  const knightsNS = {
+  const knightsNS = new NS({
     [id]: { ...types.ufoid },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
     titles: { id: titlesId, ...types.shortstring },
-  };
+  });
+  const idOwner = new IDOwner(types.ufoid.factory);
 
   // Add some data.
   let knightskb = new KB(new FOTribleSet(), new BlobCache());
 
-  knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
-    {
-      [id]: romeo,
-      name: "Romeo",
-      titles: ["fool", "prince"],
-      loves: juliet,
-    },
-    {
-      [id]: juliet,
-      name: "Juliet",
-      titles: ["the lady", "princess"],
-      loves: romeo,
-    },
-  ]);
-  for (let i = 1; i < size; i++) {
-    knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
+  knightskb = knightskb.with(
+    { ns: knightsNS, owner: idOwner },
+    ([romeo, juliet]) => [
       {
         [id]: romeo,
-        name: `Romeo${i}`,
+        name: "Romeo",
         titles: ["fool", "prince"],
         loves: juliet,
       },
       {
         [id]: juliet,
-        name: `Juliet${i}`,
+        name: "Juliet",
         titles: ["the lady", "princess"],
         loves: romeo,
       },
-    ]);
+    ],
+  );
+  for (let i = 1; i < size; i++) {
+    knightskb = knightskb.with(
+      { ns: knightsNS, owner: idOwner },
+      ([romeo, juliet]) => [
+        {
+          [id]: romeo,
+          name: `Romeo${i}`,
+          titles: ["fool", "prince"],
+          loves: juliet,
+        },
+        {
+          [id]: juliet,
+          name: `Juliet${i}`,
+          titles: ["the lady", "princess"],
+          loves: romeo,
+        },
+      ],
+    );
   }
   const work = [knightskb.tribleset.EAV.child];
   while (work.length > 0) {
