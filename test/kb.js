@@ -56,12 +56,12 @@ Deno.test("KB Find", () => {
 
   // Query some data.
   const results = new Set([
-    ...find(({ name, title }) => [
+    ...find(({ name, title }) =>
       knightskb.where(ctx, [{
         name: name,
         titles: [title],
-      }]),
-    ]),
+      }])
+    ),
   ]);
   assertEquals(
     results,
@@ -115,12 +115,12 @@ Deno.test("KB Find Single", () => {
 
         /// Query some data.
         const results = new Set([
-          ...find(({ name, title }) => [
+          ...find(({ name, title }) =>
             knightskb.where(ctx, [{
               name,
               titles: [title],
-            }]),
-          ]),
+            }])
+          ),
         ]);
         assertEquals(
           results,
@@ -166,14 +166,13 @@ Deno.test("find lower range", () => {
   // Query some data.
   const results = [
     ...find(
-      ({ name, title }) => [
+      ({ name, title }) =>
         knightskb.where(ctx, [
           {
             name: name.ranged({ lower: "K" }),
             titles: [title],
           },
         ]),
-      ],
       knightskb.blobcache,
     ),
   ];
@@ -219,14 +218,14 @@ Deno.test("find upper bound", () => {
   // Query some data.
 
   const results = [
-    ...find(({ name, title }) => [
+    ...find(({ name, title }) =>
       knightskb.where(ctx, [
         {
           name: name.ranged({ upper: "K" }),
           titles: [title],
         },
-      ]),
-    ]),
+      ])
+    ),
   ];
   assertEquals(results, [
     { name: "Juliet", title: "princess" },
@@ -269,11 +268,11 @@ Deno.test("KB Walk", () => {
   // Query some data.
   debugger;
   const [{ romeo }] = [
-    ...find(({ romeo }) => [
+    ...find(({ romeo }) =>
       knightskb.where(ctx, [
         { [id]: romeo, name: "Romeo" },
-      ]),
-    ]),
+      ])
+    ),
   ];
   assertEquals(
     knightskb.walk(ctx, romeo).loves.name,
@@ -315,11 +314,11 @@ Deno.test("KB Walk ownKeys", () => {
   );
   // Query some data.
   const [{ romeo }] = [
-    ...find(({ romeo }) => [
+    ...find(({ romeo }) =>
       knightskb.where(ctx, [
         { [id]: romeo, name: "Romeo" },
-      ]),
-    ]),
+      ])
+    ),
   ];
   assertEquals(
     new Set(

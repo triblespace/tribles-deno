@@ -642,16 +642,26 @@ export class VariableProvider {
   }
 }
 
-export function find(cfn) {
+/**
+ * Gets passed an object that can be destructured for variable names and
+ * returns a constraint builder that can be used to enumerate query results
+ * with a call to find. 
+ *
+ * @callback queryFn
+ * @param {Object} vars - The variables used in this query.
+ * @return {Function} A query function to be passed to find.
+ */
+
+/**
+ * Create an iterable query object from the provided constraint function.
+ * @param {queryFn} queryfn - A function representing the query.
+ * @returns {Query} Enumerates possible variable assignments satisfying the input query.
+ */
+export function find(queryfn) {
   const vars = new VariableProvider();
 
-  const constraints = [];
-  for (const constraintBuilder of cfn(vars.namedCache())) {
-    constraints.push(constraintBuilder(vars));
-  }
-
-  constraints.push(...vars.constraints());
-
+  const constraintBuilder = queryfn(vars.namedCache());
+  const constraints = [constraintBuilder(vars), ...vars.constraints()];
   const constraint = new IntersectionConstraint(constraints);
 
   const postProcessing = (r) => {

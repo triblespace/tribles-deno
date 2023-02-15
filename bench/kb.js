@@ -103,15 +103,15 @@ function kbQuery(b, size) {
 
   debugger;
   // Query some data.
-  const q = find(({ name, title }) => [
+  const q = find(({ name, title }) =>
     knightskb.where(ctx, [
       {
         name,
         titles: [title],
         loves: { name: "Juliet" },
       },
-    ]),
-  ]);
+    ])
+  );
   b.start();
 
   const results = [...q];
