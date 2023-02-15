@@ -2007,13 +2007,16 @@ class VariableProvider {
         return constraints;
     }
 }
-function find(cfn) {
+function and(...constraints) {
+    return new IntersectionConstraint(constraints);
+}
+function find(queryfn) {
     const vars = new VariableProvider();
-    const constraints = [];
-    for (const constraintBuilder of cfn(vars.namedCache())){
-        constraints.push(constraintBuilder(vars));
-    }
-    constraints.push(...vars.constraints());
+    const constraintBuilder = queryfn(vars.namedCache());
+    const constraints = [
+        constraintBuilder(vars),
+        ...vars.constraints()
+    ];
     const constraint = new IntersectionConstraint(constraints);
     const postProcessing = (r)=>{
         const result = {};
@@ -3660,4 +3663,4 @@ class IDOwner {
     }
     validator(middleware = (commits)=>commits) {}
 }
-export { BlobCache as BlobCache, find as find, FOTribleSet as FOTribleSet, Head as Head, HOTribleSet as HOTribleSet, id as id, IDOwner as IDOwner, KB as KB, NS as NS, types as types, UFOID as UFOID, validateCommitSize as validateCommitSize };
+export { and as and, BlobCache as BlobCache, find as find, FOTribleSet as FOTribleSet, Head as Head, HOTribleSet as HOTribleSet, id as id, IDOwner as IDOwner, KB as KB, NS as NS, types as types, UFOID as UFOID, validateCommitSize as validateCommitSize };

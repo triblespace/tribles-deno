@@ -643,9 +643,18 @@ export class VariableProvider {
 }
 
 /**
+ * Create a intersection constraint of the passed constraints.
+ * @param {...Constraint} constraints - All the constraints that must hold true.
+ * @returns {Constraint} A constraint that has a variable assignment that is only valid if it is a variable asignment of all the passed constraints.
+ */
+export function and(...constraints) {
+  return new IntersectionConstraint(constraints);
+}
+
+/**
  * Gets passed an object that can be destructured for variable names and
  * returns a constraint builder that can be used to enumerate query results
- * with a call to find. 
+ * with a call to find.
  *
  * @callback queryFn
  * @param {Object} vars - The variables used in this query.
