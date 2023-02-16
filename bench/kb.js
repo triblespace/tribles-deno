@@ -110,8 +110,7 @@ function kbQuery(b, size) {
         titles: [title],
         loves: { name: "Juliet" },
       },
-    ])
-  );
+    ]));
   b.start();
 
   const results = [...q];
@@ -171,7 +170,7 @@ function kbDSQuery(b) {
   });
 
   // Query some data.
-  const q = find(({ age, lastName }) => [
+  const q = find(({ age, lastName }) =>
     peoplekb.where(ctx, [
       {
         name: "Ivan",
@@ -179,8 +178,7 @@ function kbDSQuery(b) {
         age,
         lastName,
       },
-    ]),
-  ]);
+    ]));
   b.start();
 
   const results = [...q];
