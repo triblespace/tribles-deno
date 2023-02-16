@@ -12,9 +12,9 @@ function spacetimestampEncoder(v, b) {
       "Error encoding spacetimestamp: Not in valid range: 0 <= t <= 2^64-1.",
     );
   }
-  if (x > 0xffffffffffffffffn) {
+  if (z > 0xffffffffffffffffn) {
     throw Error(
-      "Error encoding spacetimestamp: Not in valid range: 0 <= x <= 2^64-1.",
+      "Error encoding spacetimestamp: Not in valid range: 0 <= z <= 2^64-1.",
     );
   }
   if (y > 0xffffffffffffffffn) {
@@ -22,23 +22,23 @@ function spacetimestampEncoder(v, b) {
       "Error encoding spacetimestamp: Not in valid range: 0 <= y <= 2^64-1.",
     );
   }
-  if (z > 0xffffffffffffffffn) {
+  if (x > 0xffffffffffffffffn) {
     throw Error(
-      "Error encoding spacetimestamp: Not in valid range: 0 <= z <= 2^64-1.",
+      "Error encoding spacetimestamp: Not in valid range: 0 <= x <= 2^64-1.",
     );
   }
-  const xyz = (spreadBits(x) << 2n) | (spreadBits(y) << 1n) | spreadBits(z);
+  const zyx = (spreadBits(z) << 2n) | (spreadBits(y) << 1n) | spreadBits(x);
   bigIntToBytes(t, b, 0, 8);
-  bigIntToBytes(xyz, b, 8, 24);
+  bigIntToBytes(zyx, b, 8, 24);
   return null;
 }
 
 function spacetimestampDecoder(b, blob) {
   const t = bytesToBigInt(b, 0, 8);
-  const xyz = bytesToBigInt(b, 8, 24);
-  const x = unspreadBits(xyz >> 2n);
-  const y = unspreadBits(xyz >> 1n);
-  const z = unspreadBits(xyz);
+  const zyx = bytesToBigInt(b, 8, 24);
+  const z = unspreadBits(zyx >> 2n);
+  const y = unspreadBits(zyx >> 1n);
+  const x = unspreadBits(zyx);
 
   return { t, x, y, z };
 }
