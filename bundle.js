@@ -361,7 +361,7 @@ const schema3 = {
     decoder: longstringDecoder
 };
 const bigIntToBytes = (bn, b, offset, length)=>{
-    let n = bn;
+    let n = BigInt(bn);
     for(let i = offset + length - 1; offset <= i; i--){
         b[i] = new Number(n & 0xffn);
         n = n >> 8n;
@@ -399,30 +399,30 @@ const unspreadBits = (x)=>{
     return X;
 };
 function spacetimestampEncoder(v1, b) {
-    const { t , x , y , z  } = v1;
+    const { t =0 , x =0 , y =0 , z =0  } = v1;
     if (t > 0xffffffffffffffffn) {
         throw Error("Error encoding spacetimestamp: Not in valid range: 0 <= t <= 2^64-1.");
-    }
-    if (x > 0xffffffffffffffffn) {
-        throw Error("Error encoding spacetimestamp: Not in valid range: 0 <= x <= 2^64-1.");
-    }
-    if (y > 0xffffffffffffffffn) {
-        throw Error("Error encoding spacetimestamp: Not in valid range: 0 <= y <= 2^64-1.");
     }
     if (z > 0xffffffffffffffffn) {
         throw Error("Error encoding spacetimestamp: Not in valid range: 0 <= z <= 2^64-1.");
     }
-    const xyz = spreadBits(x) << 2n | spreadBits(y) << 1n | spreadBits(z);
+    if (y > 0xffffffffffffffffn) {
+        throw Error("Error encoding spacetimestamp: Not in valid range: 0 <= y <= 2^64-1.");
+    }
+    if (x > 0xffffffffffffffffn) {
+        throw Error("Error encoding spacetimestamp: Not in valid range: 0 <= x <= 2^64-1.");
+    }
+    const zyx = spreadBits(z) << 2n | spreadBits(y) << 1n | spreadBits(x);
     bigIntToBytes(t, b, 0, 8);
-    bigIntToBytes(xyz, b, 8, 24);
+    bigIntToBytes(zyx, b, 8, 24);
     return null;
 }
 function spacetimestampDecoder(b, blob) {
     const t = bytesToBigInt(b, 0, 8);
-    const xyz = bytesToBigInt(b, 8, 24);
-    const x = unspreadBits(xyz >> 2n);
-    const y = unspreadBits(xyz >> 1n);
-    const z = unspreadBits(xyz);
+    const zyx = bytesToBigInt(b, 8, 24);
+    const z = unspreadBits(zyx >> 2n);
+    const y = unspreadBits(zyx >> 1n);
+    const x = unspreadBits(zyx);
     return {
         t,
         x,
@@ -460,7 +460,7 @@ const schema5 = {
     decoder: subrangeDecoder
 };
 function biguint256Encoder(v1, b) {
-    if (v1 > 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn || v1 < 0n) {
+    if (v1 >= 1n << 256n || v1 < 0n) {
         throw Error("Error BigInt not in valid range: 0 <= v <= 2^256-1.");
     }
     bigIntToBytes(v1, b, 0, 32);
@@ -472,6 +472,20 @@ function biguint256Decoder(b, blob) {
 const schema6 = {
     encoder: biguint256Encoder,
     decoder: biguint256Decoder
+};
+function bigint256Encoder(v1, b) {
+    if (v1 >= 1n << 255n || v1 < -(1n << 255n)) {
+        throw Error("Error BigInt not in valid range: -2^255 <= v < 2^255.");
+    }
+    bigIntToBytes(v1, b, 0, 32) + (1n << 255n);
+    return null;
+}
+function bigint256Decoder(b, blob) {
+    return bytesToBigInt(b, 0, 32) - (1n << 255n);
+}
+const schema7 = {
+    encoder: bigint256Encoder,
+    decoder: bigint256Decoder
 };
 const hexTable = new TextEncoder().encode("0123456789abcdef");
 function errInvalidByte(__byte) {
@@ -544,7 +558,7 @@ function hexFactory() {
     crypto.getRandomValues(bytes1.subarray(16, 32));
     return encodeToString(bytes1).padStart(64, "0");
 }
-const schema7 = {
+const schema8 = {
     encoder: hexEncoder,
     decoder: hexDecoder,
     factory: hexFactory
@@ -557,7 +571,8 @@ const types = {
     spacetimestamp: schema4,
     subrange: schema5,
     biguint256: schema6,
-    hex: schema7
+    bigint256: schema7,
+    hex: schema8
 };
 const highBit32 = 1 << 31 >>> 0;
 function ctz32(n) {

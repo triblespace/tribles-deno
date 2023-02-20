@@ -12,7 +12,7 @@ function bigint256Encoder(v, b) {
 }
 
 function bigint256Decoder(b, blob) {
-  return bytesToBigInt(b, 0, 32) - (1n << 255n) ;
+  return bytesToBigInt(b, 0, 32) - (1n << 255n);
 }
 
 export const schema = {

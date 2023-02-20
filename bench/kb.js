@@ -110,7 +110,8 @@ function kbQuery(b, size) {
         titles: [title],
         loves: { name: "Juliet" },
       },
-    ]));
+    ])
+  );
   b.start();
 
   const results = [...q];
@@ -178,7 +179,8 @@ function kbDSQuery(b) {
         age,
         lastName,
       },
-    ]));
+    ])
+  );
   b.start();
 
   const results = [...q];
