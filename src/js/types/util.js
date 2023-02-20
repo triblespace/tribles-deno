@@ -1,5 +1,5 @@
 export const bigIntToBytes = (bn, b, offset, length) => {
-  let n = bn;
+  let n = BigInt(bn);
   for (let i = offset + length - 1; offset <= i; i--) {
     b[i] = new Number(n & 0xffn);
     n = n >> 8n;
