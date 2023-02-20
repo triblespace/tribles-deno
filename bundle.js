@@ -477,7 +477,7 @@ function bigint256Encoder(v1, b) {
     if (v1 >= 1n << 255n || v1 < -(1n << 255n)) {
         throw Error("Error BigInt not in valid range: -2^255 <= v < 2^255.");
     }
-    bigIntToBytes(v1, b, 0, 32) + (1n << 255n);
+    bigIntToBytes(BigInt(v1) + (1n << 255n), b, 0, 32);
     return null;
 }
 function bigint256Decoder(b, blob) {
