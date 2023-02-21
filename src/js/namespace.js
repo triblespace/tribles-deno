@@ -79,7 +79,7 @@ export class NS {
 
     for (
       const {
-        id: encodedId,
+        encodedId,
         isMany,
         isInverse,
       } of attributes.values()
