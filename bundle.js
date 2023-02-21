@@ -108,6 +108,7 @@ function ufoidEncoder(v1, b) {
     return null;
 }
 function ufoidDecoder(b, blob) {
+    UFOID.validate(b);
     return b;
 }
 const schema = {
@@ -2083,19 +2084,22 @@ class NS {
             if (!attributeDescription.isLink && !attributeDescription.encoder) {
                 throw Error(`Missing encoder in namespace for attribute ${attributeName}.`);
             }
+            const encodedId = new Uint8Array(32);
+            idDescription.encoder(attributeDescription.id, encodedId);
             const description = {
                 ...attributeDescription,
+                encodedId,
                 name: attributeName
             };
             attributes.set(attributeName, description);
             if (description.isInverse) {
-                inverseAttributeIndex = inverseAttributeIndex.put(description.id, [
-                    ...inverseAttributeIndex.get(description.id) || [],
+                inverseAttributeIndex = inverseAttributeIndex.put(description.encodedId, [
+                    ...inverseAttributeIndex.get(description.encodedId) || [],
                     description
                 ]);
             } else {
-                forwardAttributeIndex = forwardAttributeIndex.put(description.id, [
-                    ...forwardAttributeIndex.get(description.id) || [],
+                forwardAttributeIndex = forwardAttributeIndex.put(description.encodedId, [
+                    ...forwardAttributeIndex.get(description.encodedId) || [],
                     description
                 ]);
             }
@@ -2106,12 +2110,12 @@ class NS {
                 attributeDescription1.decoder = idDescription.decoder;
             }
         }
-        for (const { id: encodedId , isMany , isInverse  } of attributes.values()){
+        for (const { id: encodedId1 , isMany , isInverse  } of attributes.values()){
             if (!isMany) {
                 if (isInverse) {
-                    newUniqueInverseAttributeIndex.put(encodedId);
+                    newUniqueInverseAttributeIndex.put(encodedId1);
                 } else {
-                    newUniqueAttributeIndex.put(encodedId);
+                    newUniqueAttributeIndex.put(encodedId1);
                 }
             }
         }
@@ -3185,11 +3189,11 @@ const assert = (test, message)=>{
         throw Error(message);
     }
 };
-const lookup1 = (ns, kb, eId, attributeName)=>{
-    let { id: aId , decoder , isLink , isInverse , isMany  } = ns.attributes.get(attributeName);
+const lookup1 = (ns, kb, eEncodedId, attributeName)=>{
+    let { encodedId: aEncodedId , decoder , isLink , isInverse , isMany  } = ns.attributes.get(attributeName);
     const res = new Query(new IntersectionConstraint([
-        constantConstraint(0, eId),
-        constantConstraint(1, aId),
+        constantConstraint(0, eEncodedId),
+        constantConstraint(1, aEncodedId),
         kb.tribleset.patternConstraint([
             isInverse ? [
                 2,
@@ -3209,12 +3213,12 @@ const lookup1 = (ns, kb, eId, attributeName)=>{
         };
         return {
             found: true,
-            result: isLink ? entityProxy(ns, kb, value) : decoder(value.slice(), async ()=>await kb.blobcache.get(value))
+            result: isLink ? entityProxy(ns, kb, decoder(value.slice())) : decoder(value.slice(), async ()=>await kb.blobcache.get(value))
         };
     } else {
         const results = [];
         for (const value1 of res){
-            results.push(isLink ? entityProxy(ns, kb, value1) : decoder(value1.slice(), async ()=>await kb.blobcache.get(value1)));
+            results.push(isLink ? entityProxy(ns, kb, decoder(value1.slice())) : decoder(value1.slice(), async ()=>await kb.blobcache.get(value1)));
         }
         return {
             found: true,
@@ -3223,6 +3227,8 @@ const lookup1 = (ns, kb, eId, attributeName)=>{
     }
 };
 const entityProxy = function entityProxy(ns, kb, eId) {
+    const eEncodedId = new Uint8Array(32);
+    ns.ids.encoder(eId, eEncodedId);
     return new Proxy({
         [id]: eId
     }, {
@@ -3233,7 +3239,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
             if (attributeName in o) {
                 return o[attributeName];
             }
-            const { found , result  } = lookup1(ns, kb, eId, attributeName);
+            const { found , result  } = lookup1(ns, kb, eEncodedId, attributeName);
             if (found) {
                 Object.defineProperty(o, attributeName, {
                     value: result,
@@ -3252,13 +3258,13 @@ const entityProxy = function entityProxy(ns, kb, eId) {
             if (!ns.attributes.has(attributeName)) {
                 return false;
             }
-            const { id: aId , isInverse , isMany  } = ns.attributes.get(attributeName);
+            const { encodedId: aEncodedId , isInverse , isMany  } = ns.attributes.get(attributeName);
             if (attributeName in o || isMany) {
                 return true;
             }
             const { done  } = new Query(new IntersectionConstraint([
-                constantConstraint(0, eId),
-                constantConstraint(1, aId),
+                constantConstraint(0, eEncodedId),
+                constantConstraint(1, aEncodedId),
                 kb.tribleset.patternConstraint([
                     isInverse ? [
                         2,
@@ -3295,7 +3301,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
             if (attributeName in o) {
                 return Object.getOwnPropertyDescriptor(o, attributeName);
             }
-            const { found , result  } = lookup1(ns, kb, eId, attributeName);
+            const { found , result  } = lookup1(ns, kb, eEncodedId, attributeName);
             if (found) {
                 const property = {
                     value: result,
@@ -3313,7 +3319,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
                 id
             ];
             for (const r of new Query(new IntersectionConstraint([
-                constantConstraint(0, eId),
+                constantConstraint(0, eEncodedId),
                 indexConstraint(1, ns.forwardAttributeIndex),
                 new MaskedConstraint(kb.tribleset.patternConstraint([
                     [
@@ -3329,7 +3335,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
                 attrs.push(...ns.forwardAttributeIndex.get(a).map((attr)=>attr.name));
             }
             for (const r1 of new Query(new IntersectionConstraint([
-                constantConstraint(0, eId),
+                constantConstraint(0, eEncodedId),
                 indexConstraint(1, ns.inverseAttributeIndex),
                 new MaskedConstraint(kb.tribleset.patternConstraint([
                     [
@@ -3413,11 +3419,14 @@ function* entitiesToTriples(build_ns, unknownFactory, entities) {
     }
 }
 function* triplesToTribles(ns, triples, blobFn = (trible, blob)=>{}) {
+    const { encoder: idEncoder  } = ns.ids;
     for (const [e, a, v1] of triples){
         const attributeDescription = ns.attributes.get(a);
         const trible = new Uint8Array(64);
-        E(trible).set(e.subarray(16, 32));
-        A(trible).set(attributeDescription.id.subarray(16, 32));
+        const eb = new Uint8Array(32);
+        idEncoder(e, eb);
+        E(trible).set(eb.subarray(16, 32));
+        A(trible).set(attributeDescription.encodedId.subarray(16, 32));
         const encodedValue = V(trible);
         let blob;
         const encoder = attributeDescription.encoder;
@@ -3445,9 +3454,11 @@ const precompileTriples1 = (ns, vars, triples)=>{
             e.encoder ??= idEncoder;
             eVar = e;
         } else {
-            eVar = vars.constant(e);
+            const eb = new Uint8Array(32);
+            idEncoder(e, eb);
+            eVar = vars.constant(eb);
         }
-        aVar = vars.constant(attributeDescription.id);
+        aVar = vars.constant(attributeDescription.encodedId);
         if (v1 instanceof Variable) {
             const { decoder , encoder  } = attributeDescription;
             v1.decoder ??= decoder;
@@ -3471,15 +3482,28 @@ const precompileTriples1 = (ns, vars, triples)=>{
     }
     return precompiledTriples;
 };
+class IDSequence {
+    constructor(factory){
+        this.factory = factory;
+    }
+    [Symbol.iterator]() {
+        return this;
+    }
+    next() {
+        return {
+            value: this.factory()
+        };
+    }
+}
 class KB {
     constructor(tribleset = new FOTribleSet(), blobcache = new BlobCache()){
         this.tribleset = tribleset;
         this.blobcache = blobcache;
     }
-    with(ctx, entities) {
-        const ns = ctx.ns;
-        const idOwner = ctx.owner;
-        const triples = entitiesToTriples(ns, ()=>idOwner.next().value, entities(idOwner));
+    with(ns, entities) {
+        const idFactory = ns.ids.factory;
+        const createdEntities = entities(new IDSequence(idFactory));
+        const triples = entitiesToTriples(ns, idFactory, createdEntities);
         let newBlobCache = this.blobcache;
         const tribles = triplesToTribles(ns, triples, (key, blob)=>{
             newBlobCache = newBlobCache.put(key, blob);
@@ -3494,11 +3518,10 @@ class KB {
         }
         return new KB(tribleset, this.blobcache);
     }
-    where(ctx, entities) {
-        const buildNS = ctx.ns;
+    where(ns, entities) {
         return (vars)=>{
-            const triples = entitiesToTriples(buildNS, ()=>vars.unnamed(), entities);
-            const triplesWithVars = precompileTriples1(buildNS, vars, triples);
+            const triples = entitiesToTriples(ns, ()=>vars.unnamed(), entities);
+            const triplesWithVars = precompileTriples1(ns, vars, triples);
             for (const [_e, _a, v1] of triplesWithVars){
                 v1.proposeBlobCache(this.blobcache);
             }
@@ -3509,9 +3532,8 @@ class KB {
                 ]));
         };
     }
-    walk(ctx, eId) {
-        const buildNS = ctx.ns;
-        return entityProxy(buildNS, this, eId);
+    walk(ns, eId) {
+        return entityProxy(ns, this, eId);
     }
     empty() {
         return new KB(this.tribleset.empty(), this.blobcache.empty());
@@ -3663,19 +3685,18 @@ class Head {
 }
 class IDOwner {
     constructor(factory){
-        this.factory = factory;
+        this.innerFactory = factory;
         this.ownedIDs = emptyIdPACT;
     }
-    [Symbol.iterator]() {
-        return this;
-    }
-    next() {
-        const value = this.factory();
-        this.ownedIDs.put(value);
-        return {
-            value
+    factory() {
+        return ()=>{
+            const value = this.innerFactory();
+            this.ownedIDs.put(value);
+            return value;
         };
     }
-    validator(middleware = (commits)=>commits) {}
+    validator(middleware = (commits)=>commits) {
+        return middleware;
+    }
 }
 export { and as and, BlobCache as BlobCache, find as find, FOTribleSet as FOTribleSet, Head as Head, HOTribleSet as HOTribleSet, id as id, IDOwner as IDOwner, KB as KB, NS as NS, types as types, UFOID as UFOID, validateCommitSize as validateCommitSize };

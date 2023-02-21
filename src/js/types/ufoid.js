@@ -131,6 +131,7 @@ function ufoidEncoder(v, b) {
 }
 
 function ufoidDecoder(b, blob) {
+  UFOID.validate(b);
   return b;
 }
 

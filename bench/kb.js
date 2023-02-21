@@ -14,8 +14,9 @@ import {
 const { nameId, lastNameId, ageId, eyeColorId, lovesId, titlesId } = UFOID
   .namedCache();
 
+const idOwner = new IDOwner(types.ufoid.factory);
 const knightsNS = new NS({
-  [id]: { ...types.ufoid },
+  [id]: { ...types.ufoid, factory: idOwner.factory() },
   name: { id: nameId, ...types.shortstring },
   lastName: { id: lastNameId, ...types.shortstring },
   eyeColor: { id: eyeColorId, ...types.shortstring },
@@ -25,16 +26,12 @@ const knightsNS = new NS({
   titles: { id: titlesId, isMany: true, ...types.shortstring },
 });
 
-const idOwner = new IDOwner(types.ufoid.factory);
-
-const ctx = { ns: knightsNS, owner: idOwner };
-
 function kbWith(b, size) {
   // Add some data.
   let knightskb = new KB(new FOTribleSet(), new BlobCache());
 
   b.start();
-  knightskb = knightskb.with(ctx, function* (ids) {
+  knightskb = knightskb.with(knightsNS, function* (ids) {
     for (let i = 0; i < size; i++) {
       let [romeo, juliet] = ids;
       yield* [
@@ -61,7 +58,7 @@ function kbQuery(b, size) {
   // Add some data.
   let knightskb = new KB(new FOTribleSet(), new BlobCache());
 
-  knightskb = knightskb.with(ctx, function* (ids) {
+  knightskb = knightskb.with(knightsNS, function* (ids) {
     for (let i = 0; i < 1000; i++) {
       const [romeo, juliet] = ids;
       yield* [
@@ -81,7 +78,7 @@ function kbQuery(b, size) {
     }
   });
 
-  knightskb = knightskb.with(ctx, function* (ids) {
+  knightskb = knightskb.with(knightsNS, function* (ids) {
     for (let i = 0; i < size; i++) {
       const [romeo, juliet] = ids;
       yield* [
@@ -104,7 +101,7 @@ function kbQuery(b, size) {
   debugger;
   // Query some data.
   const q = find(({ name, title }) =>
-    knightskb.where(ctx, [
+    knightskb.where(knightsNS, [
       {
         name,
         titles: [title],
@@ -128,7 +125,7 @@ function kbDSQuery(b) {
   // Add some data.
 
   let peoplekb = new KB(new FOTribleSet(), new BlobCache());
-  peoplekb = peoplekb.with(ctx, function* (ids) {
+  peoplekb = peoplekb.with(knightsNS, function* (ids) {
     for (let i = 0; i < 1250; i++) {
       const [ivan] = ids;
       yield {
@@ -141,7 +138,7 @@ function kbDSQuery(b) {
     }
   });
 
-  peoplekb = peoplekb.with(ctx, function* (ids) {
+  peoplekb = peoplekb.with(knightsNS, function* (ids) {
     for (let i = 0; i < 20000; i++) {
       const [ivan, bob, bob2] = ids;
       yield* [
@@ -172,7 +169,7 @@ function kbDSQuery(b) {
 
   // Query some data.
   const q = find(({ age, lastName }) =>
-    peoplekb.where(ctx, [
+    peoplekb.where(knightsNS, [
       {
         name: "Ivan",
         eyeColor: "blue",
@@ -193,7 +190,7 @@ function kbWithPeople(b, size) {
   b.start();
   let peoplekb = new KB(new FOTribleSet(), new BlobCache());
 
-  peoplekb = peoplekb.with(ctx, function* (ids) {
+  peoplekb = peoplekb.with(knightsNS, function* (ids) {
     for (let i = 0; i < size; i++) {
       const [ivan, ivan2, bob, bob2] = ids;
       yield* [

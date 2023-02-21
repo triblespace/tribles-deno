@@ -17,9 +17,9 @@ const assert = (test, message) => {
   }
 };
 
-const lookup = (ns, kb, eId, attributeName) => {
+const lookup = (ns, kb, eEncodedId, attributeName) => {
   let {
-    id: aId,
+    encodedId: aEncodedId,
     decoder,
     isLink,
     isInverse,
@@ -28,8 +28,8 @@ const lookup = (ns, kb, eId, attributeName) => {
 
   const res = new Query(
     new IntersectionConstraint([
-      constantConstraint(0, eId),
-      constantConstraint(1, aId),
+      constantConstraint(0, eEncodedId),
+      constantConstraint(1, aEncodedId),
       kb.tribleset.patternConstraint([isInverse ? [2, 1, 0] : [0, 1, 2]]),
     ]),
     (r) => r.get(2),
@@ -41,7 +41,7 @@ const lookup = (ns, kb, eId, attributeName) => {
     return {
       found: true,
       result: isLink
-        ? entityProxy(ns, kb, value)
+        ? entityProxy(ns, kb, decoder(value.slice()))
         : decoder(value.slice(), async () => await kb.blobcache.get(value)),
     };
   } else {
@@ -49,7 +49,7 @@ const lookup = (ns, kb, eId, attributeName) => {
     for (const value of res) {
       results.push(
         isLink
-          ? entityProxy(ns, kb, value)
+          ? entityProxy(ns, kb, decoder(value.slice()))
           : decoder(value.slice(), async () => await kb.blobcache.get(value)),
       );
     }
@@ -61,6 +61,9 @@ const lookup = (ns, kb, eId, attributeName) => {
 };
 
 const entityProxy = function entityProxy(ns, kb, eId) {
+  const eEncodedId = new Uint8Array(VALUE_SIZE);
+  ns.ids.encoder(eId, eEncodedId);
+
   return new Proxy(
     { [id]: eId },
     {
@@ -73,7 +76,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           return o[attributeName];
         }
 
-        const { found, result } = lookup(ns, kb, eId, attributeName);
+        const { found, result } = lookup(ns, kb, eEncodedId, attributeName);
         if (found) {
           Object.defineProperty(o, attributeName, {
             value: result,
@@ -96,7 +99,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         }
 
         const {
-          id: aId,
+          encodedId: aEncodedId,
           isInverse,
           isMany,
         } = ns.attributes.get(attributeName);
@@ -107,8 +110,8 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         }
         const { done } = new Query(
           new IntersectionConstraint([
-            constantConstraint(0, eId),
-            constantConstraint(1, aId),
+            constantConstraint(0, eEncodedId),
+            constantConstraint(1, aEncodedId),
             kb.tribleset.patternConstraint([isInverse ? [2, 1, 0] : [0, 1, 2]]),
           ]),
         )[Symbol.iterator]().next();
@@ -144,7 +147,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
           return Object.getOwnPropertyDescriptor(o, attributeName);
         }
 
-        const { found, result } = lookup(ns, kb, eId, attributeName);
+        const { found, result } = lookup(ns, kb, eEncodedId, attributeName);
         if (found) {
           const property = {
             value: result,
@@ -162,7 +165,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         for (
           const r of new Query(
             new IntersectionConstraint([
-              constantConstraint(0, eId),
+              constantConstraint(0, eEncodedId),
               indexConstraint(1, ns.forwardAttributeIndex),
               new MaskedConstraint(
                 kb.tribleset.patternConstraint([[0, 1, 2]]),
@@ -180,7 +183,7 @@ const entityProxy = function entityProxy(ns, kb, eId) {
         for (
           const r of new Query(
             new IntersectionConstraint([
-              constantConstraint(0, eId),
+              constantConstraint(0, eEncodedId),
               indexConstraint(1, ns.inverseAttributeIndex),
               new MaskedConstraint(
                 kb.tribleset.patternConstraint([[2, 1, 0]]),
@@ -269,12 +272,15 @@ export function* entitiesToTriples(build_ns, unknownFactory, entities) {
 }
 
 function* triplesToTribles(ns, triples, blobFn = (trible, blob) => {}) {
+  const { encoder: idEncoder } = ns.ids;
   for (const [e, a, v] of triples) {
     const attributeDescription = ns.attributes.get(a);
 
     const trible = new Uint8Array(TRIBLE_SIZE);
-    E(trible).set(e.subarray(16, 32));
-    A(trible).set(attributeDescription.id.subarray(16, 32));
+    const eb = new Uint8Array(VALUE_SIZE);
+    idEncoder(e, eb);
+    E(trible).set(eb.subarray(16, 32));
+    A(trible).set(attributeDescription.encodedId.subarray(16, 32));
     const encodedValue = V(trible);
     let blob;
     const encoder = attributeDescription.encoder;
@@ -308,11 +314,13 @@ const precompileTriples = (ns, vars, triples) => {
       e.encoder ??= idEncoder;
       eVar = e;
     } else {
-      eVar = vars.constant(e);
+      const eb = new Uint8Array(VALUE_SIZE);
+      idEncoder(e, eb);
+      eVar = vars.constant(eb);
     }
 
     // Attribute
-    aVar = vars.constant(attributeDescription.id);
+    aVar = vars.constant(attributeDescription.encodedId);
 
     // Value
     if (v instanceof Variable) {
@@ -335,6 +343,19 @@ const precompileTriples = (ns, vars, triples) => {
 
   return precompiledTriples;
 };
+
+class IDSequence {
+  constructor(factory) {
+    this.factory = factory;
+  }
+
+  [Symbol.iterator]() {
+    return this;
+  }
+  next() {
+    return { value: this.factory() };
+  }
+}
 
 /** A persistent immutable knowledge base that stores tribles and blobs,
     providing a (JSON) tree based interface to access and create the graph within.*/
@@ -371,14 +392,13 @@ export class KB {
    * @param {entityFunction | entityGenerator} entities - A function/generator returning/yielding entities.
    * @returns {KB} A new KB with the entities added to it.
    */
-  with(ctx, entities) {
-    const ns = ctx.ns;
-    const idOwner = ctx.owner;
-
+  with(ns, entities) {
+    const idFactory = ns.ids.factory;
+    const createdEntities = entities(new IDSequence(idFactory));
     const triples = entitiesToTriples(
       ns,
-      () => idOwner.next().value,
-      entities(idOwner),
+      idFactory,
+      createdEntities,
     );
     let newBlobCache = this.blobcache;
     const tribles = triplesToTribles(ns, triples, (key, blob) => {
@@ -407,15 +427,14 @@ export class KB {
    * @param {Array} entities - A function/generator returning/yielding a pattern of entities to be matched.
    * @returns {Constraint} - A constraint that can be used in a `find` call.
    */
-  where(ctx, entities) {
-    const buildNS = ctx.ns;
+  where(ns, entities) {
     return (vars) => {
       const triples = entitiesToTriples(
-        buildNS,
+        ns,
         () => vars.unnamed(),
         entities,
       );
-      const triplesWithVars = precompileTriples(buildNS, vars, triples);
+      const triplesWithVars = precompileTriples(ns, vars, triples);
       for (const [_e, _a, v] of triplesWithVars) {
         v.proposeBlobCache(this.blobcache);
       }
@@ -430,9 +449,8 @@ export class KB {
    * @param {Object} ctx - The context used for ids, attributes, and value encoding.
    * @returns {Proxy} - A proxy emulating the graph of the KB.
    */
-  walk(ctx, eId) {
-    const buildNS = ctx.ns;
-    return entityProxy(buildNS, this, eId);
+  walk(ns, eId) {
+    return entityProxy(ns, this, eId);
   }
 
   /**

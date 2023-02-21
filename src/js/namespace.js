@@ -1,6 +1,6 @@
 import { indexConstraint, IntersectionConstraint, Query } from "./query.js";
 import { emptyValuePACT } from "./pact.js";
-import { equalValue } from "./trible.js";
+import { equalValue, VALUE_SIZE } from "./trible.js";
 
 export const id = Symbol("id");
 
@@ -43,21 +43,30 @@ export class NS {
           `Missing encoder in namespace for attribute ${attributeName}.`,
         );
       }
+      const encodedId = new Uint8Array(VALUE_SIZE);
+      idDescription.encoder(attributeDescription.id, encodedId);
       const description = {
         ...attributeDescription,
+        encodedId,
         name: attributeName,
       };
       attributes.set(attributeName, description);
       if (description.isInverse) {
-        inverseAttributeIndex = inverseAttributeIndex.put(description.id, [
-          ...(inverseAttributeIndex.get(description.id) || []),
-          description,
-        ]);
+        inverseAttributeIndex = inverseAttributeIndex.put(
+          description.encodedId,
+          [
+            ...(inverseAttributeIndex.get(description.encodedId) || []),
+            description,
+          ],
+        );
       } else {
-        forwardAttributeIndex = forwardAttributeIndex.put(description.id, [
-          ...(forwardAttributeIndex.get(description.id) || []),
-          description,
-        ]);
+        forwardAttributeIndex = forwardAttributeIndex.put(
+          description.encodedId,
+          [
+            ...(forwardAttributeIndex.get(description.encodedId) || []),
+            description,
+          ],
+        );
       }
     }
 
