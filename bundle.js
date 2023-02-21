@@ -2110,7 +2110,7 @@ class NS {
                 attributeDescription1.decoder = idDescription.decoder;
             }
         }
-        for (const { id: encodedId1 , isMany , isInverse  } of attributes.values()){
+        for (const { encodedId: encodedId1 , isMany , isInverse  } of attributes.values()){
             if (!isMany) {
                 if (isInverse) {
                     newUniqueInverseAttributeIndex.put(encodedId1);
