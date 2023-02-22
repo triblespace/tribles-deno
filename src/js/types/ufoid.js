@@ -37,7 +37,7 @@ export class UFOID {
     for (let i = 0; i < 16; i += 1) {
       data[i] = parseInt(str.substr(i * 2, 2), 16);
     }
-    return data;
+    return new UFOID(data);
   }
 
   toHex() {
