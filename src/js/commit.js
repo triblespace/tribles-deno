@@ -77,14 +77,12 @@ export function validateCommitSize(
   };
 }
 
-const {
-  commitGroupId,
-  commitSegmentId,
-  creationStampId,
-  shortMessageId,
-  messageId,
-  authoredById,
-} = UFOID.namedCache();
+const commitGroupId = UFOID.now();
+const commitSegmentId = UFOID.now();
+const creationStampId = UFOID.now();
+const shortMessageId = UFOID.now();
+const messageId = UFOID.now();
+const authoredById = UFOID.now();
 
 const commitNS = {
   [id]: { ...types.ufoid },

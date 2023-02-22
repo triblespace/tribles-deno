@@ -2,121 +2,66 @@
 // deno-lint-ignore-file
 // This code was bundled using `deno bundle` and it's not recommended to edit it manually
 
-class ufoidSequence {
-    constructor(){}
-    [Symbol.iterator]() {
-        return this;
+class UFOID {
+    constructor(data){
+        this.data = data;
     }
-    next() {
-        return {
-            value: UFOID.now()
-        };
+    static now() {
+        return UFOID.withTime(Date.now());
     }
-}
-const UFOID = {
-    now (arr = new Uint8Array(32)) {
-        return UFOID.withTime(Date.now(), arr);
-    },
-    withTime (time, arr = new Uint8Array(32)) {
-        const view = new DataView(arr.buffer);
-        view.setUint32(0, 0, false);
-        view.setUint32(4, 0, false);
-        view.setUint32(8, 0, false);
-        view.setUint32(12, 0, false);
-        view.setUint32(16, time & 0xffffffff, false);
-        crypto.getRandomValues(arr.subarray(20, 32));
-        return arr;
-    },
-    validate (id) {
-        if (!(id instanceof Uint8Array)) {
-            console.log(`-> ${id.constructor}\n`);
-            throw Error(`invalid ufoid: expected value to be Uint8Array found ${typeof id}`);
-        }
-        if (id.length !== 32) {
-            throw Error("invalid ufoid: expected length to be 32");
-        }
-        const a = new Uint32Array(id.buffer, id.byteOffset, 8);
+    static withTime(time) {
+        const data = new Uint8Array(16);
+        const view = new DataView(data.buffer);
+        view.setUint32(0, time & 0xffffffff, false);
+        crypto.getRandomValues(data.subarray(4, 16));
+        return new UFOID(data);
+    }
+    static fromValue(b) {
+        const a = new Uint32Array(b.buffer, b.byteOffset, 8);
         if (a[0] !== 0 || a[1] !== 0 || a[2] !== 0 || a[3] !== 0) {
             throw Error("invalid ufoid: value must be zero padded");
         }
         if (a[4] === 0 && a[5] === 0 && a[6] === 0 && a[7] !== 0) {
-            throw Error("invalid ufoid: value must be zero padded");
+            throw Error("invalid ufoid: all zero (NIL) ufoid is not a valid value");
         }
-    },
-    anon () {
-        return new ufoidSequence();
-    },
-    namedCache () {
-        return new Proxy({}, {
-            get: function(o, attr) {
-                if (!(typeof attr === "string" || attr instanceof String)) {
-                    return undefined;
-                }
-                if (attr in o) {
-                    return o[attr];
-                }
-                const id = UFOID.now();
-                Object.defineProperty(o, attr, {
-                    value: id,
-                    writable: false,
-                    configurable: false,
-                    enumerable: true
-                });
-                return id;
-            },
-            set: function(_, attr) {
-                throw TypeError("named UFOID cache is not writable");
-            },
-            deleteProperty: function(_, attr, value) {
-                throw TypeError("named UFOID cache is not writable");
-            },
-            setPrototypeOf: function(_) {
-                throw TypeError("named UFOID cache is not writable");
-            },
-            isExtensible: function(_) {
-                return true;
-            },
-            preventExtensions: function(_) {
-                return false;
-            },
-            defineProperty: function(_, attr) {
-                throw TypeError("named UFOID cache is not writable");
-            }
-        });
-    },
-    fromHex (str) {
-        let bytes1 = new Uint8Array(32);
-        for(let i = 0; i < 16; i += 1){
-            bytes1[16 + i] = parseInt(str.substr(i * 2, 2), 16);
-        }
-        return bytes1;
-    },
-    toHex (id) {
-        return Array.from(id.subarray(16, 32)).map((__byte)=>__byte.toString(16).padStart(2, "0")).join("");
-    },
-    toUint32Array (id) {
-        return new Uint32Array(id.buffer, 16, 4);
+        return new UFOID(b.slice(16, 32));
     }
-};
-function encodeId(v1, b) {
-    b.set(v1.subarray(16, 32));
+    static fromHex(str) {
+        let data = new Uint8Array(16);
+        for(let i = 0; i < 16; i += 1){
+            data[i] = parseInt(str.substr(i * 2, 2), 16);
+        }
+        return data;
+    }
+    toHex() {
+        return Array.from(this.data).map((__byte)=>__byte.toString(16).padStart(2, "0")).join("");
+    }
+    toUint32Array() {
+        return new Uint32Array(this.data.buffer, 0, 4);
+    }
+    toId() {
+        return this.data.slice();
+    }
+    toValue(b = new Uint8Array(32)) {
+        b.subarray(0, 16).fill(0);
+        b.subarray(16, 32).set(this.data);
+        return b;
+    }
+}
+function encoder(v1, b) {
+    v1.toValue(b);
     return null;
 }
-function ufoidEncoder(v1, b) {
-    UFOID.validate(v1);
-    b.set(v1);
-    return null;
+function decoder(b, blob) {
+    return UFOID.fromValue(b);
 }
-function ufoidDecoder(b, blob) {
-    UFOID.validate(b);
-    return b;
+function factory() {
+    return UFOID.now();
 }
 const schema = {
-    encodeId: encodeId,
-    encodeValue: ufoidEncoder,
-    encoder: ufoidEncoder,
-    decoder: ufoidDecoder,
-    factory: UFOID.now
+    encoder,
+    decoder,
+    factory
 };
 const VALUE_SIZE = 32;
 const A_END = 16 + 16;
@@ -2177,7 +2122,10 @@ class NS {
         };
     }
 }
-const { signatureId , emailId , firstNameId , lastNameId  } = UFOID.namedCache();
+const signatureId = UFOID.now();
+const emailId = UFOID.now();
+const firstNameId = UFOID.now();
+const lastNameId = UFOID.now();
 const authNS = {
     [id]: {
         ...types.ufoid
@@ -3581,7 +3529,12 @@ function validateCommitSize(max_trible_count = 1021, middleware = (commits)=>com
         }
     };
 }
-const { commitGroupId , commitSegmentId , creationStampId , shortMessageId , messageId , authoredById  } = UFOID.namedCache();
+const commitGroupId = UFOID.now();
+const commitSegmentId = UFOID.now();
+const creationStampId = UFOID.now();
+const shortMessageId = UFOID.now();
+const messageId = UFOID.now();
+const authoredById = UFOID.now();
 const commitNS = {
     [id]: {
         ...types.ufoid
@@ -3684,15 +3637,24 @@ class Head {
     }
 }
 class IDOwner {
-    constructor(factory){
-        this.innerFactory = factory;
+    constructor(type){
+        this.idType = type;
         this.ownedIDs = emptyIdPACT;
+    }
+    type() {
+        return {
+            ...this.idType,
+            factory: this.factory()
+        };
     }
     factory() {
         return ()=>{
-            const value = this.innerFactory();
-            this.ownedIDs.put(value);
-            return value;
+            const b = new Uint8Array(32);
+            const factory = this.idType.factory;
+            const id = factory();
+            this.idType.encoder(id, b);
+            this.ownedIDs.put(b);
+            return id;
         };
     }
     validator(middleware = (commits)=>commits) {

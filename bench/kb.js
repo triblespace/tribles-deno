@@ -11,12 +11,16 @@ import {
   UFOID,
 } from "../mod.js";
 
-const { nameId, lastNameId, ageId, eyeColorId, lovesId, titlesId } = UFOID
-  .namedCache();
+const nameId = UFOID.now();
+const lastNameId = UFOID.now();
+const ageId = UFOID.now();
+const eyeColorId = UFOID.now();
+const lovesId = UFOID.now();
+const titlesId = UFOID.now();
 
-const idOwner = new IDOwner(types.ufoid.factory);
+const idOwner = new IDOwner(types.ufoid);
 const knightsNS = new NS({
-  [id]: { ...types.ufoid, factory: idOwner.factory() },
+  [id]: { ...idOwner.type() },
   name: { id: nameId, ...types.shortstring },
   lastName: { id: lastNameId, ...types.shortstring },
   eyeColor: { id: eyeColorId, ...types.shortstring },

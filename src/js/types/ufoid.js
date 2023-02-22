@@ -1,42 +1,23 @@
-class ufoidSequence {
-  constructor() {}
-
-  [Symbol.iterator]() {
-    return this;
+export class UFOID {
+  constructor(data) {
+    this.data = data;
   }
-  next() {
-    return { value: UFOID.now() };
+
+  static now() {
+    return UFOID.withTime(Date.now());
   }
-}
 
-export const UFOID = {
-  now(arr = new Uint8Array(32)) {
-    return UFOID.withTime(Date.now(), arr);
-  },
+  static withTime(time) {
+    const data = new Uint8Array(16);
+    const view = new DataView(data.buffer);
+    view.setUint32(0, time & 0xffffffff, false);
+    crypto.getRandomValues(data.subarray(4, 16));
 
-  withTime(time, arr = new Uint8Array(32)) {
-    const view = new DataView(arr.buffer);
-    view.setUint32(0, 0, false);
-    view.setUint32(4, 0, false);
-    view.setUint32(8, 0, false);
-    view.setUint32(12, 0, false);
-    view.setUint32(16, time & 0xffffffff, false);
-    crypto.getRandomValues(arr.subarray(20, 32));
+    return new UFOID(data);
+  }
 
-    return arr;
-  },
-
-  validate(id) {
-    if (!(id instanceof Uint8Array)) {
-      console.log(`-> ${id.constructor}\n`);
-      throw Error(
-        `invalid ufoid: expected value to be Uint8Array found ${typeof id}`,
-      );
-    }
-    if (id.length !== 32) {
-      throw Error("invalid ufoid: expected length to be 32");
-    }
-    const a = new Uint32Array(id.buffer, id.byteOffset, 8);
+  static fromValue(b) {
+    const a = new Uint32Array(b.buffer, b.byteOffset, 8);
     if (
       a[0] !== 0 ||
       a[1] !== 0 ||
@@ -46,99 +27,56 @@ export const UFOID = {
       throw Error("invalid ufoid: value must be zero padded");
     }
     if (a[4] === 0 && a[5] === 0 && a[6] === 0 && a[7] !== 0) {
-      throw Error("invalid ufoid: value must be zero padded");
+      throw Error("invalid ufoid: all zero (NIL) ufoid is not a valid value");
     }
-  },
+    return new UFOID(b.slice(16, 32));
+  }
 
-  anon() {
-    return new ufoidSequence();
-  },
-
-  namedCache() {
-    return new Proxy(
-      {},
-      {
-        get: function (o, attr) {
-          if (!(typeof attr === "string" || attr instanceof String)) {
-            return undefined;
-          }
-
-          if (attr in o) {
-            return o[attr];
-          }
-
-          const id = UFOID.now();
-          Object.defineProperty(o, attr, {
-            value: id,
-            writable: false,
-            configurable: false,
-            enumerable: true,
-          });
-          return id;
-        },
-        set: function (_, attr) {
-          throw TypeError("named UFOID cache is not writable");
-        },
-        deleteProperty: function (_, attr, value) {
-          throw TypeError("named UFOID cache is not writable");
-        },
-        setPrototypeOf: function (_) {
-          throw TypeError("named UFOID cache is not writable");
-        },
-        isExtensible: function (_) {
-          return true;
-        },
-        preventExtensions: function (_) {
-          return false;
-        },
-        defineProperty: function (_, attr) {
-          throw TypeError("named UFOID cache is not writable");
-        },
-      },
-    );
-  },
-
-  fromHex(str) {
-    let bytes = new Uint8Array(32);
+  static fromHex(str) {
+    let data = new Uint8Array(16);
     for (let i = 0; i < 16; i += 1) {
-      bytes[16 + i] = parseInt(str.substr(i * 2, 2), 16);
+      data[i] = parseInt(str.substr(i * 2, 2), 16);
     }
-    return bytes;
-  },
+    return data;
+  }
 
-  toHex(id) {
-    return Array.from(id.subarray(16, 32)).map((byte) =>
+  toHex() {
+    return Array.from(this.data).map((byte) =>
       byte.toString(16).padStart(2, "0")
     ).join("");
-  },
+  }
 
-  toUint32Array(id) {
-    return new Uint32Array(id.buffer, 16, 4);
-  },
-};
+  toUint32Array() {
+    return new Uint32Array(this.data.buffer, 0, 4);
+  }
+
+  toId() {
+    return this.data.slice();
+  }
+
+  toValue(b = new Uint8Array(32)) {
+    b.subarray(0, 16).fill(0);
+    b.subarray(16, 32).set(this.data);
+    return b;
+  }
+}
 
 // Schema
-
-function encodeId(v, b) {
-  b.set(v.subarray(16, 32));
+function encoder(v, b) {
+  v.toValue(b);
   return null;
 }
 
-function ufoidEncoder(v, b) {
-  UFOID.validate(v);
-  b.set(v);
-  return null;
+function decoder(b, blob) {
+  return UFOID.fromValue(b);
 }
 
-function ufoidDecoder(b, blob) {
-  UFOID.validate(b);
-  return b;
+function factory() {
+  return UFOID.now();
 }
 
 export const schema = {
-  encodeId: encodeId,
-  encodeValue: ufoidEncoder,
-  encoder: ufoidEncoder,
-  decoder: ufoidDecoder,
-  factory: UFOID.now,
+  encoder,
+  decoder,
+  factory,
 };

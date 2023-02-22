@@ -12,13 +12,17 @@ import {
   UFOID,
 } from "../mod.js";
 
-const { nameId, lovesId, titlesId, motherOfId, romeoId } = UFOID.namedCache();
+const nameId = types.hex.factory();
+const lovesId = types.hex.factory();
+const titlesId = types.hex.factory();
+const motherOfId = types.hex.factory();
+const romeoId = types.hex.factory();
 
 Deno.test("unique constraint", async () => {
-  const idOwner = new IDOwner(types.ufoid.factory);
+  const idOwner = new IDOwner(types.hex);
 
   const knightsNS = new NS({
-    [id]: { ...types.ufoid, factory: idOwner.factory() },
+    [id]: { ...idOwner.type() },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
@@ -64,9 +68,9 @@ Deno.test("unique constraint", async () => {
 });
 
 Deno.test("unique inverse constraint", async () => {
-  const idOwner = new IDOwner(types.ufoid.factory);
+  const idOwner = new IDOwner(types.hex);
   const knightsNS = new NS({
-    [id]: { ...types.ufoid, factory: idOwner.factory() },
+    [id]: { ...idOwner.type() },
     name: { id: nameId, ...types.shortstring },
     motherOf: { id: motherOfId, isLink: true, isMany: true },
     hasMother: { id: motherOfId, isLink: true, isInverse: true },

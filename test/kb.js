@@ -20,12 +20,14 @@ import {
   UFOID,
 } from "../mod.js";
 
-const { nameId, lovesId, titlesId } = UFOID.namedCache();
+const nameId = UFOID.now();
+const lovesId = UFOID.now();
+const titlesId = UFOID.now();
 
 Deno.test("KB Find", () => {
-  const idOwner = new IDOwner(types.ufoid.factory);
+  const idOwner = new IDOwner(types.ufoid);
   const knightsNS = new NS({
-    [id]: { ...types.ufoid, factory: idOwner.factory() },
+    [id]: { ...idOwner.type() },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
@@ -76,11 +78,8 @@ Deno.test("KB Find", () => {
 Deno.test("KB Find Single", () => {
   const arbitraryId = fc
     .uint8Array({ minLength: 16, maxLength: 16 })
-    .map((id) => {
-      const r = new Uint8Array(32);
-      r.set(id, 16);
-      return r;
-    });
+    .filter((bytes) => bytes.some((byte) => byte !== 0))
+    .map((bytes) => new UFOID(bytes));
   const arbitraryValueHex = fc.hexaString({ minLength: 64, maxLength: 64 });
   const arbitraryTitles = fc.array(arbitraryValueHex, {
     minLength: 1,
@@ -98,9 +97,9 @@ Deno.test("KB Find Single", () => {
       arbitraryId,
       arbitraryPerson,
       (nameId, titlesId, person) => {
-        const idOwner = new IDOwner(types.ufoid.factory);
+        const idOwner = new IDOwner(types.ufoid);
         const knightsNS = new NS({
-          [id]: { ...types.ufoid, factory: idOwner.factory() },
+          [id]: { ...idOwner.type() },
           name: { id: nameId, ...types.hex },
           titles: { id: titlesId, ...types.hex, isMany: true },
         });
@@ -129,9 +128,9 @@ Deno.test("KB Find Single", () => {
 });
 
 Deno.test("find lower range", () => {
-  const idOwner = new IDOwner(types.ufoid.factory);
+  const idOwner = new IDOwner(types.ufoid);
   const knightsNS = new NS({
-    [id]: { ...types.ufoid, factory: idOwner.factory() },
+    [id]: { ...idOwner.type() },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
@@ -178,9 +177,9 @@ Deno.test("find lower range", () => {
 });
 
 Deno.test("find upper bound", () => {
-  const idOwner = new IDOwner(types.ufoid.factory);
+  const idOwner = new IDOwner(types.ufoid);
   const knightsNS = new NS({
-    [id]: { ...types.ufoid, factory: idOwner.factory() },
+    [id]: { ...idOwner.type() },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
@@ -227,9 +226,9 @@ Deno.test("find upper bound", () => {
 });
 
 Deno.test("KB Walk", () => {
-  const idOwner = new IDOwner(types.ufoid.factory);
+  const idOwner = new IDOwner(types.ufoid);
   const knightsNS = new NS({
-    [id]: { ...types.ufoid, factory: idOwner.factory() },
+    [id]: { ...idOwner.type() },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
@@ -272,9 +271,9 @@ Deno.test("KB Walk", () => {
 });
 
 Deno.test("KB Walk ownKeys", () => {
-  const idOwner = new IDOwner(types.ufoid.factory);
+  const idOwner = new IDOwner(types.ufoid);
   const knightsNS = new NS({
-    [id]: { ...types.ufoid, factory: idOwner.factory() },
+    [id]: { ...idOwner.type() },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
@@ -320,9 +319,9 @@ Deno.test("KB Walk ownKeys", () => {
 Deno.test("TribleSet PACT segmentCount positive", () => {
   const size = 3;
 
-  const idOwner = new IDOwner(types.ufoid.factory);
+  const idOwner = new IDOwner(types.ufoid);
   const knightsNS = new NS({
-    [id]: { ...types.ufoid, factory: idOwner.factory() },
+    [id]: { ...idOwner.type() },
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },

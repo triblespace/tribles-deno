@@ -73,17 +73,17 @@ function generateUfoidSample(size) {
   const fact = new Uint8Array(64);
   const e = fact.subarray(0, 16);
   const a = fact.subarray(16, 32);
-  const v = fact.subarray(32, 64);
+  const v = fact.subarray(48, 64);
   crypto.getRandomValues(fact);
   for (let i = 0; i < size; i++) {
     if (0.1 >= Math.random()) {
-      ufoid.encodeId(UFOID.now(), e);
+      e.set(UFOID.now().data);
     }
     if (0.1 >= Math.random()) {
-      ufoid.encodeId(UFOID.now(), a);
+      a.set(UFOID.now().data);
     }
     if (0.8 >= Math.random()) {
-      ufoid.encodeValue(UFOID.now(), v);
+      v.set(UFOID.now().data);
     }
     facts.push(Uint8Array.from(fact));
   }

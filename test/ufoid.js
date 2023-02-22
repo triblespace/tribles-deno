@@ -11,17 +11,6 @@ fc.configureGlobal({
 
 import { types, UFOID } from "../mod.js";
 
-Deno.test("withTime is valid", () => {
-  const time = fc.nat();
-
-  fc.assert(
-    fc.property(time, (v) => {
-      const id = UFOID.withTime(time);
-      UFOID.validate(id);
-    }),
-  );
-});
-
 Deno.test("decoder->encoder roundtrip", () => {
   const value = fc
     .array(fc.nat(255), { minLength: 16, maxLength: 16 })
