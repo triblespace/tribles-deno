@@ -21,8 +21,8 @@ Deno.test("bitset range", () => {
       fc.pre(lower <= upper);
       const set = new ByteBitset();
       set.setRange(lower, upper);
-      for(let i = 0; i < 255; i++) {
-        assertEquals((lower <= i && i <= upper), set.has(i));
+      for (let i = 0; i < 255; i++) {
+        assertEquals(lower <= i && i <= upper, set.has(i));
       }
     }),
   );

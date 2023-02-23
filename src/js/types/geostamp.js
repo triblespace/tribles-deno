@@ -8,16 +8,13 @@ function geostampEncoder(v, b) {
 }
 
 function geostampDecoder(b, blob) {
-  const view = new DataView(v.buffer, v.byteOffset, v.byteLength);
+  const view = new DataView(b.buffer, b.byteOffset, b.byteLength);
   const timestamp = view.getFloat64(0);
   const altitude = view.getFloat64(8);
   const latitude = view.getFloat64(16);
   const longitude = view.getFloat64(24);
 
   return { timestamp, altitude, latitude, longitude };
-}
-
-function stamp() {
 }
 
 export const schema = {
