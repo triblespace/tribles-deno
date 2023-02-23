@@ -636,14 +636,14 @@ class ByteBitset {
         for(let wordPosition = 0; wordPosition < fromWordPosition; wordPosition++){
             this.u32array[wordPosition] = 0;
         }
-        this.u32array[fromWordPosition] = ~0 >>> fromByte;
-        for(let wordPosition1 = fromWordPosition + 1; wordPosition1 < toWordPosition; wordPosition1++){
+        for(let wordPosition1 = fromWordPosition; wordPosition1 <= toWordPosition; wordPosition1++){
             this.u32array[wordPosition1] = ~0;
         }
-        this.u32array[toWordPosition] = ~(~highBit32 >>> toByte);
         for(let wordPosition2 = toWordPosition + 1; wordPosition2 < 8; wordPosition2++){
             this.u32array[wordPosition2] = 0;
         }
+        this.u32array[fromWordPosition] &= ~0 >>> fromByte;
+        this.u32array[toWordPosition] &= ~(~highBit32 >>> toByte);
         return this;
     }
     isEmpty() {
