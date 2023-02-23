@@ -144,19 +144,13 @@ export class ByteBitset {
     ) {
       this.u32array[wordPosition] = 0;
     }
-
-    this.u32array[fromWordPosition] = ~0 >>> fromByte;
-
     for (
-      let wordPosition = fromWordPosition + 1;
-      wordPosition < toWordPosition;
+      let wordPosition = fromWordPosition;
+      wordPosition <= toWordPosition;
       wordPosition++
     ) {
       this.u32array[wordPosition] = ~0;
     }
-
-    this.u32array[toWordPosition] = ~(~highBit32 >>> toByte);
-
     for (
       let wordPosition = toWordPosition + 1;
       wordPosition < 8;
@@ -164,6 +158,10 @@ export class ByteBitset {
     ) {
       this.u32array[wordPosition] = 0;
     }
+
+    this.u32array[fromWordPosition] &= ~0 >>> fromByte;
+    this.u32array[toWordPosition] &= ~(~highBit32 >>> toByte);
+
     return this;
   }
 
