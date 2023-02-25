@@ -1,5 +1,5 @@
-function rgbaEncoder({ r = 0, g = 0, b = 0, a = 1 }, b) {
-  const view = new DataView(v.buffer, v.byteOffset, v.byteLength);
+function rgbaEncoder({ r = 0, g = 0, b = 0, a = 1 }, buff) {
+  const view = new DataView(buff.buffer, buff.byteOffset, buff.byteLength);
   view.setFloat64(0, a);
   view.setFloat64(8, r);
   view.setFloat64(16, g);
