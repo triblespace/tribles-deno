@@ -509,6 +509,31 @@ const schema8 = {
     decoder: hexDecoder,
     factory: hexFactory
 };
+function rgbaEncoder({ r =0 , g =0 , b =0 , a =1  }, b) {
+    const view = new DataView(v.buffer, v.byteOffset, v.byteLength);
+    view.setFloat64(0, a);
+    view.setFloat64(8, r);
+    view.setFloat64(16, g);
+    view.setFloat64(24, b);
+    return null;
+}
+function rgbaDecoder(buff, blob) {
+    const view = new DataView(buff.buffer, buff.byteOffset, buff.byteLength);
+    const a = view.getFloat64(0);
+    const r = view.getFloat64(8);
+    const g = view.getFloat64(16);
+    const b = view.getFloat64(24);
+    return {
+        r,
+        g,
+        b,
+        a
+    };
+}
+const schema9 = {
+    encoder: rgbaEncoder,
+    decoder: rgbaDecoder
+};
 const types = {
     ufoid: schema,
     uuid: schema1,
@@ -518,7 +543,8 @@ const types = {
     subrange: schema5,
     biguint256: schema6,
     bigint256: schema7,
-    hex: schema8
+    hex: schema8,
+    rgba: schema9
 };
 const highBit32 = 1 << 31 >>> 0;
 function ctz32(n) {

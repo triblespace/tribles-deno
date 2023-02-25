@@ -1,4 +1,4 @@
-function rgbaEncoder([r, g, b, a], b) {
+function rgbaEncoder({ r = 0, g = 0, b = 0, a = 1 }, b) {
   const view = new DataView(v.buffer, v.byteOffset, v.byteLength);
   view.setFloat64(0, a);
   view.setFloat64(8, r);
@@ -14,7 +14,7 @@ function rgbaDecoder(buff, blob) {
   const g = view.getFloat64(16);
   const b = view.getFloat64(24);
 
-  return [r, g, b, a];
+  return { r, g, b, a };
 }
 
 export const schema = {
