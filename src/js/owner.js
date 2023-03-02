@@ -25,7 +25,12 @@ export class IDOwner {
     };
   }
 
-  validator(middleware = (commits) => commits) {
-    return middleware;
+  validator(middleware = (commit) => [commit]) {
+    const self = this;
+    return function* (commit) {
+      //TODO implement 'not' constraint and use that to compute values that
+      //are in the commit but not in the onwedIDs.
+      yield* middleware(commit);
+    };
   }
 }

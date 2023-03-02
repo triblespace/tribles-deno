@@ -102,43 +102,41 @@ export class NS {
       .complete();
   }
 
-  validator(middleware = (commits) => commits) {
+  validator(middleware = (commit) => [commit]) {
     const self = this;
-    return function* (commits) {
-      for (const commit of middleware(commits)) {
-        for (
-          const r of new Query(
-            new IntersectionConstraint([
-              indexConstraint(1, self.uniqueAttributeIndex),
-              commit.commitKB.tribleset.patternConstraint([[0, 1, 2]]),
-              commit.currentKB.tribleset.patternConstraint([[0, 1, 3]]),
-            ]),
-          )
-        ) {
-          if (!equalValue(r.get(2), r.get(3))) {
-            throw Error(
-              `constraint violation: multiple values for unique attribute`,
-            );
-          }
+    return function* (commit) {
+      for (
+        const r of new Query(
+          new IntersectionConstraint([
+            indexConstraint(1, self.uniqueAttributeIndex),
+            commit.commitKB.tribleset.patternConstraint([[0, 1, 2]]),
+            commit.currentKB.tribleset.patternConstraint([[0, 1, 3]]),
+          ]),
+        )
+      ) {
+        if (!equalValue(r.get(2), r.get(3))) {
+          throw Error(
+            `constraint violation: multiple values for unique attribute`,
+          );
         }
-
-        for (
-          const r of new Query(
-            new IntersectionConstraint([
-              indexConstraint(1, self.uniqueInverseAttributeIndex),
-              commit.commitKB.tribleset.patternConstraint([[2, 1, 0]]),
-              commit.currentKB.tribleset.patternConstraint([[3, 1, 0]]),
-            ]),
-          )
-        ) {
-          if (!equalValue(r.get(2), r.get(3))) {
-            throw Error(
-              `constraint violation: multiple entities for unique attribute value`,
-            );
-          }
-        }
-        yield commit;
       }
+
+      for (
+        const r of new Query(
+          new IntersectionConstraint([
+            indexConstraint(1, self.uniqueInverseAttributeIndex),
+            commit.commitKB.tribleset.patternConstraint([[2, 1, 0]]),
+            commit.currentKB.tribleset.patternConstraint([[3, 1, 0]]),
+          ]),
+        )
+      ) {
+        if (!equalValue(r.get(2), r.get(3))) {
+          throw Error(
+            `constraint violation: multiple entities for unique attribute value`,
+          );
+        }
+      }
+      yield* middleware(commit);
     };
   }
 }
