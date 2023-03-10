@@ -3,7 +3,6 @@ import { types } from "./types.js";
 import { UFOID } from "./types/ufoid.js";
 import { id } from "./namespace.js";
 import { authNS } from "./auth.js";
-import { entitiesToTriples } from "./kb.js";
 import {
   deserialize as tribleDeserialize,
   serialize as tribleSerialize,
@@ -182,15 +181,13 @@ export class Commit {
     return { tribles, blobs };
   }
 
-  where(ctx, entities) {
-    const ns = ctx.ns;
+  where(ns, entities) {
     return (vars) => {
-      const triples = entitiesToTriples(
-        ns,
+      const triples = ns.entitiesToTriples(
         () => vars.unnamed(),
         entities,
       );
-      const triplesWithVars = precompileTriples(ns, vars, triples);
+      const triplesWithVars = ns.precompileTriples(vars, triples);
 
       triplesWithVars.foreach(([e, a, v]) => {
         v.proposeBlobCache(currentKB.blobcache);
