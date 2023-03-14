@@ -106,18 +106,23 @@ export class BlobCache {
     this.onMiss = onMiss;
   }
 
-  put(trible, blob) {
+  with(blobs) {
     let weak = this.weak;
-    let new_or_cached_blob = blob;
+    let strong = this.strong;
 
-    const key = V(trible);
-    const cached_blob = this.weak.get(key).deref();
-    if (cached_blob === undefined) {
-      weak = weak.put(key, new WeakRef(blob));
-    } else {
-      new_or_cached_blob = cached_blob;
+    for (const [trible, blob] of blobs) {
+      const key = V(trible);
+      const cached_blob = this.weak.get(key).deref();
+
+      let new_or_cached_blob = blob;
+      if (cached_blob === undefined) {
+        weak = weak.put(key, new WeakRef(blob));
+      } else {
+        new_or_cached_blob = cached_blob;
+      }
+      strong = strong.put(scrambleVAE(trible), new_or_cached_blob);
     }
-    const strong = this.strong.put(scrambleVAE(trible), new_or_cached_blob);
+
     return new BlobCache(this.onMiss, strong, weak);
   }
 
@@ -163,11 +168,6 @@ export class BlobCache {
   }
 
   union(other) {
-    if (this.onMiss !== other.onMiss) {
-      throw new Error(
-        "Can only operate on two BlobCaches with the same onMiss handler.",
-      );
-    }
     return new BlobCache(
       this.onMiss,
       this.strong.union(other.strong),
@@ -176,11 +176,6 @@ export class BlobCache {
   }
 
   subtract(other) {
-    if (this.onMiss !== other.onMiss) {
-      throw new Error(
-        "Can only operate on two BlobCaches with the same onMiss handler.",
-      );
-    }
     return new BlobCache(
       this.onMiss,
       this.strong.subtract(other.strong),
@@ -189,11 +184,6 @@ export class BlobCache {
   }
 
   difference(other) {
-    if (this.onMiss !== other.onMiss) {
-      throw new Error(
-        "Can only operate on two BlobCaches with the same onMiss handler.",
-      );
-    }
     return new BlobCache(
       this.onMiss,
       this.strong.difference(other.strong),
@@ -202,11 +192,6 @@ export class BlobCache {
   }
 
   intersect(other) {
-    if (this.onMiss !== other.onMiss) {
-      throw new Error(
-        "Can only operate on two BlobCaches with the same onMiss handler.",
-      );
-    }
     return new BlobCache(
       this.onMiss,
       this.strong.intersect(other.strong),

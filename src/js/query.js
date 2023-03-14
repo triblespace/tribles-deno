@@ -531,6 +531,13 @@ export class Variable {
     this.decoder = null;
     this.encoder = null;
     this.blobcache = null;
+    this._constant = null;
+  }
+
+  constant(c) {
+    this._constant = c;
+    this.provider.constantVariables.push(this);
+    return this;
   }
 
   typed({ encoder, decoder }) {
@@ -558,18 +565,38 @@ export class Variable {
   }
 }
 
+class UnnamedSequence {
+  constructor(provider) {
+    this.provider = provider;
+  }
+
+  [Symbol.iterator]() {
+    return this;
+  }
+  next() {
+    const variable = new Variable(
+      this.provider,
+      this.provider.nextVariableIndex,
+    );
+    this.provider.unnamedVariables.push(variable);
+    this.provider.variables.push(variable);
+    this.provider.nextVariableIndex++;
+    return { value: variable };
+  }
+}
+
 export class VariableProvider {
   constructor() {
     this.nextVariableIndex = 0;
     this.variables = [];
     this.unnamedVariables = [];
     this.namedVariables = new Map();
-    this.constantVariables = emptyValuePACT;
+    this.constantVariables = [];
     this.isBlocking = [];
     this.projected = new Set();
   }
 
-  namedCache() {
+  namedVars() {
     return new Proxy(
       {},
       {
@@ -589,34 +616,16 @@ export class VariableProvider {
     );
   }
 
-  unnamed() {
-    const variable = new Variable(this, this.nextVariableIndex);
-    this.unnamedVariables.push(variable);
-    this.variables.push(variable);
-    this.projected.add(this.nextVariableIndex);
-    this.nextVariableIndex++;
-    return variable;
-  }
-
-  constant(c) {
-    let variable = this.constantVariables.get(c);
-    if (!variable) {
-      variable = new Variable(this, this.nextVariableIndex);
-      variable.constant = c;
-      this.constantVariables = this.constantVariables.put(c, variable);
-      this.variables.push(variable);
-      this.projected.add(this.nextVariableIndex);
-      this.nextVariableIndex++;
-    }
-    return variable;
+  unnamedVars() {
+    return new UnnamedSequence(this);
   }
 
   constraints() {
     const constraints = [];
 
-    for (const constantVariable of this.constantVariables.values()) {
+    for (const constantVariable of this.constantVariables) {
       constraints.push(
-        constantConstraint(constantVariable.index, constantVariable.constant),
+        constantConstraint(constantVariable.index, constantVariable._constant),
       );
     }
 
@@ -668,9 +677,8 @@ export function and(...constraints) {
  */
 export function find(queryfn) {
   const vars = new VariableProvider();
-
-  const constraintBuilder = queryfn(vars.namedCache());
-  const constraints = [constraintBuilder(vars), ...vars.constraints()];
+  const explicitConstraint = queryfn(vars.namedVars(), vars.unnamedVars());
+  const constraints = [explicitConstraint, ...vars.constraints()];
   const constraint = new IntersectionConstraint(constraints);
 
   const postProcessing = (r) => {

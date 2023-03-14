@@ -8,17 +8,7 @@ fc.configureGlobal({
   interruptAfterTimeLimit: 1000 * 5,
 });
 
-import {
-  BlobCache,
-  find,
-  FOTribleSet,
-  id,
-  IDOwner,
-  KB,
-  NS,
-  types,
-  UFOID,
-} from "../mod.js";
+import { find, id, IDOwner, KB, NS, types, UFOID } from "../mod.js";
 
 const nameId = UFOID.now();
 const lovesId = UFOID.now();
@@ -35,33 +25,25 @@ Deno.test("KB Find", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new FOTribleSet(), new BlobCache());
-
-  const knightskb = memkb.with(
-    knightsNS,
-    ([romeo, juliet]) => [
-      {
-        [id]: romeo,
-        name: "Romeo",
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: "Juliet",
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ],
-  );
+  const knightskb = knightsNS.entities(([romeo, juliet]) => [{
+    [id]: romeo,
+    name: "Romeo",
+    titles: ["fool", "prince"],
+    loves: juliet,
+  }, {
+    [id]: juliet,
+    name: "Juliet",
+    titles: ["the lady", "princess"],
+    loves: romeo,
+  }]);
 
   // Query some data.
   const results = new Set([
-    ...find(({ name, title }) =>
-      knightskb.where(knightsNS, [{
+    ...find(({ name, title }, anon) =>
+      knightskb.where(knightsNS.pattern(anon, [{
         name: name,
         titles: [title],
-      }])
+      }]))
     ),
   ]);
   assertEquals(
@@ -104,18 +86,19 @@ Deno.test("KB Find Single", () => {
           titles: { id: titlesId, ...types.hex, isMany: true },
         });
 
-        const knightskb = new KB(new FOTribleSet(), new BlobCache()).with(
-          knightsNS,
-          () => [{ [id]: person.id, name: person.name, titles: person.titles }],
-        );
+        const knightskb = knightsNS.entities(() => [{
+          [id]: person.id,
+          name: person.name,
+          titles: person.titles,
+        }]);
 
         /// Query some data.
         const results = new Set([
-          ...find(({ name, title }) =>
-            knightskb.where(knightsNS, [{
+          ...find(({ name, title }, anon) =>
+            knightskb.where(knightsNS.pattern(anon, [{
               name,
               titles: [title],
-            }])
+            }]))
           ),
         ]);
         assertEquals(
@@ -138,36 +121,25 @@ Deno.test("find lower range", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new FOTribleSet(), new BlobCache());
-
-  const knightskb = memkb.with(
-    knightsNS,
-    ([romeo, juliet]) => [
-      {
-        [id]: romeo,
-        name: "Romeo",
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: "Juliet",
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ],
-  );
+  const knightskb = knightsNS.entities(([romeo, juliet]) => [{
+    [id]: romeo,
+    name: "Romeo",
+    titles: ["fool", "prince"],
+    loves: juliet,
+  }, {
+    [id]: juliet,
+    name: "Juliet",
+    titles: ["the lady", "princess"],
+    loves: romeo,
+  }]);
   // Query some data.
   const results = [
     ...find(
-      ({ name, title }) =>
-        knightskb.where(knightsNS, [
-          {
-            name: name.ranged({ lower: "K" }),
-            titles: [title],
-          },
-        ]),
-      knightskb.blobcache,
+      ({ name, title }, anon) =>
+        knightskb.where(knightsNS.pattern(anon, [{
+          name: name.ranged({ lower: "K" }),
+          titles: [title],
+        }])),
     ),
   ];
   assertEquals(results, [
@@ -187,36 +159,26 @@ Deno.test("find upper bound", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new FOTribleSet(), new BlobCache());
-
-  const knightskb = memkb.with(
-    knightsNS,
-    ([romeo, juliet]) => [
-      {
-        [id]: romeo,
-        name: "Romeo",
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: "Juliet",
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ],
-  );
+  const knightskb = knightsNS.entities(([romeo, juliet]) => [{
+    [id]: romeo,
+    name: "Romeo",
+    titles: ["fool", "prince"],
+    loves: juliet,
+  }, {
+    [id]: juliet,
+    name: "Juliet",
+    titles: ["the lady", "princess"],
+    loves: romeo,
+  }]);
 
   // Query some data.
 
   const results = [
-    ...find(({ name, title }) =>
-      knightskb.where(knightsNS, [
-        {
-          name: name.ranged({ upper: "K" }),
-          titles: [title],
-        },
-      ])
+    ...find(({ name, title }, anon) =>
+      knightskb.where(knightsNS.pattern(anon, [{
+        name: name.ranged({ upper: "K" }),
+        titles: [title],
+      }]))
     ),
   ];
   assertEquals(results, [
@@ -236,36 +198,26 @@ Deno.test("KB Walk", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new FOTribleSet(), new BlobCache());
-
-  const knightskb = memkb.with(
-    knightsNS,
-    ([romeo, juliet]) => [
-      {
-        [id]: romeo,
-        name: "Romeo",
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: "Juliet",
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ],
-  );
+  const knightskb = knightsNS.entities(([romeo, juliet]) => [{
+    [id]: romeo,
+    name: "Romeo",
+    titles: ["fool", "prince"],
+    loves: juliet,
+  }, {
+    [id]: juliet,
+    name: "Juliet",
+    titles: ["the lady", "princess"],
+    loves: romeo,
+  }]);
   // Query some data.
   debugger;
   const [{ romeo }] = [
-    ...find(({ romeo }) =>
-      knightskb.where(knightsNS, [
-        { [id]: romeo, name: "Romeo" },
-      ])
+    ...find(({ romeo }, anon) =>
+      knightskb.where(knightsNS.pattern(anon, [{ [id]: romeo, name: "Romeo" }]))
     ),
   ];
   assertEquals(
-    knightskb.walk(knightsNS, romeo).loves.name,
+    knightsNS.walk(knightskb, romeo).loves.name,
     "Juliet",
   );
 });
@@ -281,36 +233,26 @@ Deno.test("KB Walk ownKeys", () => {
   });
 
   // Add some data.
-  const memkb = new KB(new FOTribleSet(), new BlobCache());
-
-  const knightskb = memkb.with(
-    knightsNS,
-    ([romeo, juliet]) => [
-      {
-        [id]: romeo,
-        name: "Romeo",
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: "Juliet",
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ],
-  );
+  const knightskb = knightsNS.entities(([romeo, juliet]) => [{
+    [id]: romeo,
+    name: "Romeo",
+    titles: ["fool", "prince"],
+    loves: juliet,
+  }, {
+    [id]: juliet,
+    name: "Juliet",
+    titles: ["the lady", "princess"],
+    loves: romeo,
+  }]);
   // Query some data.
   const [{ romeo }] = [
-    ...find(({ romeo }) =>
-      knightskb.where(knightsNS, [
-        { [id]: romeo, name: "Romeo" },
-      ])
+    ...find(({ romeo }, anon) =>
+      knightskb.where(knightsNS.pattern(anon, [{ [id]: romeo, name: "Romeo" }]))
     ),
   ];
   assertEquals(
     new Set(
-      Reflect.ownKeys(knightskb.walk(knightsNS, romeo)),
+      Reflect.ownKeys(knightsNS.walk(knightskb, romeo)),
     ),
     new Set([id, "name", "titles", "loves", "lovedBy"]),
   );
@@ -329,42 +271,36 @@ Deno.test("TribleSet PACT segmentCount positive", () => {
   });
 
   // Add some data.
-  let knightskb = new KB(new FOTribleSet(), new BlobCache());
+  let knightskb = new KB();
 
-  knightskb = knightskb.with(
-    knightsNS,
-    ([romeo, juliet]) => [
-      {
-        [id]: romeo,
-        name: "Romeo",
-        titles: ["fool", "prince"],
-        loves: juliet,
-      },
-      {
-        [id]: juliet,
-        name: "Juliet",
-        titles: ["the lady", "princess"],
-        loves: romeo,
-      },
-    ],
+  knightskb = knightskb.union(
+    knightsNS.entities(([romeo, juliet]) => [{
+      [id]: romeo,
+      name: "Romeo",
+      titles: ["fool", "prince"],
+      loves: juliet,
+    }, {
+      [id]: juliet,
+      name: "Juliet",
+      titles: ["the lady", "princess"],
+      loves: romeo,
+    }]),
   );
   for (let i = 1; i < size; i++) {
-    knightskb = knightskb.with(
-      knightsNS,
-      ([romeo, juliet]) => [
-        {
+    knightskb = knightskb.union(
+      knightsNS.entities(
+        ([romeo, juliet]) => [{
           [id]: romeo,
           name: `Romeo${i}`,
           titles: ["fool", "prince"],
           loves: juliet,
-        },
-        {
+        }, {
           [id]: juliet,
           name: `Juliet${i}`,
           titles: ["the lady", "princess"],
           loves: romeo,
-        },
-      ],
+        }],
+      ),
     );
   }
   const work = [knightskb.tribleset.EAV.child];

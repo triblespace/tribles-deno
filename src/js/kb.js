@@ -1,4 +1,4 @@
-import { FOTribleSet } from "./tribleset.js";
+import { TribleSet } from "./tribleset.js";
 import { BlobCache } from "./blobcache.js";
 
 const assert = (test, message) => {
@@ -7,112 +7,31 @@ const assert = (test, message) => {
   }
 };
 
-class IDSequence {
-  constructor(factory) {
-    this.factory = factory;
-  }
-
-  [Symbol.iterator]() {
-    return this;
-  }
-  next() {
-    return { value: this.factory() };
-  }
-}
-
 /** A persistent immutable knowledge base that stores tribles and blobs,
     providing a (JSON) tree based interface to access and create the graph within.*/
 export class KB {
   /**
    * Create a knowledge base with the gives tribles and blobs.
-   * @param {FOTribleSet} tribleset - The tribles stored.
+   * @param {TribleSet} tribleset - The tribles stored.
    * @param {BlobCache} blobcache - The blobs associated with the tribles.
    */
-  constructor(tribleset = new FOTribleSet(), blobcache = new BlobCache()) {
+  constructor(tribleset = new TribleSet(), blobcache = new BlobCache()) {
     this.tribleset = tribleset;
     this.blobcache = blobcache;
   }
 
   /**
-   * Generates entities to be inserted into a KB.
-   *
-   * @callback entityGenerator
-   * @param {IDSequence} ids
-   * @yields {Object}
-   */
-
-  /**
-   * Returns a collection of entities.
-   *
-   * @callback entityFunction
-   * @param {IDSequence} ids
-   * @returns {Array}
-   */
-
-  /**
-   * Stores entities in the immutable KB, returning a new one while preserving the old one.
-   * @param {Object} ctx - The context used for ids, attributes, and value encoding.
-   * @param {entityFunction | entityGenerator} entities - A function/generator returning/yielding entities.
-   * @returns {KB} A new KB with the entities added to it.
-   */
-  with(ns, entities) {
-    const idFactory = ns.ids.factory;
-    const createdEntities = entities(new IDSequence(idFactory));
-    const triples = ns.entitiesToTriples(
-      idFactory,
-      createdEntities,
-    );
-    let newBlobCache = this.blobcache;
-    const { tribles, blobs } = ns.triplesToTribles(triples);
-    for (const [trible, blob] of blobs) {
-      newBlobCache = newBlobCache.put(trible, blob);
-    }
-    const newTribleSet = this.tribleset.with(tribles);
-    return new KB(newTribleSet, newBlobCache);
-  }
-
-  /**
-   * Stores tribles in the immutable KB, returning a new one while preserving the old one.
-   * @param {Array} tribles - A function/generator returning/yielding entities.
-   * @returns {KB} A new KB with the entities added to it.
-   */
-  withTribles(tribles) {
-    const tribleset = this.tribleset.with(tribles);
-    if (tribleset === this.tribleset) {
-      return this;
-    }
-    return new KB(tribleset, this.blobcache);
-  }
-
-  /**
    * Creates a query constrained over the contents of this KB.
-   * @param {Object} ctx - The context used for ids, attributes, and value encoding.
-   * @param {Array} entities - A function/generator returning/yielding a pattern of entities to be matched.
+   * @param {Array} pattern - A function/generator returning/yielding a pattern of triples to be matched.
    * @returns {Constraint} - A constraint that can be used in a `find` call.
    */
-  where(ns, entities) {
-    return (vars) => {
-      const triples = ns.entitiesToTriples(
-        () => vars.unnamed(),
-        entities,
-      );
-      const triplesWithVars = ns.precompileTriples(vars, triples);
-      for (const [_e, _a, v] of triplesWithVars) {
-        v.proposeBlobCache(this.blobcache);
-      }
-      return this.tribleset.patternConstraint(
-        triplesWithVars.map(([e, a, v]) => [e.index, a.index, v.index]),
-      );
-    };
-  }
-
-  /**
-   * Creates proxy object to walk the graph stored in this KB.
-   * @param {Object} ctx - The context used for ids, attributes, and value encoding.
-   * @returns {Proxy} - A proxy emulating the graph of the KB.
-   */
-  walk(ns, eId) {
-    return ns.entityProxy(this, eId);
+  where(pattern) {
+    for (const [_e, _a, v] of pattern) {
+      v.proposeBlobCache(this.blobcache);
+    }
+    return this.tribleset.patternConstraint(
+      pattern.map(([e, a, v]) => [e.index, a.index, v.index]),
+    );
   }
 
   /**

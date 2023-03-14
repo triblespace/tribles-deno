@@ -16,7 +16,9 @@ function wsTribleConnector(ws, inHandler) {
   ws.binaryType = "arraybuffer";
   ws.addEventListener("message", (e) => {
     const message = new Uint8Array(e.data);
-    this.inbox.commit((kb) => kb.withTribles(contiguousTribles(txnPayload)));
+    this.inbox.commit((kb) =>
+      kb.with({ tribles: contiguousTribles(txnPayload) })
+    );
   });
   return async (txn) => {
     if (!change.commitKB.isEmpty()) {

@@ -2,11 +2,11 @@ import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
 import {
   BlobCache,
   find,
-  FOTribleSet,
   id,
   IDOwner,
   KB,
   NS,
+  TribleSet,
   types,
   UFOID,
 } from "../mod.js";
@@ -32,11 +32,11 @@ const knightsNS = new NS({
 
 function kbWith(b, size) {
   // Add some data.
-  let knightskb = new KB(new FOTribleSet(), new BlobCache());
+  let knightskb = new KB();
 
   b.start();
   for (let i = 0; i < size; i++) {
-    knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
+    knightskb = knightskb.union(knightsNS.entities(([romeo, juliet]) => [
       {
         [id]: romeo,
         name: `Romeo${i}`,
@@ -49,7 +49,7 @@ function kbWith(b, size) {
         titles: ["the lady", "princess"],
         loves: romeo,
       },
-    ]);
+    ]));
   }
   b.stop();
   console.log(knightskb.tribleset.count());
@@ -57,10 +57,10 @@ function kbWith(b, size) {
 
 function kbQuery(b, size) {
   // Add some data.
-  let knightskb = new KB(new FOTribleSet(), new BlobCache());
+  let knightskb = new KB();
 
   for (let i = 0; i < 1000; i++) {
-    knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
+    knightskb = knightskb.union(knightsNS.entities(([romeo, juliet]) => [
       {
         [id]: romeo,
         name: `${i}LovingRomeo`,
@@ -73,11 +73,11 @@ function kbQuery(b, size) {
         titles: ["the lady", "princess"],
         loves: romeo,
       },
-    ]);
+    ]));
   }
 
   for (let i = 0; i < size; i++) {
-    knightskb = knightskb.with(knightsNS, ([romeo, juliet]) => [
+    knightskb = knightskb.union(knightsNS.entities(([romeo, juliet]) => [
       {
         [id]: romeo,
         name: `${i}Romeo`,
@@ -90,18 +90,18 @@ function kbQuery(b, size) {
         titles: ["the lady", "princess"],
         loves: romeo,
       },
-    ]);
+    ]));
   }
 
   // Query some data.
-  const q = find(({ name, title }) =>
-    knightskb.where(knightsNS, [
+  const q = find(({ name, title }, anon) =>
+    knightskb.where(knightsNS.pattern(anon, [
       {
         name,
         titles: [title],
         loves: { name: "Juliet" },
       },
-    ])
+    ]))
   );
   b.start();
 
@@ -118,9 +118,9 @@ function getRandomInt(max) {
 function kbDSQuery(b) {
   // Add some data.
 
-  let peoplekb = new KB(new FOTribleSet(), new BlobCache());
+  let peoplekb = new KB();
   for (let i = 0; i < 1250; i++) {
-    peoplekb = peoplekb.with(knightsNS, ([ivan]) => [
+    peoplekb = peoplekb.union(knightsNS.entities(([ivan]) => [
       {
         [id]: ivan,
         name: "Ivan",
@@ -128,11 +128,11 @@ function kbDSQuery(b) {
         eyeColor: "blue",
         age: getRandomInt(100),
       },
-    ]);
+    ]));
   }
 
   for (let i = 0; i < 20000; i++) {
-    peoplekb = peoplekb.with(knightsNS, ([ivan, bob, bob2]) => [
+    peoplekb = peoplekb.union(knightsNS.entities(([ivan, bob, bob2]) => [
       {
         [id]: ivan,
         name: "Ivan",
@@ -154,19 +154,19 @@ function kbDSQuery(b) {
         eyeColor: "blue",
         age: getRandomInt(100),
       },
-    ]);
+    ]));
   }
 
   // Query some data.
-  const q = find(({ age, lastName }) =>
-    peoplekb.where(knightsNS, [
+  const q = find(({ age, lastName }, anon) =>
+    peoplekb.where(knightsNS.pattern(anon, [
       {
         name: "Ivan",
         eyeColor: "blue",
         age,
         lastName,
       },
-    ])
+    ]))
   );
   b.start();
 
@@ -178,10 +178,10 @@ function kbDSQuery(b) {
 
 function kbWithPeople(b, size) {
   b.start();
-  let peoplekb = new KB(new FOTribleSet(), new BlobCache());
+  let peoplekb = new KB();
 
   for (let i = 0; i < size; i++) {
-    peoplekb = peoplekb.with(knightsNS, ([ivan, ivan2, bob, bob2]) => [
+    peoplekb = peoplekb.union(knightsNS.entities(([ivan, ivan2, bob, bob2]) => [
       {
         [id]: ivan,
         name: "Ivan",
@@ -210,7 +210,7 @@ function kbWithPeople(b, size) {
         eyeColor: "blue",
         age: getRandomInt(100),
       },
-    ]);
+    ]));
   }
 
   b.stop();

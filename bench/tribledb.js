@@ -1,5 +1,5 @@
 import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
-import { FOTribleSet } from "../src/js/tribleset.js";
+import { TribleSet } from "../src/js/tribleset.js";
 import { schema as ufoid, UFOID } from "../src/js/types/ufoid.js";
 
 function generateRandomSample(size, sharing_prob = 0.1) {
@@ -30,7 +30,7 @@ function generateRandomSample(size, sharing_prob = 0.1) {
 
 function dbWithRandom(b, size) {
   const sample = generateRandomSample(size);
-  let db = new FOTribleSet();
+  let db = new TribleSet();
   b.start();
   db = db.with(sample);
   b.stop();

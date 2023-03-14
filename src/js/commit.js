@@ -181,23 +181,13 @@ export class Commit {
     return { tribles, blobs };
   }
 
-  where(ns, entities) {
-    return (vars) => {
-      const triples = ns.entitiesToTriples(
-        () => vars.unnamed(),
-        entities,
-      );
-      const triplesWithVars = ns.precompileTriples(vars, triples);
-
-      triplesWithVars.foreach(([e, a, v]) => {
-        v.proposeBlobCache(currentKB.blobcache);
-      });
-      return [
-        ...triplesWithVars.map(([e, a, v]) =>
-          currentKB.tribleset.constraint(e.index, a.index, v.index)
-        ),
-        //new NoveltyConstraint(this.baseKB, this.currentKB, triplesWithVars),
-      ];
-    };
+  where(pattern) {
+    for (const [_e, _a, v] of pattern) {
+      v.proposeBlobCache(this.blobcache);
+    }
+    return currentKB.tribleset.patternConstraint(
+      pattern.map(([e, a, v]) => [e.index, a.index, v.index]),
+    );
+    //new NoveltyConstraint(this.baseKB, this.currentKB, triplesWithVars),
   }
 }

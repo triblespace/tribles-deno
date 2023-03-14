@@ -8,6 +8,9 @@ import {
 } from "./query.js";
 import { A, E, equalValue, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
 import { emptyValuePACT } from "./pact.js";
+import { TribleSet } from "./tribleset.js";
+import { BlobCache } from "./blobcache.js";
+import { KB } from "./kb.js";
 
 const assert = (test, message) => {
   if (!test) {
@@ -23,6 +26,19 @@ const isPojo = (obj) => {
   }
   return Object.getPrototypeOf(obj) === Object.prototype;
 };
+
+class IDSequence {
+  constructor(factory) {
+    this.factory = factory;
+  }
+
+  [Symbol.iterator]() {
+    return this;
+  }
+  next() {
+    return { value: this.factory() };
+  }
+}
 
 export class NS {
   constructor(decl) {
@@ -350,13 +366,24 @@ export class NS {
     );
   }
 
+  /**
+   * Creates proxy object to walk the graph stored in the provided kb,
+   * using this namespace for ids, attributes, and value encoding.
+   * @param {Object} kb - The walked knowledge base.
+   * @param {Object} eId - The id of the entity used as the root of the walk.
+   * @returns {Proxy} - A proxy emulating the graph of the KB.
+   */
+  walk(kb, eId) {
+    return this.entityProxy(kb, eId);
+  }
+
   *entityToTriples(
-    unknownFactory,
+    unknowns,
     parentId,
     parentAttributeName,
     entity,
   ) {
-    const entityId = entity[id] || unknownFactory();
+    const entityId = entity[id] || unknowns.next().value;
     if (parentId !== null) {
       yield [parentId, parentAttributeName, entityId];
     }
@@ -370,7 +397,7 @@ export class NS {
         for (const v of value) {
           if (attributeDescription.isLink && isPojo(v)) {
             yield* this.entityToTriples(
-              unknownFactory,
+              unknowns,
               entityId,
               attributeName,
               v,
@@ -386,7 +413,7 @@ export class NS {
       } else {
         if (attributeDescription.isLink && isPojo(value)) {
           yield* this.entityToTriples(
-            unknownFactory,
+            unknowns,
             entityId,
             attributeName,
             value,
@@ -402,9 +429,9 @@ export class NS {
     }
   }
 
-  *entitiesToTriples(unknownFactory, entities) {
+  *entitiesToTriples(unknowns, entities) {
     for (const entity of entities) {
-      yield* this.entityToTriples(unknownFactory, null, null, entity);
+      yield* this.entityToTriples(unknowns, null, null, entity);
     }
   }
 
@@ -439,9 +466,9 @@ export class NS {
     return { tribles, blobs };
   }
 
-  precompileTriples(vars, triples) {
+  triplesToPattern(vars, triples) {
     const { encoder: idEncoder, decoder: idDecoder } = this.ids;
-    const precompiledTriples = [];
+    const pattern = [];
     for (const [e, a, v] of triples) {
       const attributeDescription = this.attributes.get(a);
       let eVar;
@@ -456,11 +483,14 @@ export class NS {
       } else {
         const eb = new Uint8Array(VALUE_SIZE);
         idEncoder(e, eb);
-        eVar = vars.constant(eb);
+        [eVar] = vars;
+        eVar.constant(eb);
       }
 
       // Attribute
-      aVar = vars.constant(attributeDescription.encodedId);
+      [aVar] = vars;
+
+      aVar.constant(attributeDescription.encodedId);
 
       // Value
       if (v instanceof Variable) {
@@ -476,11 +506,55 @@ export class NS {
         } catch (error) {
           throw Error(`Error encoding value: ${error.message}`);
         }
-        vVar = vars.constant(b);
+        [vVar] = vars;
+        vVar.constant(b);
       }
-      precompiledTriples.push([eVar, aVar, vVar]);
+      pattern.push([eVar, aVar, vVar]);
     }
 
-    return precompiledTriples;
+    return pattern;
+  }
+
+  /**
+   * Generates entities to be inserted into a KB.
+   *
+   * @callback entityGenerator
+   * @param {IDSequence} ids
+   * @yields {Object}
+   */
+
+  /**
+   * Returns a collection of entities.
+   *
+   * @callback entityFunction
+   * @param {IDSequence} ids
+   * @returns {Array}
+   */
+
+  /**
+   * Converts the provided entities into tribles and blobs.
+   * @param {entityFunction | entityGenerator} entities - A function/generator returning/yielding entities.
+   * @returns {KB} A new KB with the entities.
+   */
+  entities(entities) {
+    const ids = new IDSequence(this.ids.factory);
+    const createdEntities = entities(ids);
+    const triples = this.entitiesToTriples(
+      ids,
+      createdEntities,
+    );
+    const { tribles, blobs } = this.triplesToTribles(triples);
+
+    const newBlobCache = new BlobCache().with(blobs);
+    const newTribleSet = new TribleSet().with(tribles);
+    return new KB(newTribleSet, newBlobCache);
+  }
+
+  pattern(vars, entities) {
+    const triples = this.entitiesToTriples(
+      vars,
+      entities,
+    );
+    return this.triplesToPattern(vars, triples);
   }
 }

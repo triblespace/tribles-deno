@@ -1,16 +1,6 @@
 import { assertRejects } from "https://deno.land/std@0.177.0/testing/asserts.ts";
 
-import {
-  BlobCache,
-  FOTribleSet,
-  Head,
-  id,
-  IDOwner,
-  KB,
-  NS,
-  types,
-  UFOID,
-} from "../mod.js";
+import { Head, id, IDOwner, KB, NS, types, UFOID } from "../mod.js";
 
 const nameId = types.hex.factory();
 const lovesId = types.hex.factory();
@@ -30,14 +20,14 @@ Deno.test("unique constraint", async () => {
   });
 
   const head = new Head(
-    new KB(new FOTribleSet(), new BlobCache()),
+    new KB(),
     knightsNS.validator(idOwner.validator()),
   );
 
   debugger;
 
   await head.commit((kb, commitID) =>
-    kb.with(knightsNS, ([juliet]) => [
+    kb.union(knightsNS.entities(([juliet]) => [
       {
         [id]: romeoId,
         name: "Romeo",
@@ -50,16 +40,16 @@ Deno.test("unique constraint", async () => {
         titles: ["the lady", "princess"],
         loves: romeoId,
       },
-    ])
+    ]))
   );
 
   assertRejects(
     async () => {
       await head.commit((kb, commitID) =>
-        kb.with(knightsNS, () => [{
+        kb.union(knightsNS.entities(() => [{
           [id]: romeoId,
           name: "Bob",
-        }])
+        }]))
       );
     },
     Error,
@@ -77,11 +67,11 @@ Deno.test("unique inverse constraint", async () => {
   });
 
   const head = new Head(
-    new KB(new FOTribleSet(), new BlobCache()),
+    new KB(),
     knightsNS.validator(idOwner.validator()),
   );
   await head.commit((kb) =>
-    kb.with(knightsNS, () => [
+    kb.union(knightsNS.entities(() => [
       {
         [id]: romeoId,
         name: "Romeo",
@@ -90,18 +80,18 @@ Deno.test("unique inverse constraint", async () => {
         name: "Lady Montague",
         motherOf: [romeoId],
       },
-    ])
+    ]))
   );
 
   assertRejects(
     async () => {
       await head.commit((kb) =>
-        kb.with(knightsNS, () => [
+        kb.union(knightsNS.entities(() => [
           {
             name: "Lady Impostor",
             motherOf: [romeoId],
           },
-        ])
+        ]))
       );
     },
     Error,
