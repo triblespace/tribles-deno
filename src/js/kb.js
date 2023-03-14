@@ -63,9 +63,10 @@ export class KB {
       createdEntities,
     );
     let newBlobCache = this.blobcache;
-    const tribles = ns.triplesToTribles(triples, (key, blob) => {
-      newBlobCache = newBlobCache.put(key, blob);
-    });
+    const { tribles, blobs } = ns.triplesToTribles(triples);
+    for (const [trible, blob] of blobs) {
+      newBlobCache = newBlobCache.put(trible, blob);
+    }
     const newTribleSet = this.tribleset.with(tribles);
     return new KB(newTribleSet, newBlobCache);
   }

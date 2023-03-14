@@ -371,23 +371,6 @@ class FOMemTribleConstraint {
   }
 }
 
-function fo_flush_trible_buffer(
-  buffer,
-  EAV,
-  AEV,
-  AVE,
-) {
-  for (const trible of buffer) {
-    EAV.put(scrambleEAV(trible));
-  }
-  for (const trible of buffer) {
-    AEV.put(scrambleAEV(trible));
-  }
-  for (const trible of buffer) {
-    AVE.put(scrambleAVE(trible));
-  }
-}
-
 export class FOTribleSet {
   constructor(
     EAV = emptyIdIdValueTriblePACT,
@@ -404,21 +387,11 @@ export class FOTribleSet {
     const AEV = this.AEV.batch();
     const AVE = this.AVE.batch();
 
-    const buffer = new Array(BUFFER_SIZE);
-    buffer.length = 0;
-    for (const t of tribles) {
-      buffer.push(t);
-      if (buffer.length === BUFFER_SIZE) {
-        fo_flush_trible_buffer(
-          buffer,
-          EAV,
-          AEV,
-          AVE,
-        );
-        buffer.length = 0;
-      }
+    for (const trible of tribles) {
+      EAV.put(scrambleEAV(trible));
+      AEV.put(scrambleAEV(trible));
+      AVE.put(scrambleAVE(trible));
     }
-    fo_flush_trible_buffer(buffer, EAV, AEV, AVE);
 
     return new FOTribleSet(
       EAV.complete(),
@@ -950,35 +923,6 @@ class HOMemTribleConstraint {
   }
 }
 
-function ho_flush_trible_buffer(
-  buffer,
-  EAV,
-  EVA,
-  AEV,
-  AVE,
-  VEA,
-  VAE,
-) {
-  for (const trible of buffer) {
-    EAV.put(scrambleEAV(trible));
-  }
-  for (const trible of buffer) {
-    EVA.put(scrambleEVA(trible));
-  }
-  for (const trible of buffer) {
-    AEV.put(scrambleAEV(trible));
-  }
-  for (const trible of buffer) {
-    AVE.put(scrambleAVE(trible));
-  }
-  for (const trible of buffer) {
-    VEA.put(scrambleVEA(trible));
-  }
-  for (const trible of buffer) {
-    VAE.put(scrambleVAE(trible));
-  }
-}
-
 export class HOTribleSet {
   constructor(
     EAV = emptyIdIdValueTriblePACT,
@@ -1004,24 +948,14 @@ export class HOTribleSet {
     const VEA = this.VEA.batch();
     const VAE = this.VAE.batch();
 
-    const buffer = new Array(BUFFER_SIZE);
-    buffer.length = 0;
-    for (const t of tribles) {
-      buffer.push(t);
-      if (buffer.length === BUFFER_SIZE) {
-        ho_flush_trible_buffer(
-          buffer,
-          EAV,
-          EVA,
-          AEV,
-          AVE,
-          VEA,
-          VAE,
-        );
-        buffer.length = 0;
-      }
+    for (const trible of tribles) {
+      EAV.put(scrambleEAV(trible));
+      EVA.put(scrambleEVA(trible));
+      AEV.put(scrambleAEV(trible));
+      AVE.put(scrambleAVE(trible));
+      VEA.put(scrambleVEA(trible));
+      VAE.put(scrambleVAE(trible));
     }
-    ho_flush_trible_buffer(buffer, EAV, EVA, AEV, AVE, VEA, VAE);
 
     return new HOTribleSet(
       EAV.complete(),

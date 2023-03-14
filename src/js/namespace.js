@@ -408,7 +408,9 @@ export class NS {
     }
   }
 
-  *triplesToTribles(triples, blobFn = (trible, blob) => {}) {
+  triplesToTribles(triples) {
+    const tribles = [];
+    const blobs = [];
     const { encoder: idEncoder } = this.ids;
     for (const [e, a, v] of triples) {
       const attributeDescription = this.attributes.get(a);
@@ -429,11 +431,12 @@ export class NS {
         );
       }
 
+      tribles.push(trible);
       if (blob) {
-        blobFn(trible, blob);
+        blobs.push([trible, blob]);
       }
-      yield trible;
     }
+    return { tribles, blobs };
   }
 
   precompileTriples(vars, triples) {
