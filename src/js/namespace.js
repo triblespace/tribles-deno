@@ -366,17 +366,6 @@ export class NS {
     );
   }
 
-  /**
-   * Creates proxy object to walk the graph stored in the provided kb,
-   * using this namespace for ids, attributes, and value encoding.
-   * @param {Object} kb - The walked knowledge base.
-   * @param {Object} eId - The id of the entity used as the root of the walk.
-   * @returns {Proxy} - A proxy emulating the graph of the KB.
-   */
-  walk(kb, eId) {
-    return this.entityProxy(kb, eId);
-  }
-
   *entityToTriples(
     unknowns,
     parentId,
@@ -536,7 +525,7 @@ export class NS {
    * @param {entityFunction | entityGenerator} entities - A function/generator returning/yielding entities.
    * @returns {KB} A new KB with the entities.
    */
-  entities(entities) {
+  entities(entities, kb = new KB()) {
     const ids = new IDSequence(this.ids.factory);
     const createdEntities = entities(ids);
     const triples = this.entitiesToTriples(
@@ -545,8 +534,8 @@ export class NS {
     );
     const { tribles, blobs } = this.triplesToTribles(triples);
 
-    const newBlobCache = new BlobCache().with(blobs);
-    const newTribleSet = new TribleSet().with(tribles);
+    const newBlobCache = kb.blobcache.with(blobs);
+    const newTribleSet = kb.tribleset.with(tribles);
     return new KB(newTribleSet, newBlobCache);
   }
 
@@ -556,5 +545,16 @@ export class NS {
       entities,
     );
     return this.triplesToPattern(vars, triples);
+  }
+
+  /**
+   * Creates proxy object to walk the graph stored in the provided kb,
+   * using this namespace for ids, attributes, and value encoding.
+   * @param {Object} kb - The walked knowledge base.
+   * @param {Object} eId - The id of the entity used as the root of the walk.
+   * @returns {Proxy} - A proxy emulating the graph of the KB.
+   */
+  walk(kb, eId) {
+    return this.entityProxy(kb, eId);
   }
 }

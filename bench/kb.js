@@ -36,7 +36,7 @@ function kbWith(b, size) {
 
   b.start();
   for (let i = 0; i < size; i++) {
-    knightskb = knightskb.union(knightsNS.entities(([romeo, juliet]) => [
+    knightskb = knightsNS.entities(([romeo, juliet]) => [
       {
         [id]: romeo,
         name: `Romeo${i}`,
@@ -49,7 +49,7 @@ function kbWith(b, size) {
         titles: ["the lady", "princess"],
         loves: romeo,
       },
-    ]));
+    ], knightskb);
   }
   b.stop();
   console.log(knightskb.tribleset.count());
@@ -60,7 +60,7 @@ function kbQuery(b, size) {
   let knightskb = new KB();
 
   for (let i = 0; i < 1000; i++) {
-    knightskb = knightskb.union(knightsNS.entities(([romeo, juliet]) => [
+    knightskb = knightsNS.entities(([romeo, juliet]) => [
       {
         [id]: romeo,
         name: `${i}LovingRomeo`,
@@ -73,11 +73,11 @@ function kbQuery(b, size) {
         titles: ["the lady", "princess"],
         loves: romeo,
       },
-    ]));
+    ], knightskb);
   }
 
   for (let i = 0; i < size; i++) {
-    knightskb = knightskb.union(knightsNS.entities(([romeo, juliet]) => [
+    knightskb = knightsNS.entities(([romeo, juliet]) => [
       {
         [id]: romeo,
         name: `${i}Romeo`,
@@ -90,7 +90,7 @@ function kbQuery(b, size) {
         titles: ["the lady", "princess"],
         loves: romeo,
       },
-    ]));
+    ], knightskb);
   }
 
   // Query some data.
@@ -120,7 +120,7 @@ function kbDSQuery(b) {
 
   let peoplekb = new KB();
   for (let i = 0; i < 1250; i++) {
-    peoplekb = peoplekb.union(knightsNS.entities(([ivan]) => [
+    peoplekb = knightsNS.entities(([ivan]) => [
       {
         [id]: ivan,
         name: "Ivan",
@@ -128,11 +128,11 @@ function kbDSQuery(b) {
         eyeColor: "blue",
         age: getRandomInt(100),
       },
-    ]));
+    ], peoplekb);
   }
 
   for (let i = 0; i < 20000; i++) {
-    peoplekb = peoplekb.union(knightsNS.entities(([ivan, bob, bob2]) => [
+    peoplekb = knightsNS.entities(([ivan, bob, bob2]) => [
       {
         [id]: ivan,
         name: "Ivan",
@@ -154,7 +154,7 @@ function kbDSQuery(b) {
         eyeColor: "blue",
         age: getRandomInt(100),
       },
-    ]));
+    ], peoplekb);
   }
 
   // Query some data.
@@ -181,7 +181,7 @@ function kbWithPeople(b, size) {
   let peoplekb = new KB();
 
   for (let i = 0; i < size; i++) {
-    peoplekb = peoplekb.union(knightsNS.entities(([ivan, ivan2, bob, bob2]) => [
+    peoplekb = knightsNS.entities(([ivan, ivan2, bob, bob2]) => [
       {
         [id]: ivan,
         name: "Ivan",
@@ -210,7 +210,7 @@ function kbWithPeople(b, size) {
         eyeColor: "blue",
         age: getRandomInt(100),
       },
-    ]));
+    ], peoplekb);
   }
 
   b.stop();
