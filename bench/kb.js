@@ -95,13 +95,13 @@ function kbQuery(b, size) {
 
   // Query some data.
   const q = find(({ name, title }, anon) =>
-    knightskb.where(knightsNS.pattern(anon, [
+    knightsNS.pattern(knightskb, anon, [
       {
         name,
         titles: [title],
         loves: { name: "Juliet" },
       },
-    ]))
+    ])
   );
   b.start();
 
@@ -159,14 +159,14 @@ function kbDSQuery(b) {
 
   // Query some data.
   const q = find(({ age, lastName }, anon) =>
-    peoplekb.where(knightsNS.pattern(anon, [
+    knightsNS.pattern(peoplekb, anon, [
       {
         name: "Ivan",
         eyeColor: "blue",
         age,
         lastName,
       },
-    ]))
+    ])
   );
   b.start();
 

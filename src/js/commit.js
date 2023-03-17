@@ -181,7 +181,7 @@ export class Commit {
     return { tribles, blobs };
   }
 
-  where(pattern) {
+  patternConstraint(pattern) {
     for (const [_e, _a, v] of pattern) {
       v.proposeBlobCache(this.blobcache);
     }

@@ -40,10 +40,10 @@ Deno.test("KB Find", () => {
   // Query some data.
   const results = new Set([
     ...find(({ name, title }, anon) =>
-      knightskb.where(knightsNS.pattern(anon, [{
+      knightsNS.pattern(knightskb, anon, [{
         name: name,
         titles: [title],
-      }]))
+      }])
     ),
   ]);
   assertEquals(
@@ -95,10 +95,10 @@ Deno.test("KB Find Single", () => {
         /// Query some data.
         const results = new Set([
           ...find(({ name, title }, anon) =>
-            knightskb.where(knightsNS.pattern(anon, [{
+            knightsNS.pattern(knightskb, anon, [{
               name,
               titles: [title],
-            }]))
+            }])
           ),
         ]);
         assertEquals(
@@ -136,10 +136,10 @@ Deno.test("find lower range", () => {
   const results = [
     ...find(
       ({ name, title }, anon) =>
-        knightskb.where(knightsNS.pattern(anon, [{
+        knightsNS.pattern(knightskb, anon, [{
           name: name.ranged({ lower: "K" }),
           titles: [title],
-        }])),
+        }]),
     ),
   ];
   assertEquals(results, [
@@ -175,10 +175,10 @@ Deno.test("find upper bound", () => {
 
   const results = [
     ...find(({ name, title }, anon) =>
-      knightskb.where(knightsNS.pattern(anon, [{
+      knightsNS.pattern(knightskb, anon, [{
         name: name.ranged({ upper: "K" }),
         titles: [title],
-      }]))
+      }])
     ),
   ];
   assertEquals(results, [
@@ -213,7 +213,7 @@ Deno.test("KB Walk", () => {
   debugger;
   const [{ romeo }] = [
     ...find(({ romeo }, anon) =>
-      knightskb.where(knightsNS.pattern(anon, [{ [id]: romeo, name: "Romeo" }]))
+      knightsNS.pattern(knightskb, anon, [{ [id]: romeo, name: "Romeo" }])
     ),
   ];
   assertEquals(
@@ -247,7 +247,7 @@ Deno.test("KB Walk ownKeys", () => {
   // Query some data.
   const [{ romeo }] = [
     ...find(({ romeo }, anon) =>
-      knightskb.where(knightsNS.pattern(anon, [{ [id]: romeo, name: "Romeo" }]))
+      knightsNS.pattern(knightskb, anon, [{ [id]: romeo, name: "Romeo" }])
     ),
   ];
   assertEquals(

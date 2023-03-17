@@ -539,12 +539,13 @@ export class NS {
     return new KB(newTribleSet, newBlobCache);
   }
 
-  pattern(vars, entities) {
+  pattern(source, vars, entities) {
     const triples = this.entitiesToTriples(
       vars,
       entities,
     );
-    return this.triplesToPattern(vars, triples);
+    const pattern = this.triplesToPattern(vars, triples);
+    return source.patternConstraint(pattern);
   }
 
   /**
