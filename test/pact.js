@@ -1,7 +1,7 @@
 import {
   assert,
   assertEquals,
-} from "https://deno.land/std@0.177.0/testing/asserts.ts";
+} from "https://deno.land/std@0.180.0/testing/asserts.ts";
 import fc from "https://cdn.skypack.dev/fast-check";
 
 /*
@@ -11,7 +11,7 @@ fc.configureGlobal({
 });
 */
 
-import { encode } from "https://deno.land/std@0.177.0/encoding/base64.ts";
+import { encode } from "https://deno.land/std@0.180.0/encoding/base64.ts";
 
 import { equalValue } from "../src/js/trible.js";
 import { emptyValuePACT, makePACT } from "../src/js/pact.js";

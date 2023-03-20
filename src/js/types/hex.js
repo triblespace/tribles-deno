@@ -1,15 +1,12 @@
-import {
-  decodeString,
-  encodeToString,
-} from "https://deno.land/std@0.93.0/encoding/hex.ts";
+import * as hex from "https://deno.land/std@0.180.0/encoding/hex.ts";
 
-function hexEncoder(v, b) {
-  if (v.length !== 64) {
+function hexEncoder(value, b) {
+  if (value.length !== 64) {
     throw Error(
       "Couldn't encode hex value: Length must be exactly 64 (left padded with 0s).",
     );
   }
-  const bytes = decodeString(v);
+  const bytes = hex.decode(new TextEncoder().encode(value));
   for (let i = 0; i < bytes.length - b.length; i++) {
     if (bytes[i] !== 0) {
       throw Error(
@@ -22,14 +19,14 @@ function hexEncoder(v, b) {
   return null;
 }
 
-function hexDecoder(b, blob) {
-  return encodeToString(b).padStart(64, "0");
+function hexDecoder(bytes, blob) {
+  return new TextDecoder().decode(hex.encode(bytes)).padStart(64, "0");
 }
 
 function hexFactory() {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes.subarray(16, 32));
-  return encodeToString(bytes).padStart(64, "0");
+  return new TextDecoder().decode(hex.encode(bytes)).padStart(64, "0");
 }
 
 export const schema = {

@@ -1,4 +1,7 @@
-import { bench, runBenchmarks } from "https://deno.land/std/testing/bench.ts";
+import {
+  bench,
+  runBenchmarks,
+} from "https://deno.land/std@0.180.0/testing/bench.ts";
 import { TribleSet } from "../src/js/tribleset.js";
 import { schema as ufoid, UFOID } from "../src/js/types/ufoid.js";
 

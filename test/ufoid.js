@@ -2,7 +2,7 @@ import {
   assert,
   assertArrayIncludes,
   assertEquals,
-} from "https://deno.land/std@0.78.0/testing/asserts.ts";
+} from "https://deno.land/std@0.180.0/testing/asserts.ts";
 import fc from "https://cdn.skypack.dev/fast-check";
 fc.configureGlobal({
   numRuns: Number.MAX_SAFE_INTEGER,

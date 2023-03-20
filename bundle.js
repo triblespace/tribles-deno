@@ -148,20 +148,12 @@ function uuidToBytes(uuid) {
     });
     return bytes1;
 }
-new RegExp("^[0-9a-f]{8}-[0-9a-f]{4}-1[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", "i");
-const UUID_RE = new RegExp("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", "i");
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function validate(id) {
     return UUID_RE.test(id);
 }
-function generate() {
-    const rnds = crypto.getRandomValues(new Uint8Array(16));
-    rnds[6] = rnds[6] & 0x0f | 0x40;
-    rnds[8] = rnds[8] & 0x3f | 0x80;
-    return bytesToUuid(rnds);
-}
 const mod = {
-    validate: validate,
-    generate: generate
+    validate: validate
 };
 const NIL_UUID = "00000000-0000-0000-0000-000000000000";
 function uuidEncoder(v1, b) {
@@ -435,12 +427,10 @@ const schema7 = {
 };
 const hexTable = new TextEncoder().encode("0123456789abcdef");
 function errInvalidByte(__byte) {
-    return new Error("encoding/hex: invalid byte: " + new TextDecoder().decode(new Uint8Array([
-        __byte
-    ])));
+    return new TypeError(`Invalid byte '${String.fromCharCode(__byte)}'`);
 }
 function errLength() {
-    return new Error("encoding/hex: odd length hex string");
+    return new RangeError("Odd length hex string");
 }
 function fromHexChar(__byte) {
     if (48 <= __byte && __byte <= 57) return __byte - 48;
@@ -448,11 +438,8 @@ function fromHexChar(__byte) {
     if (65 <= __byte && __byte <= 70) return __byte - 65 + 10;
     throw errInvalidByte(__byte);
 }
-function encodedLen(n) {
-    return n * 2;
-}
 function encode(src) {
-    const dst = new Uint8Array(encodedLen(src.length));
+    const dst = new Uint8Array(src.length * 2);
     for(let i = 0; i < dst.length; i++){
         const v1 = src[i];
         dst[i * 2] = hexTable[v1 >> 4];
@@ -460,11 +447,8 @@ function encode(src) {
     }
     return dst;
 }
-function encodeToString(src) {
-    return new TextDecoder().decode(encode(src));
-}
 function decode1(src) {
-    const dst = new Uint8Array(decodedLen(src.length));
+    const dst = new Uint8Array(src.length / 2);
     for(let i = 0; i < dst.length; i++){
         const a = fromHexChar(src[i * 2]);
         const b = fromHexChar(src[i * 2 + 1]);
@@ -476,17 +460,11 @@ function decode1(src) {
     }
     return dst;
 }
-function decodedLen(x) {
-    return x >>> 1;
-}
-function decodeString(s) {
-    return decode1(new TextEncoder().encode(s));
-}
-function hexEncoder(v1, b) {
-    if (v1.length !== 64) {
+function hexEncoder(value, b) {
+    if (value.length !== 64) {
         throw Error("Couldn't encode hex value: Length must be exactly 64 (left padded with 0s).");
     }
-    const bytes1 = decodeString(v1);
+    const bytes1 = decode1(new TextEncoder().encode(value));
     for(let i = 0; i < bytes1.length - b.length; i++){
         if (bytes1[i] !== 0) {
             throw Error("Couldn't encode hex value as id: Too large non zero prefix.");
@@ -496,13 +474,13 @@ function hexEncoder(v1, b) {
     b.set(bytes1.subarray(bytes1.length - b.length));
     return null;
 }
-function hexDecoder(b, blob) {
-    return encodeToString(b).padStart(64, "0");
+function hexDecoder(bytes1, blob) {
+    return new TextDecoder().decode(encode(bytes1)).padStart(64, "0");
 }
 function hexFactory() {
     const bytes1 = new Uint8Array(32);
     crypto.getRandomValues(bytes1.subarray(16, 32));
-    return encodeToString(bytes1).padStart(64, "0");
+    return new TextDecoder().decode(encode(bytes1)).padStart(64, "0");
 }
 const schema8 = {
     encoder: hexEncoder,

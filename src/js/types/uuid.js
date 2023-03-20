@@ -1,8 +1,8 @@
 import {
   bytesToUuid,
   uuidToBytes,
-} from "https://deno.land/std@0.78.0/uuid/_common.ts";
-import { NIL_UUID, v4 } from "https://deno.land/std@0.78.0/uuid/mod.ts";
+} from "https://deno.land/std@0.180.0/uuid/_common.ts";
+import { NIL_UUID, v4 } from "https://deno.land/std@0.180.0/uuid/mod.ts";
 
 function uuidEncoder(v, b) {
   if (!v4.validate(v)) {
