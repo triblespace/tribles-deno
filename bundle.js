@@ -757,6 +757,453 @@ class ByteBitsetArray {
         return new ByteBitset(this.buffer.subarray(offset * 8, (offset + 1) * 8));
     }
 }
+const LOWER = (value)=>value.subarray(16, 32);
+new Uint8Array(32).fill(0);
+new Uint8Array(32).fill(~0);
+const MODE_PATH = 0;
+const MODE_BRANCH = 1;
+const MODE_BACKTRACK = 2;
+function VariableIterator(constraint, key_state) {
+    return {
+        branch_points: new ByteBitset().unsetAll(),
+        branch_state: new ByteBitsetArray(32),
+        key_state: key_state,
+        mode: 0,
+        depth: 0,
+        constraint: constraint,
+        [Symbol.iterator] () {
+            return this;
+        },
+        next (cancel) {
+            if (cancel) {
+                while(0 < this.depth){
+                    this.depth -= 1;
+                    this.constraint.popByte();
+                }
+                this.mode = MODE_PATH;
+                return {
+                    done: true,
+                    value: undefined
+                };
+            }
+            outer: while(true){
+                switch(this.mode){
+                    case 0:
+                        while(this.depth < this.key_state.length){
+                            const __byte = this.constraint.peekByte();
+                            if (__byte !== null) {
+                                this.key_state[this.depth] = __byte;
+                                this.constraint.pushByte(__byte);
+                                this.depth += 1;
+                            } else {
+                                this.constraint.proposeByte(this.branch_state.get(this.depth));
+                                this.branch_points.set(this.depth);
+                                this.mode = MODE_BRANCH;
+                                continue outer;
+                            }
+                        }
+                        this.mode = MODE_BACKTRACK;
+                        return {
+                            done: false,
+                            value: this.key_state
+                        };
+                    case 1:
+                        const byte1 = this.branch_state.get(this.depth).drainNext();
+                        if (byte1 !== null) {
+                            this.key_state[this.depth] = byte1;
+                            this.constraint.pushByte(byte1);
+                            this.depth += 1;
+                            this.mode = MODE_PATH;
+                            continue outer;
+                        } else {
+                            this.branch_points.unset(this.depth);
+                            this.mode = MODE_BACKTRACK;
+                            continue outer;
+                        }
+                    case 2:
+                        const parent_depth = this.branch_points.prev(255);
+                        if (parent_depth !== null) {
+                            while(parent_depth < this.depth){
+                                this.depth -= 1;
+                                this.constraint.popByte();
+                            }
+                            this.mode = MODE_BRANCH;
+                            continue outer;
+                        } else {
+                            while(0 < this.depth){
+                                this.depth -= 1;
+                                this.constraint.popByte();
+                            }
+                            return {
+                                done: true,
+                                value: undefined
+                            };
+                        }
+                }
+            }
+        }
+    };
+}
+class Bindings {
+    constructor(length, buffer = new Uint8Array(length * 32)){
+        this.length = length;
+        this.buffer = buffer;
+    }
+    get(offset) {
+        return this.buffer.subarray(offset * 32, (offset + 1) * 32);
+    }
+    copy() {
+        return new Bindings(this.length, this.buffer.slice());
+    }
+}
+class Query {
+    constructor(constraint, vars, postprocessing = (r)=>r){
+        this.constraint = constraint;
+        this.vars = vars;
+        this.postprocessing = postprocessing;
+        this.unexploredVariables = new ByteBitset();
+        constraint.variables(this.unexploredVariables);
+        const variableCount = this.unexploredVariables.count();
+        this.bindings = new Bindings(variableCount);
+    }
+    *[Symbol.iterator]() {
+        for (const binding of this.__resolve()){
+            yield this.postprocessing(this.vars, binding);
+        }
+    }
+    *__resolve() {
+        if (this.unexploredVariables.isEmpty()) {
+            yield this.bindings.copy();
+        } else {
+            let nextVariable;
+            let nextVariableCosts = Number.MAX_VALUE;
+            const variables = new ByteBitset();
+            this.constraint.blocked(variables);
+            variables.setSubtraction(this.unexploredVariables, variables);
+            if (variables.isEmpty()) {
+                throw new Error("Can't evaluate query: blocked dead end.");
+            }
+            for (const variable of variables.entries()){
+                const costs = this.constraint.variableCosts(variable);
+                if (costs <= nextVariableCosts) {
+                    nextVariable = variable;
+                    nextVariableCosts = costs;
+                }
+                if (nextVariableCosts <= 1) break;
+            }
+            this.unexploredVariables.unset(nextVariable);
+            this.constraint.pushVariable(nextVariable);
+            const variableAssignments = VariableIterator(this.constraint, this.bindings.get(nextVariable));
+            for (const _ of variableAssignments){
+                yield* this.__resolve();
+            }
+            this.constraint.popVariable();
+            this.unexploredVariables.set(nextVariable);
+        }
+    }
+}
+class Variable {
+    constructor(provider, index, name = null){
+        this.provider = provider;
+        this.index = index;
+        this.name = name;
+        this.decoder = null;
+        this.encoder = null;
+        this.blobcache = null;
+    }
+    toString() {
+        if (this.name) {
+            return `${this.name}@${this.index}`;
+        }
+        return `__anon__@${this.index}`;
+    }
+    typed({ encoder , decoder  }) {
+        this.encoder = encoder;
+        this.decoder = decoder;
+        return this;
+    }
+    proposeBlobCache(blobcache) {
+        this.blobcache ||= blobcache;
+        return this;
+    }
+}
+class UnnamedSequence {
+    constructor(provider){
+        this.provider = provider;
+    }
+    [Symbol.iterator]() {
+        return this;
+    }
+    next() {
+        const variable = new Variable(this.provider, this.provider.nextVariableIndex);
+        this.provider.unnamedVariables.push(variable);
+        this.provider.variables.push(variable);
+        this.provider.nextVariableIndex++;
+        return {
+            value: variable
+        };
+    }
+}
+class VariableProvider {
+    constructor(){
+        this.nextVariableIndex = 0;
+        this.variables = [];
+        this.unnamedVariables = [];
+        this.namedVariables = new Map();
+        this.constantVariables = [];
+        this.isBlocking = [];
+        this.projected = new Set();
+    }
+    namedVars() {
+        return new Proxy({}, {
+            get: (_, name)=>{
+                let variable = this.namedVariables.get(name);
+                if (variable) {
+                    return variable;
+                }
+                variable = new Variable(this, this.nextVariableIndex, name);
+                this.namedVariables.set(name, variable);
+                this.variables.push(variable);
+                this.projected.add(this.nextVariableIndex);
+                this.nextVariableIndex++;
+                return variable;
+            }
+        });
+    }
+    unnamedVars() {
+        return new UnnamedSequence(this);
+    }
+}
+function decodeWithBlobcache(vars, binding) {
+    const result = {};
+    for (const { index , decoder , name , blobcache  } of vars.namedVariables.values()){
+        const encoded = binding.get(index);
+        const decoded = decoder(encoded, async ()=>await blobcache.get(encoded.slice()));
+        result[name] = decoded;
+    }
+    return result;
+}
+function find1(queryfn, postprocessing = decodeWithBlobcache) {
+    const vars = new VariableProvider();
+    const constraint = queryfn(vars.namedVars(), vars.unnamedVars());
+    return new Query(constraint, vars, postprocessing);
+}
+class IntersectionConstraint {
+    constructor(constraints){
+        this.constraints = constraints;
+        this.activeConstraints = [];
+        this.variableStack = [];
+    }
+    peekByte() {
+        let __byte = null;
+        for (const constraint of this.activeConstraints){
+            const peeked = constraint.peekByte();
+            if (peeked !== null) {
+                if (__byte === null) {
+                    __byte = peeked;
+                }
+                if (__byte !== peeked) return null;
+            } else {
+                return null;
+            }
+        }
+        return __byte;
+    }
+    proposeByte(bitset) {
+        bitset.setAll();
+        let b = new ByteBitset().unsetAll();
+        for (const constraint of this.activeConstraints){
+            constraint.proposeByte(b);
+            bitset.setIntersection(bitset, b);
+        }
+    }
+    pushByte(__byte) {
+        for (const constraint of this.activeConstraints){
+            constraint.pushByte(__byte);
+        }
+    }
+    popByte() {
+        for (const constraint of this.activeConstraints){
+            constraint.popByte();
+        }
+    }
+    variables(bitset) {
+        bitset.unsetAll();
+        let b = new ByteBitset().unsetAll();
+        for (const constraint of this.constraints){
+            constraint.variables(b);
+            bitset.setUnion(bitset, b);
+        }
+    }
+    blocked(bitset) {
+        bitset.unsetAll();
+        let b = new ByteBitset().unsetAll();
+        for (const constraint of this.constraints){
+            constraint.blocked(b);
+            bitset.setUnion(bitset, b);
+        }
+    }
+    pushVariable(variable) {
+        this.variableStack.push(variable);
+        this.activeConstraints.length = 0;
+        let b = new ByteBitset().unsetAll();
+        for (const constraint of this.constraints){
+            constraint.variables(b);
+            if (b.has(variable)) {
+                constraint.pushVariable(variable);
+                this.activeConstraints.push(constraint);
+            }
+        }
+    }
+    popVariable() {
+        this.variableStack.pop();
+        for (const constraint of this.activeConstraints){
+            constraint.popVariable();
+        }
+        this.activeConstraints.length = 0;
+        if (0 < this.variableStack.length) {
+            const currentVariable = this.variableStack[this.variableStack.length - 1];
+            let b = new ByteBitset();
+            for (const constraint1 of this.constraints){
+                constraint1.variables(b);
+                if (b.has(currentVariable)) {
+                    this.activeConstraints.push(constraint1);
+                }
+            }
+        }
+    }
+    variableCosts(variable) {
+        let min = Number.MAX_VALUE;
+        let b = new ByteBitset().unsetAll();
+        for (const constraint of this.constraints){
+            constraint.variables(b);
+            if (b.has(variable)) {
+                min = Math.min(min, constraint.variableCosts(variable));
+            }
+        }
+        return min;
+    }
+}
+function and(...constraints) {
+    return new IntersectionConstraint(constraints);
+}
+class ConstantConstraint {
+    constructor(variable, constant){
+        this.variable = variable;
+        this.constant = constant;
+        this.depth = 0;
+    }
+    peekByte() {
+        return this.constant[this.depth];
+    }
+    proposeByte(bitset) {
+        bitset.unsetAll();
+        bitset.set(this.constant[this.depth]);
+    }
+    popByte() {
+        this.depth--;
+    }
+    pushByte(_byte) {
+        this.depth++;
+    }
+    variables(bitset) {
+        bitset.unsetAll();
+        bitset.set(this.variable);
+    }
+    blocked(bitset) {
+        bitset.unsetAll();
+    }
+    pushVariable(_variable) {}
+    popVariable() {}
+    variableCosts(_variable) {
+        return 1;
+    }
+}
+function constant(variable, constant) {
+    if (constant.length !== 32) throw new Error("Bad constant length.");
+    return new ConstantConstraint(variable.index, constant);
+}
+class IndexConstraint {
+    constructor(variable, index){
+        this.cursor = index.cursor();
+        this.variable = variable;
+    }
+    peekByte() {
+        return this.cursor.peek();
+    }
+    proposeByte(bitset) {
+        this.cursor.propose(bitset);
+    }
+    pushByte(__byte) {
+        this.cursor.push(__byte);
+    }
+    popByte() {
+        this.cursor.pop();
+    }
+    variables(bitset) {
+        bitset.unsetAll();
+        bitset.set(this.variable);
+    }
+    blocked(bitset) {
+        bitset.unsetAll();
+    }
+    pushVariable(_variable) {}
+    popVariable() {}
+    variableCosts(_variable) {
+        return this.cursor.segmentCount();
+    }
+}
+function indexed(variable, index) {
+    return new IndexConstraint(variable.index, index);
+}
+function collection(variable, collection) {
+    const indexBatch = emptyValuePACT.batch();
+    for (const c of collection){
+        indexBatch.put(c);
+    }
+    const index = indexBatch.complete();
+    return new IndexConstraint(variable.index, index);
+}
+class MaskedConstraint {
+    constructor(constraint, maskedVariables){
+        this.constraint = constraint;
+        this.mask = new ByteBitset();
+        for (const v1 of maskedVariables){
+            this.mask.set(v1);
+        }
+    }
+    peekByte() {
+        return this.constraint.peekByte();
+    }
+    proposeByte(bitset) {
+        return this.constraint.proposeByte(bitset);
+    }
+    pushByte(__byte) {
+        return this.constraint.pushByte(__byte);
+    }
+    popByte() {
+        return this.constraint.popByte();
+    }
+    variables(bitset) {
+        this.constraint.variables(bitset);
+        bitset.setSubtraction(bitset, this.mask);
+    }
+    blocked(bitset) {
+        this.constraint.blocked(bitset);
+    }
+    pushVariable(variable) {
+        this.constraint.pushVariable(variable);
+    }
+    popVariable() {
+        this.constraint.popVariable();
+    }
+    variableCosts(variable) {
+        return this.constraint.variableCosts(variable);
+    }
+}
+function masked(constraint, maskedVariables) {
+    return new MaskedConstraint(constraint, maskedVariables.map((v1)=>v1.index));
+}
 function PACTHash(key) {
     if (key.__cached_hash === undefined) {
         key.__cached_hash = hash_digest(key);
@@ -812,7 +1259,7 @@ class SegmentConstraint {
             throw new Error("Number of segment variables must match the number of segments.");
         }
         if (new Set(segmentVariables).size !== segmentVariables.length) {
-            throw new Error("Segment variables must be uniqe. Use explicit equality when inner constraints are required.");
+            throw new Error("Segment variables must be unique. Use explicit equality when inner constraints are required.");
         }
         this.nextVariableIndex = 0;
         this.cursor = new PaddedCursor(pact.cursor(), pact.segments, 32);
@@ -1232,6 +1679,9 @@ const makePACT = function(segments) {
             }
             return node.value;
         }
+        segmentConstraint(vars) {
+            return new SegmentConstraint(this, vars.map((v1)=>v1.index));
+        }
         cursor() {
             return new PACTCursor(this);
         }
@@ -1492,518 +1942,9 @@ const emptyValueIdIdTriblePACT = makePACT([
 const emptyIdPACT = makePACT([
     16
 ]);
-const emptyValuePACT = makePACT([
+const emptyValuePACT1 = makePACT([
     32
 ]);
-const LOWER = (value)=>value.subarray(16, 32);
-class IndexConstraint {
-    constructor(variable, index){
-        this.cursor = index.cursor();
-        this.variable = variable;
-    }
-    peekByte() {
-        return this.cursor.peek();
-    }
-    proposeByte(bitset) {
-        this.cursor.propose(bitset);
-    }
-    pushByte(__byte) {
-        this.cursor.push(__byte);
-    }
-    popByte() {
-        this.cursor.pop();
-    }
-    variables(bitset) {
-        bitset.unsetAll();
-        bitset.set(this.variable);
-    }
-    blocked(bitset) {
-        bitset.unsetAll();
-    }
-    pushVariable(_variable) {}
-    popVariable() {}
-    variableCosts(_variable) {
-        return this.cursor.segmentCount();
-    }
-}
-class RangeConstraint {
-    constructor(variable, lowerBound, upperBound){
-        this.lowerBound = lowerBound;
-        this.upperBound = upperBound;
-        this.variable = variable;
-        this.depth = 0;
-        this.lowerFringe = 0;
-        this.upperFringe = 0;
-    }
-    peekByte() {
-        return null;
-    }
-    proposeByte(bitset) {
-        const lowerByte = this.depth === this.lowerFringe ? this.lowerBound[this.depth] : 0;
-        const upperByte = this.depth === this.upperFringe ? this.upperBound[this.depth] : 255;
-        bitset.setRange(lowerByte, upperByte);
-    }
-    pushByte(__byte) {
-        if (this.depth === this.lowerFringe && __byte === this.lowerBound[this.depth]) {
-            this.lowerFringe++;
-        }
-        if (this.depth === this.upperFringe && __byte === this.upperBound[this.depth]) {
-            this.upperFringe++;
-        }
-        this.depth++;
-    }
-    popByte() {
-        this.depth--;
-        if (this.depth < this.lowerFringe) {
-            this.lowerFringe = this.depth;
-        }
-        if (this.depth < this.upperFringe) {
-            this.upperFringe = this.depth;
-        }
-    }
-    variables(bitset) {
-        bitset.unsetAll();
-        bitset.set(this.variable);
-    }
-    blocked(bitset) {
-        bitset.unsetAll();
-    }
-    pushVariable(_variable) {}
-    popVariable() {}
-    variableCosts(_variable) {
-        return Number.MAX_VALUE;
-    }
-}
-const MIN_KEY = new Uint8Array(32).fill(0);
-const MAX_KEY = new Uint8Array(32).fill(~0);
-class ConstantConstraint {
-    constructor(variable, constant){
-        this.variable = variable;
-        this.constant = constant;
-        this.depth = 0;
-    }
-    peekByte() {
-        return this.constant[this.depth];
-    }
-    proposeByte(bitset) {
-        bitset.unsetAll();
-        bitset.set(this.constant[this.depth]);
-    }
-    popByte() {
-        this.depth--;
-    }
-    pushByte(_byte) {
-        this.depth++;
-    }
-    variables(bitset) {
-        bitset.unsetAll();
-        bitset.set(this.variable);
-    }
-    blocked(bitset) {
-        bitset.unsetAll();
-    }
-    pushVariable(_variable) {}
-    popVariable() {}
-    variableCosts(_variable) {
-        return 1;
-    }
-}
-const IntersectionConstraint = class {
-    constructor(constraints){
-        this.constraints = constraints;
-        this.activeConstraints = [];
-        this.variableStack = [];
-    }
-    peekByte() {
-        let __byte = null;
-        for (const constraint of this.activeConstraints){
-            const peeked = constraint.peekByte();
-            if (peeked !== null) {
-                if (__byte === null) {
-                    __byte = peeked;
-                }
-                if (__byte !== peeked) return null;
-            } else {
-                return null;
-            }
-        }
-        return __byte;
-    }
-    proposeByte(bitset) {
-        bitset.setAll();
-        let b = new ByteBitset().unsetAll();
-        for (const constraint of this.activeConstraints){
-            constraint.proposeByte(b);
-            bitset.setIntersection(bitset, b);
-        }
-    }
-    pushByte(__byte) {
-        for (const constraint of this.activeConstraints){
-            constraint.pushByte(__byte);
-        }
-    }
-    popByte() {
-        for (const constraint of this.activeConstraints){
-            constraint.popByte();
-        }
-    }
-    variables(bitset) {
-        bitset.unsetAll();
-        let b = new ByteBitset().unsetAll();
-        for (const constraint of this.constraints){
-            constraint.variables(b);
-            bitset.setUnion(bitset, b);
-        }
-    }
-    blocked(bitset) {
-        bitset.unsetAll();
-        let b = new ByteBitset().unsetAll();
-        for (const constraint of this.constraints){
-            constraint.blocked(b);
-            bitset.setUnion(bitset, b);
-        }
-    }
-    pushVariable(variable) {
-        this.variableStack.push(variable);
-        this.activeConstraints.length = 0;
-        let b = new ByteBitset().unsetAll();
-        for (const constraint of this.constraints){
-            constraint.variables(b);
-            if (b.has(variable)) {
-                constraint.pushVariable(variable);
-                this.activeConstraints.push(constraint);
-            }
-        }
-    }
-    popVariable() {
-        this.variableStack.pop();
-        for (const constraint of this.activeConstraints){
-            constraint.popVariable();
-        }
-        this.activeConstraints.length = 0;
-        if (0 < this.variableStack.length) {
-            const currentVariable = this.variableStack[this.variableStack.length - 1];
-            let b = new ByteBitset();
-            for (const constraint1 of this.constraints){
-                constraint1.variables(b);
-                if (b.has(currentVariable)) {
-                    this.activeConstraints.push(constraint1);
-                }
-            }
-        }
-    }
-    variableCosts(variable) {
-        let min = Number.MAX_VALUE;
-        let b = new ByteBitset().unsetAll();
-        for (const constraint of this.constraints){
-            constraint.variables(b);
-            if (b.has(variable)) {
-                min = Math.min(min, constraint.variableCosts(variable));
-            }
-        }
-        return min;
-    }
-};
-const MaskedConstraint = class {
-    constructor(constraint, maskedVariables){
-        this.constraint = constraint;
-        this.mask = new ByteBitset();
-        for (const v1 of maskedVariables){
-            this.mask.set(v1);
-        }
-    }
-    peekByte() {
-        return this.constraint.peekByte();
-    }
-    proposeByte(bitset) {
-        return this.constraint.proposeByte(bitset);
-    }
-    pushByte(__byte) {
-        return this.constraint.pushByte(__byte);
-    }
-    popByte() {
-        return this.constraint.popByte();
-    }
-    variables(bitset) {
-        this.constraint.variables(bitset);
-        bitset.setSubtraction(bitset, this.mask);
-    }
-    blocked(bitset) {
-        this.constraint.blocked(bitset);
-    }
-    pushVariable(variable) {
-        this.constraint.pushVariable(variable);
-    }
-    popVariable() {
-        this.constraint.popVariable();
-    }
-    variableCosts(variable) {
-        return this.constraint.variableCosts(variable);
-    }
-};
-const MODE_PATH = 0;
-const MODE_BRANCH = 1;
-const MODE_BACKTRACK = 2;
-function VariableIterator(constraint, key_state) {
-    return {
-        branch_points: new ByteBitset().unsetAll(),
-        branch_state: new ByteBitsetArray(32),
-        key_state: key_state,
-        mode: 0,
-        depth: 0,
-        constraint: constraint,
-        [Symbol.iterator] () {
-            return this;
-        },
-        next (cancel) {
-            if (cancel) {
-                while(0 < this.depth){
-                    this.depth -= 1;
-                    this.constraint.popByte();
-                }
-                this.mode = MODE_PATH;
-                return {
-                    done: true,
-                    value: undefined
-                };
-            }
-            outer: while(true){
-                switch(this.mode){
-                    case 0:
-                        while(this.depth < this.key_state.length){
-                            const __byte = this.constraint.peekByte();
-                            if (__byte !== null) {
-                                this.key_state[this.depth] = __byte;
-                                this.constraint.pushByte(__byte);
-                                this.depth += 1;
-                            } else {
-                                this.constraint.proposeByte(this.branch_state.get(this.depth));
-                                this.branch_points.set(this.depth);
-                                this.mode = MODE_BRANCH;
-                                continue outer;
-                            }
-                        }
-                        this.mode = MODE_BACKTRACK;
-                        return {
-                            done: false,
-                            value: this.key_state
-                        };
-                    case 1:
-                        const byte1 = this.branch_state.get(this.depth).drainNext();
-                        if (byte1 !== null) {
-                            this.key_state[this.depth] = byte1;
-                            this.constraint.pushByte(byte1);
-                            this.depth += 1;
-                            this.mode = MODE_PATH;
-                            continue outer;
-                        } else {
-                            this.branch_points.unset(this.depth);
-                            this.mode = MODE_BACKTRACK;
-                            continue outer;
-                        }
-                    case 2:
-                        const parent_depth = this.branch_points.prev(255);
-                        if (parent_depth !== null) {
-                            while(parent_depth < this.depth){
-                                this.depth -= 1;
-                                this.constraint.popByte();
-                            }
-                            this.mode = MODE_BRANCH;
-                            continue outer;
-                        } else {
-                            while(0 < this.depth){
-                                this.depth -= 1;
-                                this.constraint.popByte();
-                            }
-                            return {
-                                done: true,
-                                value: undefined
-                            };
-                        }
-                }
-            }
-        }
-    };
-}
-class Bindings {
-    constructor(length, buffer = new Uint8Array(length * 32)){
-        this.length = length;
-        this.buffer = buffer;
-    }
-    get(offset) {
-        return this.buffer.subarray(offset * 32, (offset + 1) * 32);
-    }
-    copy() {
-        return new Bindings(this.length, this.buffer.slice());
-    }
-}
-class Query {
-    constructor(constraint, vars, postprocessing = (r)=>r){
-        this.constraint = constraint;
-        this.vars = vars;
-        this.postprocessing = postprocessing;
-        this.unexploredVariables = new ByteBitset();
-        constraint.variables(this.unexploredVariables);
-        const variableCount = this.unexploredVariables.count();
-        this.bindings = new Bindings(variableCount);
-    }
-    *[Symbol.iterator]() {
-        for (const binding of this.__resolve()){
-            yield this.postprocessing(this.vars, binding);
-        }
-    }
-    *__resolve() {
-        if (this.unexploredVariables.isEmpty()) {
-            yield this.bindings.copy();
-        } else {
-            let nextVariable;
-            let nextVariableCosts = Number.MAX_VALUE;
-            const variables = new ByteBitset();
-            this.constraint.blocked(variables);
-            variables.setSubtraction(this.unexploredVariables, variables);
-            if (variables.isEmpty()) {
-                throw new Error("Can't evaluate query: blocked dead end.");
-            }
-            for (const variable of variables.entries()){
-                const costs = this.constraint.variableCosts(variable);
-                if (costs <= nextVariableCosts) {
-                    nextVariable = variable;
-                    nextVariableCosts = costs;
-                }
-                if (nextVariableCosts <= 1) break;
-            }
-            this.unexploredVariables.unset(nextVariable);
-            this.constraint.pushVariable(nextVariable);
-            const variableAssignments = VariableIterator(this.constraint, this.bindings.get(nextVariable));
-            for (const _ of variableAssignments){
-                yield* this.__resolve();
-            }
-            this.constraint.popVariable();
-            this.unexploredVariables.set(nextVariable);
-        }
-    }
-}
-class Variable {
-    constructor(provider, index, name = null){
-        this.provider = provider;
-        this.index = index;
-        this.name = name;
-        this.decoder = null;
-        this.encoder = null;
-        this.blobcache = null;
-    }
-    toString() {
-        if (this.name) {
-            return `${this.name}@${this.index}`;
-        }
-        return `__anon__@${this.index}`;
-    }
-    typed({ encoder , decoder  }) {
-        this.encoder = encoder;
-        this.decoder = decoder;
-        return this;
-    }
-    proposeBlobCache(blobcache) {
-        this.blobcache ||= blobcache;
-        return this;
-    }
-}
-class UnnamedSequence {
-    constructor(provider){
-        this.provider = provider;
-    }
-    [Symbol.iterator]() {
-        return this;
-    }
-    next() {
-        const variable = new Variable(this.provider, this.provider.nextVariableIndex);
-        this.provider.unnamedVariables.push(variable);
-        this.provider.variables.push(variable);
-        this.provider.nextVariableIndex++;
-        return {
-            value: variable
-        };
-    }
-}
-class VariableProvider {
-    constructor(){
-        this.nextVariableIndex = 0;
-        this.variables = [];
-        this.unnamedVariables = [];
-        this.namedVariables = new Map();
-        this.constantVariables = [];
-        this.isBlocking = [];
-        this.projected = new Set();
-    }
-    namedVars() {
-        return new Proxy({}, {
-            get: (_, name)=>{
-                let variable = this.namedVariables.get(name);
-                if (variable) {
-                    return variable;
-                }
-                variable = new Variable(this, this.nextVariableIndex, name);
-                this.namedVariables.set(name, variable);
-                this.variables.push(variable);
-                this.projected.add(this.nextVariableIndex);
-                this.nextVariableIndex++;
-                return variable;
-            }
-        });
-    }
-    unnamedVars() {
-        return new UnnamedSequence(this);
-    }
-}
-function ranged(variable, type, { lower , upper  }) {
-    variable.typed(type);
-    let encodedLower = MIN_KEY;
-    let encodedUpper = MAX_KEY;
-    if (lower !== undefined) {
-        encodedLower = new Uint8Array(VALUE_SIZE);
-        type.encoder(lower, encodedLower);
-    }
-    if (upper !== undefined) {
-        encodedUpper = new Uint8Array(VALUE_SIZE);
-        type.encoder(upper, encodedUpper);
-    }
-    return new RangeConstraint(variable.index, encodedLower, encodedUpper);
-}
-function masked(constraint, maskedVariables) {
-    return new MaskedConstraint(constraint, maskedVariables.map((v1)=>v1.index));
-}
-function indexed(variable, index) {
-    return new IndexConstraint(variable.index, index);
-}
-function collection(variable, collection) {
-    const indexBatch = emptyValuePACT.batch();
-    for (const c of collection){
-        indexBatch.put(c);
-    }
-    const index = indexBatch.complete();
-    return new IndexConstraint(variable.index, index);
-}
-function constant(variable, constant) {
-    if (constant.length !== 32) throw new Error("Bad constant length.");
-    return new ConstantConstraint(variable.index, constant);
-}
-function and(...constraints) {
-    return new IntersectionConstraint(constraints);
-}
-function decodeWithBlobcache(vars, binding) {
-    const result = {};
-    for (const { index , decoder , name , blobcache  } of vars.namedVariables.values()){
-        const encoded = binding.get(index);
-        const decoded = decoder(encoded, async ()=>await blobcache.get(encoded.slice()));
-        result[name] = decoded;
-    }
-    return result;
-}
-function find(queryfn, postprocessing = decodeWithBlobcache) {
-    const vars = new VariableProvider();
-    const constraint = queryfn(vars.namedVars(), vars.unnamedVars());
-    return new Query(constraint, vars, postprocessing);
-}
 const stack_empty = 0;
 const stack_e = 1;
 const stack_a = 2;
@@ -2452,10 +2393,10 @@ class TribleSet {
         return this.EAV.keys();
     }
     tripleConstraint([e, a, v1]) {
-        return new TribleConstraint(this, e, a, v1);
+        return new TribleConstraint(this, e.index, a.index, v1.index);
     }
     patternConstraint(triples) {
-        return new IntersectionConstraint(triples.map(([e, a, v1])=>new TribleConstraint(this, e.index, a.index, v1.index)));
+        return and(...triples.map(([e, a, v1])=>new TribleConstraint(this, e.index, a.index, v1.index)));
     }
     count() {
         return this.EAV.count();
@@ -2495,7 +2436,7 @@ function deserialize1(tribleset, blobcache, serialized_bytes) {
     if (serialized_bytes.length % 64 !== 0) {
         throw Error("serialized blob data must be multiple of 64byte");
     }
-    let blobs = emptyValuePACT.batch();
+    let blobs = emptyValuePACT1.batch();
     let offset = 0;
     const dataview = new DataView(serialized_bytes.buffer);
     while(offset < serialized_bytes.length){
@@ -2520,15 +2461,16 @@ function deserialize1(tribleset, blobcache, serialized_bytes) {
     }
     blobs.complete();
     let blobdata = blobcache;
-    for (const r of new Query(new IntersectionConstraint([
-        tribleset.tripleConstraint(0, 1, 2),
-        new SegmentConstraint(blobs, [
-            2
-        ])
-    ]))){
-        const e = r.get(0);
-        const a = r.get(1);
-        const v1 = r.get(2);
+    for (const { e , a , v: v1  } of find(({ e , a , v: v1  }, anon)=>and(tribleset.tripleConstraint(e, a, v1), blobs.segmentConstraint([
+            v1
+        ])), (variables, binding)=>{
+        const { e , a , v: v1  } = variables.namedVars();
+        return {
+            e: binding.get(e.index),
+            a: binding.get(a.index),
+            v: binding.get(v1.index)
+        };
+    })){
         const trible = new Uint8Array(64);
         E(trible).set(LOWER(e));
         A(trible).set(LOWER(a));
@@ -2555,7 +2497,7 @@ function serialize1(blobcache) {
     return bytes;
 }
 class BlobCache {
-    constructor(onMiss = async ()=>{}, strong = emptyValueIdIdTriblePACT, weak = emptyValuePACT){
+    constructor(onMiss = async ()=>{}, strong = emptyValueIdIdTriblePACT, weak = emptyValuePACT1){
         this.strong = strong;
         this.weak = weak;
         this.onMiss = onMiss;
@@ -2588,7 +2530,7 @@ class BlobCache {
         return blob;
     }
     strongConstraint(e, a, v1) {
-        return new SegmentConstraint(this.strong, [
+        return this.strong.segmentConstraint([
             v1,
             a,
             e
@@ -2596,15 +2538,17 @@ class BlobCache {
     }
     strongBlobs() {
         const blobs = [];
-        for (const r of new Query(new MaskedConstraint(new SegmentConstraint(this.strong, [
-            0,
-            1,
-            2
-        ]), [
-            1,
-            2
-        ]))){
-            const key = r.get(1);
+        for (const key of new find(({ v: v1  }, [e, a])=>masked(this.strong.segmentConstraint([
+                v1,
+                a,
+                e
+            ]), [
+                e,
+                a
+            ]), (variables, binding)=>{
+            const { v: v1  } = variables.namedVars();
+            return binding.get(v1.index);
+        })){
             const blob = this.weak.get(key);
             blobs.push({
                 key,
@@ -2706,10 +2650,10 @@ class IDSequence {
 class NS {
     constructor(decl){
         const attributes = new Map();
-        let forwardAttributeIndex = emptyValuePACT;
-        let inverseAttributeIndex = emptyValuePACT;
-        const newUniqueAttributeIndex = emptyValuePACT.batch();
-        const newUniqueInverseAttributeIndex = emptyValuePACT.batch();
+        let forwardAttributeIndex = emptyValuePACT1;
+        let inverseAttributeIndex = emptyValuePACT1;
+        const newUniqueAttributeIndex = emptyValuePACT1.batch();
+        const newUniqueInverseAttributeIndex = emptyValuePACT1.batch();
         const idDescription = decl[id];
         if (!idDescription) {
             throw Error(`Incomplete namespace: Missing [id] field.`);
@@ -2781,7 +2725,7 @@ class NS {
         ]) {
         const self = this;
         return function*(commit) {
-            const unique = find(({ v1 , v2  }, [e, a])=>and(indexed(a, self.uniqueAttributeIndex), commit.commitKB.tribleset.patternConstraint([
+            const unique = find1(({ v1 , v2  }, [e, a])=>and(indexed(a, self.uniqueAttributeIndex), commit.commitKB.tribleset.patternConstraint([
                     [
                         e,
                         a,
@@ -2805,7 +2749,7 @@ class NS {
                     throw Error(`constraint violation: multiple values for unique attribute`);
                 }
             }
-            const inverseUnique = find(({ e1 , e2  }, [a, v1])=>and(indexed(a, self.inverseAttributeIndex), commit.commitKB.tribleset.patternConstraint([
+            const inverseUnique = find1(({ e1 , e2  }, [a, v1])=>and(indexed(a, self.inverseAttributeIndex), commit.commitKB.tribleset.patternConstraint([
                     [
                         e1,
                         a,
@@ -2834,7 +2778,7 @@ class NS {
     }
     lookup(kb, eEncodedId, attributeName) {
         let { encodedId: aEncodedId , decoder , isLink , isInverse , isMany  } = this.attributes.get(attributeName);
-        const res = find(({ v: v1  }, [e, a])=>and(constant(e, eEncodedId), constant(a, aEncodedId), kb.tribleset.patternConstraint([
+        const res = find1(({ v: v1  }, [e, a])=>and(constant(e, eEncodedId), constant(a, aEncodedId), kb.tribleset.patternConstraint([
                 isInverse ? [
                     v1,
                     a,
@@ -2905,7 +2849,7 @@ class NS {
                 if (attributeName in o || isMany) {
                     return true;
                 }
-                const res = find(({}, [e, a, v1])=>and(constant(e, eEncodedId), constant(a, aEncodedId), kb.tribleset.patternConstraint([
+                const res = find1(({}, [e, a, v1])=>and(constant(e, eEncodedId), constant(a, aEncodedId), kb.tribleset.patternConstraint([
                         isInverse ? [
                             v1,
                             a,
@@ -2958,7 +2902,7 @@ class NS {
                 const attrs = [
                     id
                 ];
-                const forward = find(({ a  }, [e, v1])=>and(constant(e, eEncodedId), indexed(a, ns.forwardAttributeIndex), masked(kb.tribleset.patternConstraint([
+                const forward = find1(({ a  }, [e, v1])=>and(constant(e, eEncodedId), indexed(a, ns.forwardAttributeIndex), masked(kb.tribleset.patternConstraint([
                         [
                             e,
                             a,
@@ -2974,7 +2918,7 @@ class NS {
                 for (const a of forward){
                     attrs.push(...ns.forwardAttributeIndex.get(a).map((attr)=>attr.name));
                 }
-                const inverse = find(({ a  }, [e, v1])=>and(constant(v1, eEncodedId), indexed(a, ns.inverseAttributeIndex), masked(kb.tribleset.patternConstraint([
+                const inverse = find1(({ a  }, [e, v1])=>and(constant(v1, eEncodedId), indexed(a, ns.inverseAttributeIndex), masked(kb.tribleset.patternConstraint([
                         [
                             e,
                             a,
@@ -3279,6 +3223,70 @@ class Head {
         this._subscriptions.remove(fn);
     }
 }
+const MIN_KEY = new Uint8Array(32).fill(0);
+const MAX_KEY = new Uint8Array(32).fill(~0);
+class RangeConstraint {
+    constructor(variable, lowerBound, upperBound){
+        this.lowerBound = lowerBound;
+        this.upperBound = upperBound;
+        this.variable = variable;
+        this.depth = 0;
+        this.lowerFringe = 0;
+        this.upperFringe = 0;
+    }
+    peekByte() {
+        return null;
+    }
+    proposeByte(bitset) {
+        const lowerByte = this.depth === this.lowerFringe ? this.lowerBound[this.depth] : 0;
+        const upperByte = this.depth === this.upperFringe ? this.upperBound[this.depth] : 255;
+        bitset.setRange(lowerByte, upperByte);
+    }
+    pushByte(__byte) {
+        if (this.depth === this.lowerFringe && __byte === this.lowerBound[this.depth]) {
+            this.lowerFringe++;
+        }
+        if (this.depth === this.upperFringe && __byte === this.upperBound[this.depth]) {
+            this.upperFringe++;
+        }
+        this.depth++;
+    }
+    popByte() {
+        this.depth--;
+        if (this.depth < this.lowerFringe) {
+            this.lowerFringe = this.depth;
+        }
+        if (this.depth < this.upperFringe) {
+            this.upperFringe = this.depth;
+        }
+    }
+    variables(bitset) {
+        bitset.unsetAll();
+        bitset.set(this.variable);
+    }
+    blocked(bitset) {
+        bitset.unsetAll();
+    }
+    pushVariable(_variable) {}
+    popVariable() {}
+    variableCosts(_variable) {
+        return Number.MAX_VALUE;
+    }
+}
+function ranged(variable, type, { lower , upper  }) {
+    variable.typed(type);
+    let encodedLower = MIN_KEY;
+    let encodedUpper = MAX_KEY;
+    if (lower !== undefined) {
+        encodedLower = new Uint8Array(VALUE_SIZE);
+        type.encoder(lower, encodedLower);
+    }
+    if (upper !== undefined) {
+        encodedUpper = new Uint8Array(VALUE_SIZE);
+        type.encoder(upper, encodedUpper);
+    }
+    return new RangeConstraint(variable.index, encodedLower, encodedUpper);
+}
 class IDOwner {
     constructor(type){
         this.idType = type;
@@ -3308,4 +3316,4 @@ class IDOwner {
         };
     }
 }
-export { and as and, BlobCache as BlobCache, collection as collection, constant as constant, find as find, Head as Head, id as id, IDOwner as IDOwner, indexed as indexed, KB as KB, masked as masked, NS as NS, ranged as ranged, TribleSet as TribleSet, types as types, UFOID as UFOID, validateCommitSize as validateCommitSize };
+export { and as and, BlobCache as BlobCache, collection as collection, constant as constant, find1 as find, Head as Head, id as id, IDOwner as IDOwner, indexed as indexed, KB as KB, masked as masked, NS as NS, ranged as ranged, TribleSet as TribleSet, types as types, UFOID as UFOID, validateCommitSize as validateCommitSize };
