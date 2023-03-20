@@ -54,19 +54,6 @@ class IndexConstraint {
   }
 }
 
-export function indexConstraint(variable, index) {
-  return new IndexConstraint(variable, index);
-}
-
-export function collectionConstraint(variable, collection) {
-  const indexBatch = emptyValuePACT.batch();
-  for (const c of collection) {
-    indexBatch.put(c);
-  }
-  const index = indexBatch.complete();
-  return new IndexConstraint(variable, index);
-}
-
 class RangeConstraint {
   constructor(variable, lowerBound, upperBound) {
     this.lowerBound = lowerBound;
@@ -136,16 +123,8 @@ class RangeConstraint {
   }
 }
 
-const MIN_KEY = new Uint8Array(32).fill(0);
-const MAX_KEY = new Uint8Array(32).fill(~0);
-
-export function rangeConstraint(
-  variable,
-  lowerBound = MIN_KEY,
-  upperBound = MAX_KEY,
-) {
-  return new RangeConstraint(variable, lowerBound, upperBound);
-}
+const MIN_KEY = new Uint8Array(VALUE_SIZE).fill(0);
+const MAX_KEY = new Uint8Array(VALUE_SIZE).fill(~0);
 
 class ConstantConstraint {
   constructor(variable, constant) {
@@ -187,11 +166,6 @@ class ConstantConstraint {
   variableCosts(_variable) {
     return 1;
   }
-}
-
-export function constantConstraint(variable, constant) {
-  if (constant.length !== VALUE_SIZE) throw new Error("Bad constant length.");
-  return new ConstantConstraint(variable, constant);
 }
 
 // TODO return single intersection constraint from multi TribleSet Trible
@@ -463,10 +437,12 @@ export function dependencyState(varCount, constraints) {
 export class Query {
   constructor(
     constraint,
-    postProcessing = (r) => r,
+    vars,
+    postprocessing = (r) => r,
   ) {
     this.constraint = constraint;
-    this.postProcessing = postProcessing;
+    this.vars = vars;
+    this.postprocessing = postprocessing;
 
     this.unexploredVariables = new ByteBitset();
     constraint.variables(this.unexploredVariables);
@@ -476,8 +452,8 @@ export class Query {
   }
 
   *[Symbol.iterator]() {
-    for (const r of this.__resolve()) {
-      yield this.postProcessing(r);
+    for (const binding of this.__resolve()) {
+      yield this.postprocessing(this.vars, binding);
     }
   }
 
@@ -525,31 +501,9 @@ export class Variable {
     this.provider = provider;
     this.index = index;
     this.name = name;
-    this.upperBound = undefined;
-    this.lowerBound = undefined;
-    this.paths = [];
     this.decoder = null;
     this.encoder = null;
     this.blobcache = null;
-    this._constant = null;
-  }
-
-  constant(c) {
-    this._constant = c;
-    this.provider.constantVariables.push(this);
-    return this;
-  }
-
-  typed({ encoder, decoder }) {
-    this.encoder = encoder;
-    this.decoder = decoder;
-    return this;
-  }
-
-  ranged({ lower, upper }) {
-    this.lowerBound = lower;
-    this.upperBound = upper;
-    return this;
   }
 
   toString() {
@@ -558,6 +512,13 @@ export class Variable {
     }
     return `__anon__@${this.index}`;
   }
+
+  typed({ encoder, decoder }) {
+    this.encoder = encoder;
+    this.decoder = decoder;
+    return this;
+  }
+
   proposeBlobCache(blobcache) {
     // Todo check latency cost of blobcache, e.g. inMemory vs. S3.
     this.blobcache ||= blobcache;
@@ -619,36 +580,80 @@ export class VariableProvider {
   unnamedVars() {
     return new UnnamedSequence(this);
   }
+}
 
-  constraints() {
-    const constraints = [];
+/**
+ * TODO
+ * @param {Variable} variable - TODO
+ * @param {Type} type - TODO
+ * @param {Object} bounds - TODO
+ * @returns {Constraint} TODO
+ */
+export function ranged(
+  variable,
+  type,
+  { lower, upper },
+) {
+  variable.typed(type);
 
-    for (const constantVariable of this.constantVariables) {
-      constraints.push(
-        constantConstraint(constantVariable.index, constantVariable._constant),
-      );
-    }
+  let encodedLower = MIN_KEY;
+  let encodedUpper = MAX_KEY;
 
-    for (const { upperBound, lowerBound, encoder, index } of this.variables) {
-      let encodedLower = undefined;
-      let encodedUpper = undefined;
-
-      if (lowerBound !== undefined) {
-        encodedLower = new Uint8Array(VALUE_SIZE);
-        encoder(lowerBound, encodedLower);
-      }
-      if (upperBound !== undefined) {
-        encodedUpper = new Uint8Array(VALUE_SIZE);
-        encoder(upperBound, encodedUpper);
-      }
-
-      if (encodedLower !== undefined || encodedUpper !== undefined) {
-        constraints.push(rangeConstraint(index, encodedLower, encodedUpper));
-      }
-    }
-
-    return constraints;
+  if (lower !== undefined) {
+    encodedLower = new Uint8Array(VALUE_SIZE);
+    type.encoder(lower, encodedLower);
   }
+  if (upper !== undefined) {
+    encodedUpper = new Uint8Array(VALUE_SIZE);
+    type.encoder(upper, encodedUpper);
+  }
+  return new RangeConstraint(variable.index, encodedLower, encodedUpper);
+}
+
+/**
+ * TODO
+ * @param {Constraint} constraint - TODO
+ * @param {Variable} variable - TODO
+ * @returns {Constraint} TODO
+ */
+export function masked(constraint, maskedVariables) {
+  return new MaskedConstraint(constraint, maskedVariables.map((v) => v.index));
+}
+
+/**
+ * Create a constraint for the given variable to the values of the provided index.
+ * @param {Variable} variable - The constrained variable.
+ * @param {PACT} index - The constant values.
+ * @returns {Constraint} The constraint usable with other constraints or `find`.
+ */
+export function indexed(variable, index) {
+  return new IndexConstraint(variable.index, index);
+}
+
+/**
+ * Create a constraint for the given variable to the provided constant values.
+ * @param {Variable} variable - The constrained variable.
+ * @param {[Uint32Array]} collection - The constant values.
+ * @returns {Constraint} The constraint usable with other constraints or `find`.
+ */
+export function collection(variable, collection) {
+  const indexBatch = emptyValuePACT.batch();
+  for (const c of collection) {
+    indexBatch.put(c);
+  }
+  const index = indexBatch.complete();
+  return new IndexConstraint(variable.index, index);
+}
+
+/**
+ * Create a constraint for the given variable to the provided constant value.
+ * @param {Variable} variable - The constrained variable.
+ * @param {Uint32Array} constant - The constant value.
+ * @returns {Constraint} The constraint usable with other constraints or `find`.
+ */
+export function constant(variable, constant) {
+  if (constant.length !== VALUE_SIZE) throw new Error("Bad constant length.");
+  return new ConstantConstraint(variable.index, constant);
 }
 
 /**
@@ -658,6 +663,29 @@ export class VariableProvider {
  */
 export function and(...constraints) {
   return new IntersectionConstraint(constraints);
+}
+
+export function decodeWithBlobcache(vars, binding) {
+  const result = {};
+  for (
+    const {
+      index,
+      decoder,
+      name,
+      blobcache,
+    } of vars.namedVariables.values()
+  ) {
+    const encoded = binding.get(index);
+    const decoded = decoder(
+      encoded,
+      // Note that there is a potential attack vector here, if we ever want to do query level access control.
+      // An attacker could change the encoder to manipulate the encoded array and request a different blob.
+      // This would be solved by freezing the Array, but since it's typed and the spec designers unimaginative...
+      async () => await blobcache.get(encoded.slice()),
+    );
+    result[name] = decoded;
+  }
+  return result;
 }
 
 /**
@@ -673,43 +701,11 @@ export function and(...constraints) {
 /**
  * Create an iterable query object from the provided constraint function.
  * @param {queryFn} queryfn - A function representing the query.
+ * @param {postprocessingFn} postprocessing - A function that maps over the query results and coverts them to usable values.
  * @returns {Query} Enumerates possible variable assignments satisfying the input query.
  */
-export function find(queryfn) {
+export function find(queryfn, postprocessing = decodeWithBlobcache) {
   const vars = new VariableProvider();
-  const explicitConstraint = queryfn(vars.namedVars(), vars.unnamedVars());
-  const constraints = [explicitConstraint, ...vars.constraints()];
-  const constraint = new IntersectionConstraint(constraints);
-
-  const postProcessing = (r) => {
-    const result = {};
-    for (
-      const {
-        index,
-        decoder,
-        name,
-        blobcache,
-      } of vars.namedVariables.values()
-    ) {
-      const encoded = r.get(index);
-      Object.defineProperty(result, name, {
-        configurable: true,
-        enumerable: true,
-        get: function () {
-          delete this[name];
-          const decoded = decoder(
-            encoded,
-            // Note that there is a potential attack vector here, if we ever want to do query level access control.
-            // An attacker could change the encoder to manipulate the encoded array and request a different blob.
-            // This would be solved by freezing the Array, but since it's typed and the spec designers unimaginative...
-            async () => await blobcache.get(encoded.slice()),
-          );
-          return (this[name] = decoded);
-        },
-      });
-    }
-    return result;
-  };
-
-  return new Query(constraint, postProcessing);
+  const constraint = queryfn(vars.namedVars(), vars.unnamedVars());
+  return new Query(constraint, vars, postprocessing);
 }

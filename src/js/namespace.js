@@ -1,9 +1,10 @@
 import {
-  constantConstraint,
-  indexConstraint,
+  and,
+  constant,
+  find,
+  indexed,
   IntersectionConstraint,
-  MaskedConstraint,
-  Query,
+  masked,
   Variable,
 } from "./query.js";
 import { A, E, equalValue, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
@@ -141,32 +142,41 @@ export class NS {
   validator(middleware = (commit) => [commit]) {
     const self = this;
     return function* (commit) {
-      for (
-        const r of new Query(
-          new IntersectionConstraint([
-            indexConstraint(1, self.uniqueAttributeIndex),
-            commit.commitKB.tribleset.patternConstraint([[0, 1, 2]]),
-            commit.currentKB.tribleset.patternConstraint([[0, 1, 3]]),
-          ]),
-        )
-      ) {
-        if (!equalValue(r.get(2), r.get(3))) {
+      const unique = find(
+        ({ v1, v2 }, [e, a]) =>
+          and(
+            indexed(a, self.uniqueAttributeIndex),
+            commit.commitKB.tribleset.patternConstraint([[e, a, v1]]),
+            commit.currentKB.tribleset.patternConstraint([[e, a, v2]]),
+          ),
+        (variables, binding) => {
+          const { v1, v2 } = variables.namedVars();
+          return [binding.get(v1.index), binding.get(v2.index)];
+        },
+      );
+
+      for (const [v1, v2] of unique) {
+        if (!equalValue(v1, v2)) {
           throw Error(
             `constraint violation: multiple values for unique attribute`,
           );
         }
       }
 
-      for (
-        const r of new Query(
-          new IntersectionConstraint([
-            indexConstraint(1, self.uniqueInverseAttributeIndex),
-            commit.commitKB.tribleset.patternConstraint([[2, 1, 0]]),
-            commit.currentKB.tribleset.patternConstraint([[3, 1, 0]]),
-          ]),
-        )
-      ) {
-        if (!equalValue(r.get(2), r.get(3))) {
+      const inverseUnique = find(
+        ({ e1, e2 }, [a, v]) =>
+          and(
+            indexed(a, self.inverseAttributeIndex),
+            commit.commitKB.tribleset.patternConstraint([[e1, a, v]]),
+            commit.currentKB.tribleset.patternConstraint([[e2, a, v]]),
+          ),
+        (variables, binding) => {
+          const { e1, e2 } = variables.namedVars();
+          return [binding.get(e1.index), binding.get(e2.index)];
+        },
+      );
+      for (const [e1, e2] of inverseUnique) {
+        if (!equalValue(e1, e2)) {
           throw Error(
             `constraint violation: multiple entities for unique attribute value`,
           );
@@ -185,13 +195,17 @@ export class NS {
       isMany,
     } = this.attributes.get(attributeName);
 
-    const res = new Query(
-      new IntersectionConstraint([
-        constantConstraint(0, eEncodedId),
-        constantConstraint(1, aEncodedId),
-        kb.tribleset.patternConstraint([isInverse ? [2, 1, 0] : [0, 1, 2]]),
-      ]),
-      (r) => r.get(2),
+    const res = find(
+      ({ v }, [e, a]) =>
+        and(
+          constant(e, eEncodedId),
+          constant(a, aEncodedId),
+          kb.tribleset.patternConstraint([isInverse ? [v, a, e] : [e, a, v]]),
+        ),
+      (variables, binding) => {
+        const { v } = variables.namedVars();
+        return binding.get(v.index);
+      },
     );
 
     if (!isMany) {
@@ -269,15 +283,20 @@ export class NS {
           ) {
             return true;
           }
-          const { done } = new Query(
-            new IntersectionConstraint([
-              constantConstraint(0, eEncodedId),
-              constantConstraint(1, aEncodedId),
-              kb.tribleset.patternConstraint([
-                isInverse ? [2, 1, 0] : [0, 1, 2],
-              ]),
-            ]),
-          )[Symbol.iterator]().next();
+
+          const res = find(
+            ({}, [e, a, v]) =>
+              and(
+                constant(e, eEncodedId),
+                constant(a, aEncodedId),
+                kb.tribleset.patternConstraint([
+                  isInverse ? [v, a, e] : [e, a, v],
+                ]),
+              ),
+            (variables, binding) => {},
+          );
+
+          const { done } = res[Symbol.iterator]().next();
           return !done;
         },
         deleteProperty: function (_, attr) {
@@ -325,37 +344,48 @@ export class NS {
         },
         ownKeys: function (_) {
           const attrs = [id];
-          for (
-            const r of new Query(
-              new IntersectionConstraint([
-                constantConstraint(0, eEncodedId),
-                indexConstraint(1, ns.forwardAttributeIndex),
-                new MaskedConstraint(
-                  kb.tribleset.patternConstraint([[0, 1, 2]]),
-                  [2],
+          const forward = find(
+            ({ a }, [e, v]) =>
+              and(
+                constant(e, eEncodedId),
+                indexed(a, ns.forwardAttributeIndex),
+                masked(
+                  kb.tribleset.patternConstraint([[e, a, v]]),
+                  [v],
                 ),
-              ]),
-            )
-          ) {
-            const a = r.get(1);
+              ),
+            (variables, binding) => {
+              const { a } = variables.namedVars();
+              return binding.get(a.index);
+            },
+          );
+
+          debugger;
+
+          for (const a of forward) {
             attrs.push(
               ...ns.forwardAttributeIndex.get(a).map((attr) => attr.name),
             );
           }
 
-          for (
-            const r of new Query(
-              new IntersectionConstraint([
-                constantConstraint(0, eEncodedId),
-                indexConstraint(1, ns.inverseAttributeIndex),
-                new MaskedConstraint(
-                  kb.tribleset.patternConstraint([[2, 1, 0]]),
-                  [2],
+          const inverse = find(
+            ({ a }, [e, v]) =>
+              and(
+                constant(v, eEncodedId),
+                indexed(a, ns.inverseAttributeIndex),
+                masked(
+                  kb.tribleset.patternConstraint([[e, a, v]]),
+                  [e],
                 ),
-              ]),
-            )
+              ),
+            (variables, binding) => {
+              const { a } = variables.namedVars();
+              return binding.get(a.index);
+            },
+          );
+          for (
+            const a of inverse
           ) {
-            const a = r.get(1);
             attrs.push(
               ...ns.inverseAttributeIndex.get(a).map((attr) => attr.name),
             );
@@ -458,6 +488,7 @@ export class NS {
   triplesToPattern(vars, triples) {
     const { encoder: idEncoder, decoder: idDecoder } = this.ids;
     const pattern = [];
+    const constraints = [];
     for (const [e, a, v] of triples) {
       const attributeDescription = this.attributes.get(a);
       let eVar;
@@ -466,27 +497,21 @@ export class NS {
 
       // Entity
       if (e instanceof Variable) {
-        e.decoder ??= idDecoder;
-        e.encoder ??= idEncoder;
-        eVar = e;
+        eVar = e.typed(this.ids);
       } else {
         const eb = new Uint8Array(VALUE_SIZE);
         idEncoder(e, eb);
         [eVar] = vars;
-        eVar.constant(eb);
+        constraints.push(constant(eVar, eb));
       }
 
       // Attribute
       [aVar] = vars;
-
-      aVar.constant(attributeDescription.encodedId);
+      constraints.push(constant(aVar, attributeDescription.encodedId));
 
       // Value
       if (v instanceof Variable) {
-        const { decoder, encoder } = attributeDescription;
-        v.decoder ??= decoder;
-        v.encoder ??= encoder;
-        vVar = v;
+        vVar = v.typed(attributeDescription);
       } else {
         const encoder = attributeDescription.encoder;
         const b = new Uint8Array(VALUE_SIZE);
@@ -496,12 +521,12 @@ export class NS {
           throw Error(`Error encoding value: ${error.message}`);
         }
         [vVar] = vars;
-        vVar.constant(b);
+        constraints.push(constant(vVar, b));
       }
       pattern.push([eVar, aVar, vVar]);
     }
 
-    return pattern;
+    return { pattern, constraints };
   }
 
   /**
@@ -544,8 +569,9 @@ export class NS {
       vars,
       entities,
     );
-    const pattern = this.triplesToPattern(vars, triples);
-    return source.patternConstraint(pattern);
+    const { pattern, constraints } = this.triplesToPattern(vars, triples);
+
+    return and(...constraints, source.patternConstraint(pattern));
   }
 
   /**

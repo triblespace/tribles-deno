@@ -569,7 +569,9 @@ export class TribleSet {
 
   patternConstraint(triples) {
     return new IntersectionConstraint(
-      triples.map(([e, a, v]) => new TribleConstraint(this, e, a, v)),
+      triples.map(([e, a, v]) =>
+        new TribleConstraint(this, e.index, a.index, v.index)
+      ),
     );
   }
 

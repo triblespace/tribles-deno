@@ -29,9 +29,7 @@ export class KB {
     for (const [_e, _a, v] of pattern) {
       v.proposeBlobCache(this.blobcache);
     }
-    return this.tribleset.patternConstraint(
-      pattern.map(([e, a, v]) => [e.index, a.index, v.index]),
-    );
+    return this.tribleset.patternConstraint(pattern);
   }
 
   /**

@@ -1526,9 +1526,6 @@ class IndexConstraint {
         return this.cursor.segmentCount();
     }
 }
-function indexConstraint(variable, index) {
-    return new IndexConstraint(variable, index);
-}
 class RangeConstraint {
     constructor(variable, lowerBound, upperBound){
         this.lowerBound = lowerBound;
@@ -1579,9 +1576,6 @@ class RangeConstraint {
 }
 const MIN_KEY = new Uint8Array(32).fill(0);
 const MAX_KEY = new Uint8Array(32).fill(~0);
-function rangeConstraint(variable, lowerBound = MIN_KEY, upperBound = MAX_KEY) {
-    return new RangeConstraint(variable, lowerBound, upperBound);
-}
 class ConstantConstraint {
     constructor(variable, constant){
         this.variable = variable;
@@ -1613,10 +1607,6 @@ class ConstantConstraint {
     variableCosts(_variable) {
         return 1;
     }
-}
-function constantConstraint(variable, constant) {
-    if (constant.length !== 32) throw new Error("Bad constant length.");
-    return new ConstantConstraint(variable, constant);
 }
 const IntersectionConstraint = class {
     constructor(constraints){
@@ -1848,17 +1838,18 @@ class Bindings {
     }
 }
 class Query {
-    constructor(constraint, postProcessing = (r)=>r){
+    constructor(constraint, vars, postprocessing = (r)=>r){
         this.constraint = constraint;
-        this.postProcessing = postProcessing;
+        this.vars = vars;
+        this.postprocessing = postprocessing;
         this.unexploredVariables = new ByteBitset();
         constraint.variables(this.unexploredVariables);
         const variableCount = this.unexploredVariables.count();
         this.bindings = new Bindings(variableCount);
     }
     *[Symbol.iterator]() {
-        for (const r of this.__resolve()){
-            yield this.postProcessing(r);
+        for (const binding of this.__resolve()){
+            yield this.postprocessing(this.vars, binding);
         }
     }
     *__resolve() {
@@ -1897,22 +1888,9 @@ class Variable {
         this.provider = provider;
         this.index = index;
         this.name = name;
-        this.upperBound = undefined;
-        this.lowerBound = undefined;
-        this.paths = [];
         this.decoder = null;
         this.encoder = null;
         this.blobcache = null;
-    }
-    typed({ encoder , decoder  }) {
-        this.encoder = encoder;
-        this.decoder = decoder;
-        return this;
-    }
-    ranged({ lower , upper  }) {
-        this.lowerBound = lower;
-        this.upperBound = upper;
-        return this;
     }
     toString() {
         if (this.name) {
@@ -1920,9 +1898,31 @@ class Variable {
         }
         return `__anon__@${this.index}`;
     }
+    typed({ encoder , decoder  }) {
+        this.encoder = encoder;
+        this.decoder = decoder;
+        return this;
+    }
     proposeBlobCache(blobcache) {
         this.blobcache ||= blobcache;
         return this;
+    }
+}
+class UnnamedSequence {
+    constructor(provider){
+        this.provider = provider;
+    }
+    [Symbol.iterator]() {
+        return this;
+    }
+    next() {
+        const variable = new Variable(this.provider, this.provider.nextVariableIndex);
+        this.provider.unnamedVariables.push(variable);
+        this.provider.variables.push(variable);
+        this.provider.nextVariableIndex++;
+        return {
+            value: variable
+        };
     }
 }
 class VariableProvider {
@@ -1931,11 +1931,11 @@ class VariableProvider {
         this.variables = [];
         this.unnamedVariables = [];
         this.namedVariables = new Map();
-        this.constantVariables = emptyValuePACT;
+        this.constantVariables = [];
         this.isBlocking = [];
         this.projected = new Set();
     }
-    namedCache() {
+    namedVars() {
         return new Proxy({}, {
             get: (_, name)=>{
                 let variable = this.namedVariables.get(name);
@@ -1951,228 +1951,59 @@ class VariableProvider {
             }
         });
     }
-    unnamed() {
-        const variable = new Variable(this, this.nextVariableIndex);
-        this.unnamedVariables.push(variable);
-        this.variables.push(variable);
-        this.projected.add(this.nextVariableIndex);
-        this.nextVariableIndex++;
-        return variable;
+    unnamedVars() {
+        return new UnnamedSequence(this);
     }
-    constant(c) {
-        let variable = this.constantVariables.get(c);
-        if (!variable) {
-            variable = new Variable(this, this.nextVariableIndex);
-            variable.constant = c;
-            this.constantVariables = this.constantVariables.put(c, variable);
-            this.variables.push(variable);
-            this.projected.add(this.nextVariableIndex);
-            this.nextVariableIndex++;
-        }
-        return variable;
+}
+function ranged(variable, type, { lower , upper  }) {
+    variable.typed(type);
+    let encodedLower = MIN_KEY;
+    let encodedUpper = MAX_KEY;
+    if (lower !== undefined) {
+        encodedLower = new Uint8Array(VALUE_SIZE);
+        type.encoder(lower, encodedLower);
     }
-    constraints() {
-        const constraints = [];
-        for (const constantVariable of this.constantVariables.values()){
-            constraints.push(constantConstraint(constantVariable.index, constantVariable.constant));
-        }
-        for (const { upperBound , lowerBound , encoder , index  } of this.variables){
-            let encodedLower = undefined;
-            let encodedUpper = undefined;
-            if (lowerBound !== undefined) {
-                encodedLower = new Uint8Array(VALUE_SIZE);
-                encoder(lowerBound, encodedLower);
-            }
-            if (upperBound !== undefined) {
-                encodedUpper = new Uint8Array(VALUE_SIZE);
-                encoder(upperBound, encodedUpper);
-            }
-            if (encodedLower !== undefined || encodedUpper !== undefined) {
-                constraints.push(rangeConstraint(index, encodedLower, encodedUpper));
-            }
-        }
-        return constraints;
+    if (upper !== undefined) {
+        encodedUpper = new Uint8Array(VALUE_SIZE);
+        type.encoder(upper, encodedUpper);
     }
+    return new RangeConstraint(variable.index, encodedLower, encodedUpper);
+}
+function masked(constraint, maskedVariables) {
+    return new MaskedConstraint(constraint, maskedVariables.map((v1)=>v1.index));
+}
+function indexed(variable, index) {
+    return new IndexConstraint(variable.index, index);
+}
+function collection(variable, collection) {
+    const indexBatch = emptyValuePACT.batch();
+    for (const c of collection){
+        indexBatch.put(c);
+    }
+    const index = indexBatch.complete();
+    return new IndexConstraint(variable.index, index);
+}
+function constant(variable, constant) {
+    if (constant.length !== 32) throw new Error("Bad constant length.");
+    return new ConstantConstraint(variable.index, constant);
 }
 function and(...constraints) {
     return new IntersectionConstraint(constraints);
 }
-function find(queryfn) {
+function decodeWithBlobcache(vars, binding) {
+    const result = {};
+    for (const { index , decoder , name , blobcache  } of vars.namedVariables.values()){
+        const encoded = binding.get(index);
+        const decoded = decoder(encoded, async ()=>await blobcache.get(encoded.slice()));
+        result[name] = decoded;
+    }
+    return result;
+}
+function find(queryfn, postprocessing = decodeWithBlobcache) {
     const vars = new VariableProvider();
-    const constraintBuilder = queryfn(vars.namedCache());
-    const constraints = [
-        constraintBuilder(vars),
-        ...vars.constraints()
-    ];
-    const constraint = new IntersectionConstraint(constraints);
-    const postProcessing = (r)=>{
-        const result = {};
-        for (const { index , decoder , name , blobcache  } of vars.namedVariables.values()){
-            const encoded = r.get(index);
-            Object.defineProperty(result, name, {
-                configurable: true,
-                enumerable: true,
-                get: function() {
-                    delete this[name];
-                    const decoded = decoder(encoded, async ()=>await blobcache.get(encoded.slice()));
-                    return this[name] = decoded;
-                }
-            });
-        }
-        return result;
-    };
-    return new Query(constraint, postProcessing);
+    const constraint = queryfn(vars.namedVars(), vars.unnamedVars());
+    return new Query(constraint, vars, postprocessing);
 }
-const id = Symbol("id");
-class NS {
-    constructor(decl){
-        const attributes = new Map();
-        let forwardAttributeIndex = emptyValuePACT;
-        let inverseAttributeIndex = emptyValuePACT;
-        const newUniqueAttributeIndex = emptyValuePACT.batch();
-        const newUniqueInverseAttributeIndex = emptyValuePACT.batch();
-        const idDescription = decl[id];
-        if (!idDescription) {
-            throw Error(`Incomplete namespace: Missing [id] field.`);
-        }
-        if (!idDescription.decoder) {
-            throw Error(`Incomplete namespace: Missing [id] decoder.`);
-        }
-        if (!idDescription.encoder) {
-            throw Error(`Incomplete namespace: Missing [id] encoder.`);
-        }
-        if (!idDescription.factory) {
-            throw Error(`Incomplete namespace: Missing [id] factory.`);
-        }
-        for (const [attributeName, attributeDescription] of Object.entries(decl)){
-            if (attributeDescription.isInverse && !attributeDescription.isLink) {
-                throw Error(`Bad options in namespace attribute ${attributeName}:
-                Only links can be inversed.`);
-            }
-            if (!attributeDescription.isLink && !attributeDescription.decoder) {
-                throw Error(`Missing decoder in namespace for attribute ${attributeName}.`);
-            }
-            if (!attributeDescription.isLink && !attributeDescription.encoder) {
-                throw Error(`Missing encoder in namespace for attribute ${attributeName}.`);
-            }
-            const encodedId = new Uint8Array(32);
-            idDescription.encoder(attributeDescription.id, encodedId);
-            const description = {
-                ...attributeDescription,
-                encodedId,
-                name: attributeName
-            };
-            attributes.set(attributeName, description);
-            if (description.isInverse) {
-                inverseAttributeIndex = inverseAttributeIndex.put(description.encodedId, [
-                    ...inverseAttributeIndex.get(description.encodedId) || [],
-                    description
-                ]);
-            } else {
-                forwardAttributeIndex = forwardAttributeIndex.put(description.encodedId, [
-                    ...forwardAttributeIndex.get(description.encodedId) || [],
-                    description
-                ]);
-            }
-        }
-        for (const [_, attributeDescription1] of attributes){
-            if (attributeDescription1.isLink) {
-                attributeDescription1.encoder = idDescription.encoder;
-                attributeDescription1.decoder = idDescription.decoder;
-            }
-        }
-        for (const { encodedId: encodedId1 , isMany , isInverse  } of attributes.values()){
-            if (!isMany) {
-                if (isInverse) {
-                    newUniqueInverseAttributeIndex.put(encodedId1);
-                } else {
-                    newUniqueAttributeIndex.put(encodedId1);
-                }
-            }
-        }
-        this.ids = idDescription;
-        this.attributes = attributes;
-        this.forwardAttributeIndex = forwardAttributeIndex;
-        this.inverseAttributeIndex = inverseAttributeIndex;
-        this.uniqueAttributeIndex = newUniqueAttributeIndex.complete();
-        this.uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.complete();
-    }
-    validator(middleware = (commits)=>commits) {
-        const self = this;
-        return function*(commits) {
-            for (const commit of middleware(commits)){
-                for (const r of new Query(new IntersectionConstraint([
-                    indexConstraint(1, self.uniqueAttributeIndex),
-                    commit.commitKB.tribleset.patternConstraint([
-                        [
-                            0,
-                            1,
-                            2
-                        ]
-                    ]),
-                    commit.currentKB.tribleset.patternConstraint([
-                        [
-                            0,
-                            1,
-                            3
-                        ]
-                    ])
-                ]))){
-                    if (!equalValue(r.get(2), r.get(3))) {
-                        throw Error(`constraint violation: multiple values for unique attribute`);
-                    }
-                }
-                for (const r1 of new Query(new IntersectionConstraint([
-                    indexConstraint(1, self.uniqueInverseAttributeIndex),
-                    commit.commitKB.tribleset.patternConstraint([
-                        [
-                            2,
-                            1,
-                            0
-                        ]
-                    ]),
-                    commit.currentKB.tribleset.patternConstraint([
-                        [
-                            3,
-                            1,
-                            0
-                        ]
-                    ])
-                ]))){
-                    if (!equalValue(r1.get(2), r1.get(3))) {
-                        throw Error(`constraint violation: multiple entities for unique attribute value`);
-                    }
-                }
-                yield commit;
-            }
-        };
-    }
-}
-const signatureId = UFOID.now();
-const emailId = UFOID.now();
-const firstNameId = UFOID.now();
-const lastNameId = UFOID.now();
-const authNS = {
-    [id]: {
-        ...types.ufoid
-    },
-    pubkey: {
-        id: signatureId,
-        ...types.blaked25519PubKey
-    },
-    authorEmail: {
-        id: emailId,
-        ...types.shortstring
-    },
-    authorFirstName: {
-        id: firstNameId,
-        ...types.shortstring
-    },
-    authorLastName: {
-        id: lastNameId,
-        ...types.shortstring
-    }
-};
 const stack_empty = 0;
 const stack_e = 1;
 const stack_a = 2;
@@ -2213,334 +2044,7 @@ function serialize(tribleset, metaId, secret) {
     }
     return sign(secret, tribles_count);
 }
-class FOMemTribleConstraint {
-    constructor(tribleSet, e, a, v1){
-        if (e === a || e === v1 || a == v1) {
-            throw new Error("Triple variables must be uniqe. Use explicit equality when inner constraints are required.");
-        }
-        this.state = stack_empty;
-        this.eVar = e;
-        this.aVar = a;
-        this.vVar = v1;
-        this.eavCursor = new PaddedCursor(tribleSet.EAV.cursor(), tribleSet.EAV.segments, 32);
-        this.aevCursor = new PaddedCursor(tribleSet.AEV.cursor(), tribleSet.AEV.segments, 32);
-        this.aveCursor = new PaddedCursor(tribleSet.AVE.cursor(), tribleSet.AVE.segments, 32);
-    }
-    peekByte() {
-        switch(this.state){
-            case 0:
-                throw new error("unreachable");
-            case 1:
-                return this.eavCursor.peek();
-            case 2:
-                return this.aevCursor.peek();
-            case 4:
-                return this.eavCursor.peek();
-            case 6:
-                return this.aevCursor.peek();
-            case 7:
-                return this.aveCursor.peek();
-            case 10:
-                return this.eavCursor.peek();
-            case 12:
-                return this.aevCursor.peek();
-            case 13:
-                return this.aveCursor.peek();
-        }
-    }
-    proposeByte(bitset) {
-        switch(this.state){
-            case 0:
-                throw new error("unreachable");
-            case 1:
-                this.eavCursor.propose(bitset);
-                return;
-            case 2:
-                this.aevCursor.propose(bitset);
-                return;
-            case 4:
-                this.eavCursor.propose(bitset);
-                return;
-            case 6:
-                this.aevCursor.propose(bitset);
-                return;
-            case 7:
-                this.aveCursor.propose(bitset);
-                return;
-            case 10:
-                this.eavCursor.propose(bitset);
-                return;
-            case 12:
-                this.aevCursor.propose(bitset);
-                return;
-            case 13:
-                this.aveCursor.propose(bitset);
-                return;
-        }
-    }
-    pushByte(__byte) {
-        switch(this.state){
-            case 0:
-                throw new error("unreachable");
-            case 1:
-                this.eavCursor.push(__byte);
-                return;
-            case 2:
-                this.aevCursor.push(__byte);
-                this.aveCursor.push(__byte);
-                return;
-            case 4:
-                this.eavCursor.push(__byte);
-                return;
-            case 6:
-                this.aevCursor.push(__byte);
-                return;
-            case 7:
-                this.aveCursor.push(__byte);
-                return;
-            case 10:
-                this.eavCursor.push(__byte);
-                return;
-            case 12:
-                this.aevCursor.push(__byte);
-                return;
-            case 13:
-                this.aveCursor.push(__byte);
-                return;
-        }
-    }
-    popByte() {
-        switch(this.state){
-            case 0:
-                throw new error("unreachable");
-            case 1:
-                this.eavCursor.pop();
-                return;
-            case 2:
-                this.aevCursor.pop();
-                this.aveCursor.pop();
-                return;
-            case 4:
-                this.eavCursor.pop();
-                return;
-            case 6:
-                this.aevCursor.pop();
-                return;
-            case 7:
-                this.aveCursor.pop();
-                return;
-            case 10:
-                this.eavCursor.pop();
-                return;
-            case 12:
-                this.aevCursor.pop();
-                return;
-            case 13:
-                this.aveCursor.pop();
-                return;
-        }
-    }
-    variables(bitset) {
-        bitset.unsetAll();
-        bitset.set(this.eVar);
-        bitset.set(this.aVar);
-        bitset.set(this.vVar);
-    }
-    blocked(bitset) {
-        bitset.unsetAll();
-        switch(this.state){
-            case 0:
-            case 1:
-                bitset.set(this.vVar);
-                return;
-            default:
-                return;
-        }
-    }
-    pushVariable(variable) {
-        if (this.eVar === variable) {
-            switch(this.state){
-                case 0:
-                    this.state = stack_e;
-                    return;
-                case 2:
-                    this.state = stack_ae;
-                    return;
-                case 7:
-                    this.state = stack_ave;
-                    return;
-                default:
-                    throw new Error("unreachable");
-            }
-        }
-        if (this.aVar === variable) {
-            switch(this.state){
-                case 0:
-                    this.state = stack_a;
-                    return;
-                case 1:
-                    this.state = stack_ea;
-                    return;
-                default:
-                    throw new Error("unreachable");
-            }
-        }
-        if (this.vVar == variable) {
-            switch(this.state){
-                case 2:
-                    this.state = stack_av;
-                    return;
-                case 4:
-                    this.state = stack_eav;
-                    return;
-                case 6:
-                    this.state = stack_aev;
-                    return;
-                default:
-                    throw new Error("unreachable");
-                    return;
-            }
-        }
-    }
-    popVariable() {
-        switch(this.state){
-            case 1:
-            case 2:
-                this.state = stack_empty;
-                return;
-            case 4:
-                this.state = stack_e;
-                return;
-            case 6:
-            case 7:
-                this.state = stack_a;
-                return;
-            case 10:
-                this.state = stack_ea;
-                return;
-            case 12:
-                this.state = stack_ae;
-                return;
-            case 13:
-                this.state = stack_av;
-                return;
-            default:
-                throw new Error("unreachable");
-        }
-    }
-    variableCosts(variable) {
-        if (this.eVar === variable) {
-            switch(this.state){
-                case 0:
-                    return this.eavCursor.segmentCount();
-                case 2:
-                    return this.aevCursor.segmentCount();
-                case 7:
-                    return this.aveCursor.segmentCount();
-                default:
-                    throw new Error("unreachable");
-            }
-        }
-        if (this.aVar === variable) {
-            switch(this.state){
-                case 0:
-                    return this.aevCursor.segmentCount();
-                case 1:
-                    return this.eavCursor.segmentCount();
-                default:
-                    throw new Error("unreachable");
-            }
-        }
-        if (this.vVar === variable) {
-            switch(this.state){
-                case 1:
-                    return this.evaCursor.segmentCount();
-                case 2:
-                    return this.aveCursor.segmentCount();
-                case 4:
-                    return this.eavCursor.segmentCount();
-                case 6:
-                    return this.aevCursor.segmentCount();
-                default:
-                    throw new Error("unreachable");
-            }
-        }
-    }
-}
-function fo_flush_trible_buffer(buffer, EAV, AEV, AVE) {
-    for (const trible of buffer){
-        EAV.put(scrambleEAV(trible));
-    }
-    for (const trible1 of buffer){
-        AEV.put(scrambleAEV(trible1));
-    }
-    for (const trible2 of buffer){
-        AVE.put(scrambleAVE(trible2));
-    }
-}
-class FOTribleSet {
-    constructor(EAV = emptyIdIdValueTriblePACT, AEV = emptyIdIdValueTriblePACT, AVE = emptyIdValueIdTriblePACT){
-        this.EAV = EAV;
-        this.AEV = AEV;
-        this.AVE = AVE;
-    }
-    with(tribles) {
-        const EAV = this.EAV.batch();
-        const AEV = this.AEV.batch();
-        const AVE = this.AVE.batch();
-        const buffer = new Array(64);
-        buffer.length = 0;
-        for (const t of tribles){
-            buffer.push(t);
-            if (buffer.length === 64) {
-                fo_flush_trible_buffer(buffer, EAV, AEV, AVE);
-                buffer.length = 0;
-            }
-        }
-        fo_flush_trible_buffer(buffer, EAV, AEV, AVE);
-        return new FOTribleSet(EAV.complete(), AEV.complete(), AVE.complete());
-    }
-    tribles() {
-        return this.EAV.keys();
-    }
-    tripleConstraint([e, a, v1]) {
-        return new FOMemTribleConstraint(this, e, a, v1);
-    }
-    patternConstraint(triples) {
-        return new IntersectionConstraint(triples.map(([e, a, v1])=>new FOMemTribleConstraint(this, e, a, v1)));
-    }
-    count() {
-        return this.EAV.count();
-    }
-    empty() {
-        return new FOTribleSet();
-    }
-    isEmpty() {
-        return this.EAV.isEmpty();
-    }
-    isEqual(other) {
-        return this.EAV.isEqual(other.EAV);
-    }
-    isSubsetOf(other) {
-        return this.EAV.isSubsetOf(other.indexE);
-    }
-    isIntersecting(other) {
-        return this.EAV.isIntersecting(other.indexE);
-    }
-    union(other) {
-        return new FOTribleSet(this.EAV.union(other.EAV), this.AEV.union(other.AEV), this.AVE.union(other.AVE));
-    }
-    subtract(other) {
-        return new FOTribleSet(this.EAV.subtract(other.EAV), this.AEV.subtract(other.AEV), this.AVE.subtract(other.AVE));
-    }
-    difference(other) {
-        return new FOTribleSet(this.EAV.difference(other.EAV), this.AEV.difference(other.AEV), this.AVE.difference(other.AVE));
-    }
-    intersect(other) {
-        return new FOTribleSet(this.EAV.intersect(other.EAV), this.AEV.intersect(other.AEV), this.AVE.intersect(other.AVE));
-    }
-}
-class HOMemTribleConstraint {
+class TribleConstraint {
     constructor(tribleSet, e, a, v1){
         if (e === a || e === v1 || a == v1) {
             throw new Error("Triple variables must be uniqe. Use explicit equality when inner constraints are required.");
@@ -2918,27 +2422,7 @@ class HOMemTribleConstraint {
         }
     }
 }
-function ho_flush_trible_buffer(buffer, EAV, EVA, AEV, AVE, VEA, VAE) {
-    for (const trible of buffer){
-        EAV.put(scrambleEAV(trible));
-    }
-    for (const trible1 of buffer){
-        EVA.put(scrambleEVA(trible1));
-    }
-    for (const trible2 of buffer){
-        AEV.put(scrambleAEV(trible2));
-    }
-    for (const trible3 of buffer){
-        AVE.put(scrambleAVE(trible3));
-    }
-    for (const trible4 of buffer){
-        VEA.put(scrambleVEA(trible4));
-    }
-    for (const trible5 of buffer){
-        VAE.put(scrambleVAE(trible5));
-    }
-}
-class HOTribleSet {
+class TribleSet {
     constructor(EAV = emptyIdIdValueTriblePACT, EVA = emptyIdValueIdTriblePACT, AEV = emptyIdIdValueTriblePACT, AVE = emptyIdValueIdTriblePACT, VEA = emptyValueIdIdTriblePACT, VAE = emptyValueIdIdTriblePACT){
         this.EAV = EAV;
         this.EVA = EVA;
@@ -2954,32 +2438,30 @@ class HOTribleSet {
         const AVE = this.AVE.batch();
         const VEA = this.VEA.batch();
         const VAE = this.VAE.batch();
-        const buffer = new Array(64);
-        buffer.length = 0;
-        for (const t of tribles){
-            buffer.push(t);
-            if (buffer.length === 64) {
-                ho_flush_trible_buffer(buffer, EAV, EVA, AEV, AVE, VEA, VAE);
-                buffer.length = 0;
-            }
+        for (const trible of tribles){
+            EAV.put(scrambleEAV(trible));
+            EVA.put(scrambleEVA(trible));
+            AEV.put(scrambleAEV(trible));
+            AVE.put(scrambleAVE(trible));
+            VEA.put(scrambleVEA(trible));
+            VAE.put(scrambleVAE(trible));
         }
-        ho_flush_trible_buffer(buffer, EAV, EVA, AEV, AVE, VEA, VAE);
-        return new HOTribleSet(EAV.complete(), EVA.complete(), AEV.complete(), AVE.complete(), VEA.complete(), VAE.complete());
+        return new TribleSet(EAV.complete(), EVA.complete(), AEV.complete(), AVE.complete(), VEA.complete(), VAE.complete());
     }
     tribles() {
         return this.EAV.keys();
     }
     tripleConstraint([e, a, v1]) {
-        return new HOMemTribleConstraint(this, e, a, v1);
+        return new TribleConstraint(this, e, a, v1);
     }
     patternConstraint(triples) {
-        return new IntersectionConstraint(triples.map(([e, a, v1])=>new HOMemTribleConstraint(this, e, a, v1)));
+        return new IntersectionConstraint(triples.map(([e, a, v1])=>new TribleConstraint(this, e.index, a.index, v1.index)));
     }
     count() {
         return this.EAV.count();
     }
     empty() {
-        return new HOTribleSet();
+        return new TribleSet();
     }
     isEmpty() {
         return this.EAV.isEmpty();
@@ -2994,16 +2476,16 @@ class HOTribleSet {
         return this.EAV.isIntersecting(other.indexE);
     }
     union(other) {
-        return new HOTribleSet(this.EAV.union(other.EAV), this.EVA.union(other.EVA), this.AEV.union(other.AEV), this.AVE.union(other.AVE), this.VEA.union(other.VEA), this.VAE.union(other.VAE));
+        return new TribleSet(this.EAV.union(other.EAV), this.EVA.union(other.EVA), this.AEV.union(other.AEV), this.AVE.union(other.AVE), this.VEA.union(other.VEA), this.VAE.union(other.VAE));
     }
     subtract(other) {
-        return new HOTribleSet(this.EAV.subtract(other.EAV), this.EVA.subtract(other.EVA), this.AEV.subtract(other.AEV), this.AVE.subtract(other.AVE), this.VEA.subtract(other.VEA), this.VAE.subtract(other.VAE));
+        return new TribleSet(this.EAV.subtract(other.EAV), this.EVA.subtract(other.EVA), this.AEV.subtract(other.AEV), this.AVE.subtract(other.AVE), this.VEA.subtract(other.VEA), this.VAE.subtract(other.VAE));
     }
     difference(other) {
-        return new HOTribleSet(this.EAV.difference(other.EAV), this.EVA.difference(other.EVA), this.AEV.difference(other.AEV), this.AVE.difference(other.AVE), this.VEA.difference(other.VEA), this.VAE.difference(other.VAE));
+        return new TribleSet(this.EAV.difference(other.EAV), this.EVA.difference(other.EVA), this.AEV.difference(other.AEV), this.AVE.difference(other.AVE), this.VEA.difference(other.VEA), this.VAE.difference(other.VAE));
     }
     intersect(other) {
-        return new HOTribleSet(this.EAV.intersect(other.EAV), this.EVA.intersect(other.EVA), this.AEV.intersect(other.AEV), this.AVE.intersect(other.AVE), this.VEA.intersect(other.VEA), this.VAE.intersect(other.VAE));
+        return new TribleSet(this.EAV.intersect(other.EAV), this.EVA.intersect(other.EVA), this.AEV.intersect(other.AEV), this.AVE.intersect(other.AVE), this.VEA.intersect(other.VEA), this.VAE.intersect(other.VAE));
     }
 }
 function padded(length, alignment) {
@@ -3078,17 +2560,20 @@ class BlobCache {
         this.weak = weak;
         this.onMiss = onMiss;
     }
-    put(trible, blob) {
+    with(blobs) {
         let weak = this.weak;
-        let new_or_cached_blob = blob;
-        const key = V(trible);
-        const cached_blob = this.weak.get(key).deref();
-        if (cached_blob === undefined) {
-            weak = weak.put(key, new WeakRef(blob));
-        } else {
-            new_or_cached_blob = cached_blob;
+        let strong = this.strong;
+        for (const [trible, blob] of blobs){
+            const key = V(trible);
+            const cached_blob = this.weak.get(key).deref();
+            let new_or_cached_blob = blob;
+            if (cached_blob === undefined) {
+                weak = weak.put(key, new WeakRef(blob));
+            } else {
+                new_or_cached_blob = cached_blob;
+            }
+            strong = strong.put(scrambleVAE(trible), new_or_cached_blob);
         }
-        const strong = this.strong.put(scrambleVAE(trible), new_or_cached_blob);
         return new BlobCache(this.onMiss, strong, weak);
     }
     async get(key) {
@@ -3134,380 +2619,28 @@ class BlobCache {
         return new BlobCache(this.onMiss, this.strong.empty(), this.weak.empty());
     }
     union(other) {
-        if (this.onMiss !== other.onMiss) {
-            throw new Error("Can only operate on two BlobCaches with the same onMiss handler.");
-        }
         return new BlobCache(this.onMiss, this.strong.union(other.strong), this.weak.union(other.weak));
     }
     subtract(other) {
-        if (this.onMiss !== other.onMiss) {
-            throw new Error("Can only operate on two BlobCaches with the same onMiss handler.");
-        }
         return new BlobCache(this.onMiss, this.strong.subtract(other.strong), this.weak.union(other.weak));
     }
     difference(other) {
-        if (this.onMiss !== other.onMiss) {
-            throw new Error("Can only operate on two BlobCaches with the same onMiss handler.");
-        }
         return new BlobCache(this.onMiss, this.strong.difference(other.strong), this.weak.union(other.weak));
     }
     intersect(other) {
-        if (this.onMiss !== other.onMiss) {
-            throw new Error("Can only operate on two BlobCaches with the same onMiss handler.");
-        }
         return new BlobCache(this.onMiss, this.strong.intersect(other.strong), this.weak.union(other.weak));
     }
 }
-const assert = (test, message)=>{
-    if (!test) {
-        throw Error(message);
-    }
-};
-const lookup1 = (ns, kb, eEncodedId, attributeName)=>{
-    let { encodedId: aEncodedId , decoder , isLink , isInverse , isMany  } = ns.attributes.get(attributeName);
-    const res = new Query(new IntersectionConstraint([
-        constantConstraint(0, eEncodedId),
-        constantConstraint(1, aEncodedId),
-        kb.tribleset.patternConstraint([
-            isInverse ? [
-                2,
-                1,
-                0
-            ] : [
-                0,
-                1,
-                2
-            ]
-        ])
-    ]), (r)=>r.get(2));
-    if (!isMany) {
-        const { done , value  } = res[Symbol.iterator]().next();
-        if (done) return {
-            found: false
-        };
-        return {
-            found: true,
-            result: isLink ? entityProxy(ns, kb, decoder(value.slice())) : decoder(value.slice(), async ()=>await kb.blobcache.get(value))
-        };
-    } else {
-        const results = [];
-        for (const value1 of res){
-            results.push(isLink ? entityProxy(ns, kb, decoder(value1.slice())) : decoder(value1.slice(), async ()=>await kb.blobcache.get(value1)));
-        }
-        return {
-            found: true,
-            result: results
-        };
-    }
-};
-const entityProxy = function entityProxy(ns, kb, eId) {
-    const eEncodedId = new Uint8Array(32);
-    ns.ids.encoder(eId, eEncodedId);
-    return new Proxy({
-        [id]: eId
-    }, {
-        get: function(o, attributeName) {
-            if (!ns.attributes.has(attributeName)) {
-                return undefined;
-            }
-            if (attributeName in o) {
-                return o[attributeName];
-            }
-            const { found , result  } = lookup1(ns, kb, eEncodedId, attributeName);
-            if (found) {
-                Object.defineProperty(o, attributeName, {
-                    value: result,
-                    writable: false,
-                    configurable: false,
-                    enumerable: true
-                });
-                return result;
-            }
-            return undefined;
-        },
-        set: function(_, _attributeName) {
-            throw TypeError("Error: Entities are not writable, please use 'with' on the walked KB.");
-        },
-        has: function(o, attributeName) {
-            if (!ns.attributes.has(attributeName)) {
-                return false;
-            }
-            const { encodedId: aEncodedId , isInverse , isMany  } = ns.attributes.get(attributeName);
-            if (attributeName in o || isMany) {
-                return true;
-            }
-            const { done  } = new Query(new IntersectionConstraint([
-                constantConstraint(0, eEncodedId),
-                constantConstraint(1, aEncodedId),
-                kb.tribleset.patternConstraint([
-                    isInverse ? [
-                        2,
-                        1,
-                        0
-                    ] : [
-                        0,
-                        1,
-                        2
-                    ]
-                ])
-            ]))[Symbol.iterator]().next();
-            return !done;
-        },
-        deleteProperty: function(_, attr) {
-            throw TypeError("Error: Entities are not writable, furthermore KBs are append only.");
-        },
-        setPrototypeOf: function(_) {
-            throw TypeError("Error: Entities are not writable and can only be POJOs.");
-        },
-        isExtensible: function(_) {
-            return true;
-        },
-        preventExtensions: function(_) {
-            return false;
-        },
-        defineProperty: function(_, attr) {
-            throw TypeError("Error: Entities are not writable, please use 'with' on the walked KB.");
-        },
-        getOwnPropertyDescriptor: function(o, attributeName) {
-            if (!ns.attributes.has(attributeName)) {
-                return undefined;
-            }
-            if (attributeName in o) {
-                return Object.getOwnPropertyDescriptor(o, attributeName);
-            }
-            const { found , result  } = lookup1(ns, kb, eEncodedId, attributeName);
-            if (found) {
-                const property = {
-                    value: result,
-                    writable: false,
-                    configurable: false,
-                    enumerable: true
-                };
-                Object.defineProperty(o, attributeName, property);
-                return property;
-            }
-            return undefined;
-        },
-        ownKeys: function(_) {
-            const attrs = [
-                id
-            ];
-            for (const r of new Query(new IntersectionConstraint([
-                constantConstraint(0, eEncodedId),
-                indexConstraint(1, ns.forwardAttributeIndex),
-                new MaskedConstraint(kb.tribleset.patternConstraint([
-                    [
-                        0,
-                        1,
-                        2
-                    ]
-                ]), [
-                    2
-                ])
-            ]))){
-                const a = r.get(1);
-                attrs.push(...ns.forwardAttributeIndex.get(a).map((attr)=>attr.name));
-            }
-            for (const r1 of new Query(new IntersectionConstraint([
-                constantConstraint(0, eEncodedId),
-                indexConstraint(1, ns.inverseAttributeIndex),
-                new MaskedConstraint(kb.tribleset.patternConstraint([
-                    [
-                        2,
-                        1,
-                        0
-                    ]
-                ]), [
-                    2
-                ])
-            ]))){
-                const a1 = r1.get(1);
-                attrs.push(...ns.inverseAttributeIndex.get(a1).map((attr)=>attr.name));
-            }
-            return attrs;
-        }
-    });
-};
-const isPojo = (obj)=>{
-    if (obj === null || typeof obj !== "object") {
-        return false;
-    }
-    return Object.getPrototypeOf(obj) === Object.prototype;
-};
-function* entityToTriples(ns, unknownFactory, parentId, parentAttributeName, entity) {
-    const entityId = entity[id] || unknownFactory();
-    if (parentId !== null) {
-        yield [
-            parentId,
-            parentAttributeName,
-            entityId
-        ];
-    }
-    for (const [attributeName, value] of Object.entries(entity)){
-        const attributeDescription = ns.attributes.get(attributeName);
-        assert(attributeDescription, `No attribute named '${attributeName}' in namespace.`);
-        if (attributeDescription.isMany) {
-            for (const v1 of value){
-                if (attributeDescription.isLink && isPojo(v1)) {
-                    yield* entityToTriples(ns, unknownFactory, entityId, attributeName, v1);
-                } else {
-                    if (attributeDescription.isInverse) {
-                        yield [
-                            v1,
-                            attributeName,
-                            entityId
-                        ];
-                    } else {
-                        yield [
-                            entityId,
-                            attributeName,
-                            v1
-                        ];
-                    }
-                }
-            }
-        } else {
-            if (attributeDescription.isLink && isPojo(value)) {
-                yield* entityToTriples(ns, unknownFactory, entityId, attributeName, value);
-            } else {
-                if (attributeDescription.isInverse) {
-                    yield [
-                        value,
-                        attributeName,
-                        entityId
-                    ];
-                } else {
-                    yield [
-                        entityId,
-                        attributeName,
-                        value
-                    ];
-                }
-            }
-        }
-    }
-}
-function* entitiesToTriples(build_ns, unknownFactory, entities) {
-    for (const entity of entities){
-        yield* entityToTriples(build_ns, unknownFactory, null, null, entity);
-    }
-}
-function* triplesToTribles(ns, triples, blobFn = (trible, blob)=>{}) {
-    const { encoder: idEncoder  } = ns.ids;
-    for (const [e, a, v1] of triples){
-        const attributeDescription = ns.attributes.get(a);
-        const trible = new Uint8Array(64);
-        const eb = new Uint8Array(32);
-        idEncoder(e, eb);
-        E(trible).set(eb.subarray(16, 32));
-        A(trible).set(attributeDescription.encodedId.subarray(16, 32));
-        const encodedValue = V(trible);
-        let blob;
-        const encoder = attributeDescription.encoder;
-        try {
-            blob = encoder(v1, encodedValue);
-        } catch (err) {
-            throw Error(`Couldn't encode '${v1}' as value for attribute '${a}':\n${err}`);
-        }
-        if (blob) {
-            blobFn(trible, blob);
-        }
-        yield trible;
-    }
-}
-const precompileTriples1 = (ns, vars, triples)=>{
-    const { encoder: idEncoder , decoder: idDecoder  } = ns.ids;
-    const precompiledTriples = [];
-    for (const [e, a, v1] of triples){
-        const attributeDescription = ns.attributes.get(a);
-        let eVar;
-        let aVar;
-        let vVar;
-        if (e instanceof Variable) {
-            e.decoder ??= idDecoder;
-            e.encoder ??= idEncoder;
-            eVar = e;
-        } else {
-            const eb = new Uint8Array(32);
-            idEncoder(e, eb);
-            eVar = vars.constant(eb);
-        }
-        aVar = vars.constant(attributeDescription.encodedId);
-        if (v1 instanceof Variable) {
-            const { decoder , encoder  } = attributeDescription;
-            v1.decoder ??= decoder;
-            v1.encoder ??= encoder;
-            vVar = v1;
-        } else {
-            const encoder1 = attributeDescription.encoder;
-            const b = new Uint8Array(32);
-            try {
-                encoder1(v1, b);
-            } catch (error1) {
-                throw Error(`Error encoding value: ${error1.message}`);
-            }
-            vVar = vars.constant(b);
-        }
-        precompiledTriples.push([
-            eVar,
-            aVar,
-            vVar
-        ]);
-    }
-    return precompiledTriples;
-};
-class IDSequence {
-    constructor(factory){
-        this.factory = factory;
-    }
-    [Symbol.iterator]() {
-        return this;
-    }
-    next() {
-        return {
-            value: this.factory()
-        };
-    }
-}
 class KB {
-    constructor(tribleset = new FOTribleSet(), blobcache = new BlobCache()){
+    constructor(tribleset = new TribleSet(), blobcache = new BlobCache()){
         this.tribleset = tribleset;
         this.blobcache = blobcache;
     }
-    with(ns, entities) {
-        const idFactory = ns.ids.factory;
-        const createdEntities = entities(new IDSequence(idFactory));
-        const triples = entitiesToTriples(ns, idFactory, createdEntities);
-        let newBlobCache = this.blobcache;
-        const tribles = triplesToTribles(ns, triples, (key, blob)=>{
-            newBlobCache = newBlobCache.put(key, blob);
-        });
-        const newTribleSet = this.tribleset.with(tribles);
-        return new KB(newTribleSet, newBlobCache);
-    }
-    withTribles(tribles) {
-        const tribleset = this.tribleset.with(tribles);
-        if (tribleset === this.tribleset) {
-            return this;
+    patternConstraint(pattern) {
+        for (const [_e, _a, v1] of pattern){
+            v1.proposeBlobCache(this.blobcache);
         }
-        return new KB(tribleset, this.blobcache);
-    }
-    where(ns, entities) {
-        return (vars)=>{
-            const triples = entitiesToTriples(ns, ()=>vars.unnamed(), entities);
-            const triplesWithVars = precompileTriples1(ns, vars, triples);
-            for (const [_e, _a, v1] of triplesWithVars){
-                v1.proposeBlobCache(this.blobcache);
-            }
-            return this.tribleset.patternConstraint(triplesWithVars.map(([e, a, v1])=>[
-                    e.index,
-                    a.index,
-                    v1.index
-                ]));
-        };
-    }
-    walk(ns, eId) {
-        return entityProxy(ns, this, eId);
+        return this.tribleset.patternConstraint(pattern);
     }
     empty() {
         return new KB(this.tribleset.empty(), this.blobcache.empty());
@@ -3545,13 +2678,506 @@ class KB {
         return new KB(tribleset, blobcache);
     }
 }
-function validateCommitSize(max_trible_count = 1021, middleware = (commits)=>commits) {
-    return function*(commits) {
-        for (const commit of middleware(commits)){
-            if (commit.commitKB.tribleset.count() > max_trible_count) {
+const assert = (test, message)=>{
+    if (!test) {
+        throw Error(message);
+    }
+};
+const id = Symbol("id");
+const isPojo = (obj)=>{
+    if (obj === null || typeof obj !== "object") {
+        return false;
+    }
+    return Object.getPrototypeOf(obj) === Object.prototype;
+};
+class IDSequence {
+    constructor(factory){
+        this.factory = factory;
+    }
+    [Symbol.iterator]() {
+        return this;
+    }
+    next() {
+        return {
+            value: this.factory()
+        };
+    }
+}
+class NS {
+    constructor(decl){
+        const attributes = new Map();
+        let forwardAttributeIndex = emptyValuePACT;
+        let inverseAttributeIndex = emptyValuePACT;
+        const newUniqueAttributeIndex = emptyValuePACT.batch();
+        const newUniqueInverseAttributeIndex = emptyValuePACT.batch();
+        const idDescription = decl[id];
+        if (!idDescription) {
+            throw Error(`Incomplete namespace: Missing [id] field.`);
+        }
+        if (!idDescription.decoder) {
+            throw Error(`Incomplete namespace: Missing [id] decoder.`);
+        }
+        if (!idDescription.encoder) {
+            throw Error(`Incomplete namespace: Missing [id] encoder.`);
+        }
+        if (!idDescription.factory) {
+            throw Error(`Incomplete namespace: Missing [id] factory.`);
+        }
+        for (const [attributeName, attributeDescription] of Object.entries(decl)){
+            if (attributeDescription.isInverse && !attributeDescription.isLink) {
+                throw Error(`Bad options in namespace attribute ${attributeName}:
+                Only links can be inversed.`);
+            }
+            if (!attributeDescription.isLink && !attributeDescription.decoder) {
+                throw Error(`Missing decoder in namespace for attribute ${attributeName}.`);
+            }
+            if (!attributeDescription.isLink && !attributeDescription.encoder) {
+                throw Error(`Missing encoder in namespace for attribute ${attributeName}.`);
+            }
+            const encodedId = new Uint8Array(32);
+            idDescription.encoder(attributeDescription.id, encodedId);
+            const description = {
+                ...attributeDescription,
+                encodedId,
+                name: attributeName
+            };
+            attributes.set(attributeName, description);
+            if (description.isInverse) {
+                inverseAttributeIndex = inverseAttributeIndex.put(description.encodedId, [
+                    ...inverseAttributeIndex.get(description.encodedId) || [],
+                    description
+                ]);
+            } else {
+                forwardAttributeIndex = forwardAttributeIndex.put(description.encodedId, [
+                    ...forwardAttributeIndex.get(description.encodedId) || [],
+                    description
+                ]);
+            }
+        }
+        for (const [_, attributeDescription1] of attributes){
+            if (attributeDescription1.isLink) {
+                attributeDescription1.encoder = idDescription.encoder;
+                attributeDescription1.decoder = idDescription.decoder;
+            }
+        }
+        for (const { encodedId: encodedId1 , isMany , isInverse  } of attributes.values()){
+            if (!isMany) {
+                if (isInverse) {
+                    newUniqueInverseAttributeIndex.put(encodedId1);
+                } else {
+                    newUniqueAttributeIndex.put(encodedId1);
+                }
+            }
+        }
+        this.ids = idDescription;
+        this.attributes = attributes;
+        this.forwardAttributeIndex = forwardAttributeIndex;
+        this.inverseAttributeIndex = inverseAttributeIndex;
+        this.uniqueAttributeIndex = newUniqueAttributeIndex.complete();
+        this.uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.complete();
+    }
+    validator(middleware = (commit)=>[
+            commit
+        ]) {
+        const self = this;
+        return function*(commit) {
+            const unique = find(({ v1 , v2  }, [e, a])=>and(indexed(a, self.uniqueAttributeIndex), commit.commitKB.tribleset.patternConstraint([
+                    [
+                        e,
+                        a,
+                        v1
+                    ]
+                ]), commit.currentKB.tribleset.patternConstraint([
+                    [
+                        e,
+                        a,
+                        v2
+                    ]
+                ])), (variables, binding)=>{
+                const { v1 , v2  } = variables.namedVars();
+                return [
+                    binding.get(v1.index),
+                    binding.get(v2.index)
+                ];
+            });
+            for (const [v1, v2] of unique){
+                if (!equalValue(v1, v2)) {
+                    throw Error(`constraint violation: multiple values for unique attribute`);
+                }
+            }
+            const inverseUnique = find(({ e1 , e2  }, [a, v1])=>and(indexed(a, self.inverseAttributeIndex), commit.commitKB.tribleset.patternConstraint([
+                    [
+                        e1,
+                        a,
+                        v1
+                    ]
+                ]), commit.currentKB.tribleset.patternConstraint([
+                    [
+                        e2,
+                        a,
+                        v1
+                    ]
+                ])), (variables, binding)=>{
+                const { e1 , e2  } = variables.namedVars();
+                return [
+                    binding.get(e1.index),
+                    binding.get(e2.index)
+                ];
+            });
+            for (const [e1, e2] of inverseUnique){
+                if (!equalValue(e1, e2)) {
+                    throw Error(`constraint violation: multiple entities for unique attribute value`);
+                }
+            }
+            yield* middleware(commit);
+        };
+    }
+    lookup(kb, eEncodedId, attributeName) {
+        let { encodedId: aEncodedId , decoder , isLink , isInverse , isMany  } = this.attributes.get(attributeName);
+        const res = find(({ v: v1  }, [e, a])=>and(constant(e, eEncodedId), constant(a, aEncodedId), kb.tribleset.patternConstraint([
+                isInverse ? [
+                    v1,
+                    a,
+                    e
+                ] : [
+                    e,
+                    a,
+                    v1
+                ]
+            ])), (variables, binding)=>{
+            const { v: v1  } = variables.namedVars();
+            return binding.get(v1.index);
+        });
+        if (!isMany) {
+            const { done , value  } = res[Symbol.iterator]().next();
+            if (done) return {
+                found: false
+            };
+            return {
+                found: true,
+                result: isLink ? this.entityProxy(kb, decoder(value.slice())) : decoder(value.slice(), async ()=>await kb.blobcache.get(value))
+            };
+        } else {
+            const results = [];
+            for (const value1 of res){
+                results.push(isLink ? this.entityProxy(kb, decoder(value1.slice())) : decoder(value1.slice(), async ()=>await kb.blobcache.get(value1)));
+            }
+            return {
+                found: true,
+                result: results
+            };
+        }
+    }
+    entityProxy(kb, eId) {
+        const eEncodedId = new Uint8Array(32);
+        this.ids.encoder(eId, eEncodedId);
+        const ns = this;
+        return new Proxy({
+            [id]: eId
+        }, {
+            get: function(o, attributeName) {
+                if (!ns.attributes.has(attributeName)) {
+                    return undefined;
+                }
+                if (attributeName in o) {
+                    return o[attributeName];
+                }
+                const { found , result  } = ns.lookup(kb, eEncodedId, attributeName);
+                if (found) {
+                    Object.defineProperty(o, attributeName, {
+                        value: result,
+                        writable: false,
+                        configurable: false,
+                        enumerable: true
+                    });
+                    return result;
+                }
+                return undefined;
+            },
+            set: function(_, _attributeName) {
+                throw TypeError("Error: Entities are not writable, please use 'with' on the walked KB.");
+            },
+            has: function(o, attributeName) {
+                if (!ns.attributes.has(attributeName)) {
+                    return false;
+                }
+                const { encodedId: aEncodedId , isInverse , isMany  } = ns.attributes.get(attributeName);
+                if (attributeName in o || isMany) {
+                    return true;
+                }
+                const res = find(({}, [e, a, v1])=>and(constant(e, eEncodedId), constant(a, aEncodedId), kb.tribleset.patternConstraint([
+                        isInverse ? [
+                            v1,
+                            a,
+                            e
+                        ] : [
+                            e,
+                            a,
+                            v1
+                        ]
+                    ])), (variables, binding)=>{});
+                const { done  } = res[Symbol.iterator]().next();
+                return !done;
+            },
+            deleteProperty: function(_, attr) {
+                throw TypeError("Error: Entities are not writable, furthermore KBs are append only.");
+            },
+            setPrototypeOf: function(_) {
+                throw TypeError("Error: Entities are not writable and can only be POJOs.");
+            },
+            isExtensible: function(_) {
+                return true;
+            },
+            preventExtensions: function(_) {
+                return false;
+            },
+            defineProperty: function(_, attr) {
+                throw TypeError("Error: Entities are not writable, please use 'with' on the walked KB.");
+            },
+            getOwnPropertyDescriptor: function(o, attributeName) {
+                if (!ns.attributes.has(attributeName)) {
+                    return undefined;
+                }
+                if (attributeName in o) {
+                    return Object.getOwnPropertyDescriptor(o, attributeName);
+                }
+                const { found , result  } = ns.lookup(kb, eEncodedId, attributeName);
+                if (found) {
+                    const property = {
+                        value: result,
+                        writable: false,
+                        configurable: false,
+                        enumerable: true
+                    };
+                    Object.defineProperty(o, attributeName, property);
+                    return property;
+                }
+                return undefined;
+            },
+            ownKeys: function(_) {
+                const attrs = [
+                    id
+                ];
+                const forward = find(({ a  }, [e, v1])=>and(constant(e, eEncodedId), indexed(a, ns.forwardAttributeIndex), masked(kb.tribleset.patternConstraint([
+                        [
+                            e,
+                            a,
+                            v1
+                        ]
+                    ]), [
+                        v1
+                    ])), (variables, binding)=>{
+                    const { a  } = variables.namedVars();
+                    return binding.get(a.index);
+                });
+                debugger;
+                for (const a of forward){
+                    attrs.push(...ns.forwardAttributeIndex.get(a).map((attr)=>attr.name));
+                }
+                const inverse = find(({ a  }, [e, v1])=>and(constant(v1, eEncodedId), indexed(a, ns.inverseAttributeIndex), masked(kb.tribleset.patternConstraint([
+                        [
+                            e,
+                            a,
+                            v1
+                        ]
+                    ]), [
+                        e
+                    ])), (variables, binding)=>{
+                    const { a  } = variables.namedVars();
+                    return binding.get(a.index);
+                });
+                for (const a1 of inverse){
+                    attrs.push(...ns.inverseAttributeIndex.get(a1).map((attr)=>attr.name));
+                }
+                return attrs;
+            }
+        });
+    }
+    *entityToTriples(unknowns, parentId, parentAttributeName, entity) {
+        const entityId = entity[id] || unknowns.next().value;
+        if (parentId !== null) {
+            yield [
+                parentId,
+                parentAttributeName,
+                entityId
+            ];
+        }
+        for (const [attributeName, value] of Object.entries(entity)){
+            const attributeDescription = this.attributes.get(attributeName);
+            assert(attributeDescription, `No attribute named '${attributeName}' in namespace.`);
+            if (attributeDescription.isMany) {
+                for (const v1 of value){
+                    if (attributeDescription.isLink && isPojo(v1)) {
+                        yield* this.entityToTriples(unknowns, entityId, attributeName, v1);
+                    } else {
+                        if (attributeDescription.isInverse) {
+                            yield [
+                                v1,
+                                attributeName,
+                                entityId
+                            ];
+                        } else {
+                            yield [
+                                entityId,
+                                attributeName,
+                                v1
+                            ];
+                        }
+                    }
+                }
+            } else {
+                if (attributeDescription.isLink && isPojo(value)) {
+                    yield* this.entityToTriples(unknowns, entityId, attributeName, value);
+                } else {
+                    if (attributeDescription.isInverse) {
+                        yield [
+                            value,
+                            attributeName,
+                            entityId
+                        ];
+                    } else {
+                        yield [
+                            entityId,
+                            attributeName,
+                            value
+                        ];
+                    }
+                }
+            }
+        }
+    }
+    *entitiesToTriples(unknowns, entities) {
+        for (const entity of entities){
+            yield* this.entityToTriples(unknowns, null, null, entity);
+        }
+    }
+    triplesToTribles(triples) {
+        const tribles = [];
+        const blobs = [];
+        const { encoder: idEncoder  } = this.ids;
+        for (const [e, a, v1] of triples){
+            const attributeDescription = this.attributes.get(a);
+            const trible = new Uint8Array(64);
+            const eb = new Uint8Array(32);
+            idEncoder(e, eb);
+            E(trible).set(eb.subarray(16, 32));
+            A(trible).set(attributeDescription.encodedId.subarray(16, 32));
+            const encodedValue = V(trible);
+            let blob;
+            const encoder = attributeDescription.encoder;
+            try {
+                blob = encoder(v1, encodedValue);
+            } catch (err) {
+                throw Error(`Couldn't encode '${v1}' as value for attribute '${a}':\n${err}`);
+            }
+            tribles.push(trible);
+            if (blob) {
+                blobs.push([
+                    trible,
+                    blob
+                ]);
+            }
+        }
+        return {
+            tribles,
+            blobs
+        };
+    }
+    triplesToPattern(vars, triples) {
+        const { encoder: idEncoder , decoder: idDecoder  } = this.ids;
+        const pattern = [];
+        const constraints = [];
+        for (const [e, a, v1] of triples){
+            const attributeDescription = this.attributes.get(a);
+            let eVar;
+            let aVar;
+            let vVar;
+            if (e instanceof Variable) {
+                eVar = e.typed(this.ids);
+            } else {
+                const eb = new Uint8Array(32);
+                idEncoder(e, eb);
+                [eVar] = vars;
+                constraints.push(constant(eVar, eb));
+            }
+            [aVar] = vars;
+            constraints.push(constant(aVar, attributeDescription.encodedId));
+            if (v1 instanceof Variable) {
+                vVar = v1.typed(attributeDescription);
+            } else {
+                const encoder = attributeDescription.encoder;
+                const b = new Uint8Array(32);
+                try {
+                    encoder(v1, b);
+                } catch (error1) {
+                    throw Error(`Error encoding value: ${error1.message}`);
+                }
+                [vVar] = vars;
+                constraints.push(constant(vVar, b));
+            }
+            pattern.push([
+                eVar,
+                aVar,
+                vVar
+            ]);
+        }
+        return {
+            pattern,
+            constraints
+        };
+    }
+    entities(entities, kb = new KB()) {
+        const ids = new IDSequence(this.ids.factory);
+        const createdEntities = entities(ids);
+        const triples = this.entitiesToTriples(ids, createdEntities);
+        const { tribles , blobs  } = this.triplesToTribles(triples);
+        const newBlobCache = kb.blobcache.with(blobs);
+        const newTribleSet = kb.tribleset.with(tribles);
+        return new KB(newTribleSet, newBlobCache);
+    }
+    pattern(source, vars, entities) {
+        const triples = this.entitiesToTriples(vars, entities);
+        const { pattern , constraints  } = this.triplesToPattern(vars, triples);
+        return and(...constraints, source.patternConstraint(pattern));
+    }
+    walk(kb, eId) {
+        return this.entityProxy(kb, eId);
+    }
+}
+const signatureId = UFOID.now();
+const emailId = UFOID.now();
+const firstNameId = UFOID.now();
+const lastNameId = UFOID.now();
+const authNS = {
+    [id]: {
+        ...types.ufoid
+    },
+    pubkey: {
+        id: signatureId,
+        ...types.blaked25519PubKey
+    },
+    authorEmail: {
+        id: emailId,
+        ...types.shortstring
+    },
+    authorFirstName: {
+        id: firstNameId,
+        ...types.shortstring
+    },
+    authorLastName: {
+        id: lastNameId,
+        ...types.shortstring
+    }
+};
+function validateCommitSize(max_trible_count = 1021, middleware = (commit)=>[
+        commit
+    ]) {
+    return async function*(commit) {
+        for await (const commit1 of middleware(commit1)){
+            if (commit1.commitKB.tribleset.count() > max_trible_count) {
                 throw Error(`Commit too large: Commits must not contain more than ${max_trible_count} tribles.`);
             }
-            yield commit;
+            yield commit1;
         }
     };
 }
@@ -3618,18 +3244,11 @@ class Commit {
             blobs
         };
     }
-    where(ctx, entities) {
-        const ns = ctx.ns;
-        return (vars)=>{
-            const triples = entitiesToTriples(ns, ()=>vars.unnamed(), entities);
-            const triplesWithVars = precompileTriples(ns, vars, triples);
-            triplesWithVars.foreach(([e, a, v1])=>{
-                v1.proposeBlobCache(currentKB.blobcache);
-            });
-            return [
-                ...triplesWithVars.map(([e, a, v1])=>currentKB.tribleset.constraint(e.index, a.index, v1.index))
-            ];
-        };
+    patternConstraint(pattern) {
+        for (const [_e, _a, v1] of pattern){
+            v1.proposeBlobCache(this.blobcache);
+        }
+        return currentKB.tribleset.patternConstraint(pattern);
     }
 }
 class Head {
@@ -3642,10 +3261,8 @@ class Head {
         const baseKB = this._current_kb;
         const currentKB1 = commitFn(baseKB, commitId);
         const commitKB = currentKB1.subtract(baseKB);
-        let commits = this._middleware([
-            new Commit(commitId, baseKB, commitKB, currentKB1)
-        ]);
-        for (const commit of commits){
+        let commits = this._middleware(new Commit(commitId, baseKB, commitKB, currentKB1));
+        for await (const commit of commits){
             this._current_kb = commit.currentKB;
             for (const sub of this._subscriptions){
                 await sub(commit);
@@ -3683,8 +3300,12 @@ class IDOwner {
             return id;
         };
     }
-    validator(middleware = (commits)=>commits) {
-        return middleware;
+    validator(middleware = (commit)=>[
+            commit
+        ]) {
+        return function*(commit) {
+            yield* middleware(commit);
+        };
     }
 }
-export { and as and, BlobCache as BlobCache, find as find, FOTribleSet as FOTribleSet, Head as Head, HOTribleSet as HOTribleSet, id as id, IDOwner as IDOwner, KB as KB, NS as NS, types as types, UFOID as UFOID, validateCommitSize as validateCommitSize };
+export { and as and, BlobCache as BlobCache, collection as collection, constant as constant, find as find, Head as Head, id as id, IDOwner as IDOwner, indexed as indexed, KB as KB, masked as masked, NS as NS, ranged as ranged, TribleSet as TribleSet, types as types, UFOID as UFOID, validateCommitSize as validateCommitSize };

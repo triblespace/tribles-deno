@@ -8,7 +8,17 @@ fc.configureGlobal({
   interruptAfterTimeLimit: 1000 * 5,
 });
 
-import { find, id, IDOwner, KB, NS, types, UFOID } from "../mod.js";
+import {
+  and,
+  find,
+  id,
+  IDOwner,
+  KB,
+  NS,
+  ranged,
+  types,
+  UFOID,
+} from "../mod.js";
 
 const nameId = UFOID.now();
 const lovesId = UFOID.now();
@@ -136,10 +146,13 @@ Deno.test("find lower range", () => {
   const results = [
     ...find(
       ({ name, title }, anon) =>
-        knightsNS.pattern(knightskb, anon, [{
-          name: name.ranged({ lower: "K" }),
-          titles: [title],
-        }]),
+        and(
+          ranged(name, types.shortstring, { lower: "K" }),
+          knightsNS.pattern(knightskb, anon, [{
+            name,
+            titles: [title],
+          }]),
+        ),
     ),
   ];
   assertEquals(results, [
@@ -175,10 +188,13 @@ Deno.test("find upper bound", () => {
 
   const results = [
     ...find(({ name, title }, anon) =>
-      knightsNS.pattern(knightskb, anon, [{
-        name: name.ranged({ upper: "K" }),
-        titles: [title],
-      }])
+      and(
+        ranged(name, types.shortstring, { upper: "K" }),
+        knightsNS.pattern(knightskb, anon, [{
+          name,
+          titles: [title],
+        }]),
+      )
     ),
   ];
   assertEquals(results, [

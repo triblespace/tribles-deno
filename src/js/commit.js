@@ -185,9 +185,7 @@ export class Commit {
     for (const [_e, _a, v] of pattern) {
       v.proposeBlobCache(this.blobcache);
     }
-    return currentKB.tribleset.patternConstraint(
-      pattern.map(([e, a, v]) => [e.index, a.index, v.index]),
-    );
+    return currentKB.tribleset.patternConstraint(pattern);
     //new NoveltyConstraint(this.baseKB, this.currentKB, triplesWithVars),
   }
 }
