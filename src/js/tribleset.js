@@ -12,7 +12,7 @@ import {
   scrambleVAE,
   scrambleVEA,
 } from "./trible.js";
-import { IntersectionConstraint } from "./query.js";
+import { and } from "./constraints/and.js";
 import { setMetaId, setTrible, sign, verify } from "./wasm.js";
 
 const BUFFER_SIZE = 64;
@@ -564,12 +564,12 @@ export class TribleSet {
   }
 
   tripleConstraint([e, a, v]) {
-    return new TribleConstraint(this, e, a, v);
+    return new TribleConstraint(this, e.index, a.index, v.index);
   }
 
   patternConstraint(triples) {
-    return new IntersectionConstraint(
-      triples.map(([e, a, v]) =>
+    return and(
+      ...triples.map(([e, a, v]) =>
         new TribleConstraint(this, e.index, a.index, v.index)
       ),
     );

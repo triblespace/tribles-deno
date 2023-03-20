@@ -1,16 +1,10 @@
-import {
-  emptyValueIdIdTriblePACT,
-  emptyValuePACT,
-  SegmentConstraint,
-} from "./pact.js";
+import { emptyValueIdIdTriblePACT, emptyValuePACT } from "./pact.js";
 import { A, E, scrambleVAE, TRIBLE_SIZE, V } from "./trible.js";
 import { blake2b256, hash_equal } from "./wasm.js";
-import {
-  IntersectionConstraint,
-  LOWER,
-  MaskedConstraint,
-  Query,
-} from "./query.js";
+import { LOWER } from "./query.js";
+import { and } from "./constraints/and.js";
+import { masked } from "./constraints/masked.js";
+
 function padded(length, alignment) {
   return length + (alignment - (length % alignment));
 }
@@ -52,17 +46,19 @@ export function deserialize(tribleset, blobcache, serialized_bytes) {
 
   let blobdata = blobcache;
   for (
-    const r of new Query(
-      new IntersectionConstraint([
-        tribleset.tripleConstraint(0, 1, 2),
-        new SegmentConstraint(blobs, [2]),
-      ]),
-    )
+    const { e, a, v } of find(({ e, a, v }, anon) =>
+      and(
+        tribleset.tripleConstraint(e, a, v),
+        blobs.segmentConstraint([v]),
+      ), (variables, binding) => {
+      const { e, a, v } = variables.namedVars();
+      return {
+        e: binding.get(e.index),
+        a: binding.get(a.index),
+        v: binding.get(v.index),
+      };
+    })
   ) {
-    const e = r.get(0);
-    const a = r.get(1);
-    const v = r.get(2);
-
     const trible = new Uint8Array(TRIBLE_SIZE);
     E(trible).set(LOWER(e));
     A(trible).set(LOWER(a));
@@ -140,20 +136,24 @@ export class BlobCache {
   }
 
   strongConstraint(e, a, v) {
-    return new SegmentConstraint(this.strong, [v, a, e]);
+    return this.strong.segmentConstraint([v, a, e]);
   }
 
   strongBlobs() {
     const blobs = [];
     for (
-      const r of new Query(
-        new MaskedConstraint(new SegmentConstraint(this.strong, [0, 1, 2]), [
-          1,
-          2,
-        ]),
+      const key of new find(
+        ({ v }, [e, a]) =>
+          masked(
+            this.strong.segmentConstraint([v, a, e]),
+            [e, a],
+          ),
+        (variables, binding) => {
+          const { v } = variables.namedVars();
+          return binding.get(v.index);
+        },
       )
     ) {
-      const key = r.get(1);
       const blob = this.weak.get(key);
       blobs.push({ key, blob });
     }

@@ -77,7 +77,7 @@ export class SegmentConstraint {
     }
     if (new Set(segmentVariables).size !== segmentVariables.length) {
       throw new Error(
-        "Segment variables must be uniqe. Use explicit equality when inner constraints are required.",
+        "Segment variables must be unique. Use explicit equality when inner constraints are required.",
       );
     }
 
@@ -629,6 +629,10 @@ const makePACT = function (segments) {
         if (node === null) return undefined;
       }
       return node.value;
+    }
+
+    segmentConstraint(vars) {
+      return new SegmentConstraint(this, vars.map((v) => v.index));
     }
 
     cursor() {

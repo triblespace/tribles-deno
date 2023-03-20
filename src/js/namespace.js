@@ -1,12 +1,8 @@
-import {
-  and,
-  constant,
-  find,
-  indexed,
-  IntersectionConstraint,
-  masked,
-  Variable,
-} from "./query.js";
+import { find, Variable } from "./query.js";
+import { and } from "./constraints/and.js";
+import { constant } from "./constraints/constant.js";
+import { indexed } from "./constraints/indexed.js";
+import { masked } from "./constraints/masked.js";
 import { A, E, equalValue, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
 import { emptyValuePACT } from "./pact.js";
 import { TribleSet } from "./tribleset.js";
