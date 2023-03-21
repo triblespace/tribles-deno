@@ -736,8 +736,6 @@ class ByteBitsetArray {
     }
 }
 const LOWER = (value)=>value.subarray(16, 32);
-new Uint8Array(32).fill(0);
-new Uint8Array(32).fill(~0);
 const MODE_PATH = 0;
 const MODE_BRANCH = 1;
 const MODE_BACKTRACK = 2;

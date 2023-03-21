@@ -511,6 +511,9 @@ class TribleConstraint {
   }
 }
 
+/** A tribleset is an immutably persistent datastructure that stores tribles with set semantics.
+ * It supports efficient set operations often take sub-linear time.
+ */
 export class TribleSet {
   constructor(
     EAV = emptyIdIdValueTriblePACT,

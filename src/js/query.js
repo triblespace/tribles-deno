@@ -1,5 +1,3 @@
-import { emptyValuePACT } from "./pact.js";
-import { ID_SIZE, VALUE_SIZE } from "./trible.js";
 import { ByteBitset, ByteBitsetArray } from "./bitset.js";
 
 export const UPPER_START = 0;
