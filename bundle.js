@@ -879,8 +879,8 @@ class Query {
     }
 }
 class Variable {
-    constructor(provider, index, name = null){
-        this.provider = provider;
+    constructor(context, index, name = null){
+        this.context = context;
         this.index = index;
         this.name = name;
         this.decoder = null;
@@ -903,24 +903,24 @@ class Variable {
         return this;
     }
 }
-class UnnamedSequence {
-    constructor(provider){
-        this.provider = provider;
+class AnonSequence {
+    constructor(context){
+        this.context = context;
     }
     [Symbol.iterator]() {
         return this;
     }
     next() {
-        const variable = new Variable(this.provider, this.provider.nextVariableIndex);
-        this.provider.unnamedVariables.push(variable);
-        this.provider.variables.push(variable);
-        this.provider.nextVariableIndex++;
+        const variable = new Variable(this.context, this.context.nextVariableIndex);
+        this.context.unnamedVariables.push(variable);
+        this.context.variables.push(variable);
+        this.context.nextVariableIndex++;
         return {
             value: variable
         };
     }
 }
-class VariableProvider {
+class VariableContext {
     constructor(){
         this.nextVariableIndex = 0;
         this.variables = [];
@@ -946,8 +946,8 @@ class VariableProvider {
             }
         });
     }
-    unnamedVars() {
-        return new UnnamedSequence(this);
+    anonVars() {
+        return new AnonSequence(this);
     }
 }
 function decodeWithBlobcache(vars, binding) {
@@ -960,8 +960,8 @@ function decodeWithBlobcache(vars, binding) {
     return result;
 }
 function find1(queryfn, postprocessing = decodeWithBlobcache) {
-    const vars = new VariableProvider();
-    const constraint = queryfn(vars.namedVars(), vars.unnamedVars());
+    const vars = new VariableContext();
+    const constraint = queryfn(vars.namedVars(), vars.anonVars());
     return new Query(constraint, vars, postprocessing);
 }
 class IntersectionConstraint {

@@ -175,8 +175,8 @@ export class Query {
 }
 
 export class Variable {
-  constructor(provider, index, name = null) {
-    this.provider = provider;
+  constructor(context, index, name = null) {
+    this.context = context;
     this.index = index;
     this.name = name;
     this.decoder = null;
@@ -204,9 +204,9 @@ export class Variable {
   }
 }
 
-class UnnamedSequence {
-  constructor(provider) {
-    this.provider = provider;
+class AnonSequence {
+  constructor(context) {
+    this.context = context;
   }
 
   [Symbol.iterator]() {
@@ -214,17 +214,21 @@ class UnnamedSequence {
   }
   next() {
     const variable = new Variable(
-      this.provider,
-      this.provider.nextVariableIndex,
+      this.context,
+      this.context.nextVariableIndex,
     );
-    this.provider.unnamedVariables.push(variable);
-    this.provider.variables.push(variable);
-    this.provider.nextVariableIndex++;
+    this.context.unnamedVariables.push(variable);
+    this.context.variables.push(variable);
+    this.context.nextVariableIndex++;
     return { value: variable };
   }
 }
 
-export class VariableProvider {
+/**
+ * Represents a collection of Variables used together, e.g. in a query.
+ * Can be used to generate named an unnamed variables.
+ */
+export class VariableContext {
   constructor() {
     this.nextVariableIndex = 0;
     this.variables = [];
@@ -234,7 +238,17 @@ export class VariableProvider {
     this.isBlocking = [];
     this.projected = new Set();
   }
-
+  /**
+   * Returns an proxy object that generates named variables.
+   * Using the same name twice will return the same variable.
+   * ---
+   * Hint:
+   * Use destructuring to access the variables.
+   * ```js
+   * const context = new VariableContext();
+   * const {named1, named2} = context.namedVars();
+   * ```
+   */
   namedVars() {
     return new Proxy(
       {},
@@ -255,11 +269,25 @@ export class VariableProvider {
     );
   }
 
-  unnamedVars() {
-    return new UnnamedSequence(this);
+  /**
+   * Returns an infinite sequence of anonymous variables.
+   * ---
+   * Hint:
+   * Use destructuring to access the variables.
+   * ```js
+   * const context = new VariableContext();
+   * const [anon1, anon2] = context.anonVars();
+   * ```
+   */
+  anonVars() {
+    return new AnonSequence(this);
   }
 }
 
+/**
+ * Decodes the passed bindings based on the types associated with the passed variables.
+ * Uses the blobcache proposed to individual variables when their type has associated blobs.
+ */
 export function decodeWithBlobcache(vars, binding) {
   const result = {};
   for (
@@ -300,7 +328,7 @@ export function decodeWithBlobcache(vars, binding) {
  * @returns {Query} Enumerates possible variable assignments satisfying the input query.
  */
 export function find(queryfn, postprocessing = decodeWithBlobcache) {
-  const vars = new VariableProvider();
-  const constraint = queryfn(vars.namedVars(), vars.unnamedVars());
+  const vars = new VariableContext();
+  const constraint = queryfn(vars.namedVars(), vars.anonVars());
   return new Query(constraint, vars, postprocessing);
 }
