@@ -13,6 +13,9 @@ const MODE_PATH = 0;
 const MODE_BRANCH = 1;
 const MODE_BACKTRACK = 2;
 
+/**
+ * Finds assignments for the currently explored variable of the provided constraint.
+ */
 function VariableIterator(constraint, key_state) {
   return {
     branch_points: (new ByteBitset()).unsetAll(),
@@ -89,6 +92,9 @@ function VariableIterator(constraint, key_state) {
   };
 }
 
+/**
+ * Assigns values to variables.
+ */
 export class Bindings {
   constructor(length, buffer = new Uint8Array(length * 32)) {
     this.length = length;
@@ -104,14 +110,12 @@ export class Bindings {
   }
 }
 
-export function dependencyState(varCount, constraints) {
-  const dependsOnSets = new Uint32Array(varCount * 8);
-  for (const c of constraints) {
-    c.dependencies(dependsOnSets);
-  }
-  return dependsOnSets;
-}
-
+/**
+ * A query represents the process of finding variable asignment
+ * that satisfy the provided constraints.
+ * A postprocessing function takes the raw binding of `UintArray(32)` values
+ * and turns them into usable javascript types.
+ */
 export class Query {
   constructor(
     constraint,
@@ -174,6 +178,10 @@ export class Query {
   }
 }
 
+/**
+ * A variable is a placeholder in a constraint that
+ * gets assigned different values when a query is evaluated.
+ */
 export class Variable {
   constructor(context, index, name = null) {
     this.context = context;
@@ -184,6 +192,9 @@ export class Variable {
     this.blobcache = null;
   }
 
+  /**
+   * Returns a string representation for this variable.
+   */
   toString() {
     if (this.name) {
       return `${this.name}@${this.index}`;
@@ -191,12 +202,20 @@ export class Variable {
     return `__anon__@${this.index}`;
   }
 
+  /**
+   * Associates this variable with a type, e.g. a decoder and encoder.
+   */
   typed({ encoder, decoder }) {
     this.encoder = encoder;
     this.decoder = decoder;
     return this;
   }
 
+  /**
+   * Associate this variable with a blobcache.
+   * The blobcache will be used when the decoder used for it
+   * requests the blob associated with it's value.
+   */
   proposeBlobCache(blobcache) {
     // Todo check latency cost of blobcache, e.g. inMemory vs. S3.
     this.blobcache ||= blobcache;
@@ -204,6 +223,9 @@ export class Variable {
   }
 }
 
+/**
+ * An anonymous sequence of variables returned by `VariableContext.anonVars`.
+ */
 class AnonSequence {
   constructor(context) {
     this.context = context;
