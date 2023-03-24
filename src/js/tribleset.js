@@ -63,6 +63,10 @@ export function serialize(tribleset, metaId, secret) { // TODO replace this with
   return sign(secret, tribles_count);
 }
 
+/**
+ * A constraint limits the passed variables e, a and v to values with
+ * a corresponding eav trible existing in the passed tribleset.
+ */
 class TribleConstraint {
   constructor(tribleSet, e, a, v) {
     if (e === a || e === v || a == v) {
@@ -531,6 +535,10 @@ export class TribleSet {
     this.VAE = VAE;
   }
 
+  /**
+   * Returns a new tribleset containting both the tribles of this set
+   * and the tribles passed in.
+   */
   with(tribles) {
     const EAV = this.EAV.batch();
     const EVA = this.EVA.batch();
@@ -566,10 +574,20 @@ export class TribleSet {
     return this.EAV.keys();
   }
 
+  /**
+   * Returns a single trible constraint ensuring that there exists a corresponding
+   * eav trible in this set for the passed e, a and v variables.
+   */
   tripleConstraint([e, a, v]) {
     return new TribleConstraint(this, e.index, a.index, v.index);
   }
 
+  /**
+   * Returns a constraint ensuring that there is a corresponding trible in this
+   * tribleset for each triple passed in the pattern.
+   * This is equivalent to performing an `and`/conjunction over multiple tripleConstraint
+   * calls, but allows for a potentially more efficient execution (see commits).
+   */
   patternConstraint(triples) {
     return and(
       ...triples.map(([e, a, v]) =>
@@ -578,30 +596,53 @@ export class TribleSet {
     );
   }
 
+  /**
+   * @returns The number of tribles stored in this set.
+   */
   count() {
     return this.EAV.count();
   }
 
+  /**
+   * @returns A tribleset of the same type as this one with all contents removed.
+   */
   empty() {
     return new TribleSet();
   }
 
+  /**
+   * @returns A bool indicating if this tribleset contains any tribles.
+   */
   isEmpty() {
     return this.EAV.isEmpty();
   }
 
+  /**
+   * Compares two triblesets and returns wether they are equal.
+   */
   isEqual(other) {
     return this.EAV.isEqual(other.EAV);
   }
-
+  /**
+   * Checks if this tribleset is a subset of the passed tribleset,
+   * i.e. if every trible of this set is also contained in the passed set.
+   */
   isSubsetOf(other) {
     return this.EAV.isSubsetOf(other.indexE);
   }
 
+  /**
+   * Checks if this tribleset has an intersection with the passed set,
+   * i.e. if there exists a trible that is contained in both sets.
+   */
   isIntersecting(other) {
     return this.EAV.isIntersecting(other.indexE);
   }
 
+  /**
+   * Returns a new tribleset that is the union of this set and the passed set,
+   * i.e. a set that contains any trible that is in either of the input sets.
+   */
   union(other) {
     return new TribleSet(
       this.EAV.union(other.EAV),
@@ -613,6 +654,11 @@ export class TribleSet {
     );
   }
 
+  /**
+   * Returns a new tribleset that contains the tribles of this set
+   * with the tribles of the passed set subtracted,
+   * i.e. a set that contains any trible that is in this set but not in the passed set.
+   */
   subtract(other) {
     return new TribleSet(
       this.EAV.subtract(other.EAV),
@@ -624,6 +670,11 @@ export class TribleSet {
     );
   }
 
+  /**
+   * Returns a new tribleset that contains the difference of this set and
+   * the passed set, i.e. a set that contains any trible that is in one of
+   * the sets but not in the other.
+   */
   difference(other) {
     return new TribleSet(
       this.EAV.difference(other.EAV),
@@ -635,6 +686,11 @@ export class TribleSet {
     );
   }
 
+  /**
+   * Returns a new tribleset that contains the intersection of this set and
+   * the passed set, i.e. a set that contains any trible that is in both of
+   * the sets.
+   */
   intersect(other) {
     return new TribleSet(
       this.EAV.intersect(other.EAV),
