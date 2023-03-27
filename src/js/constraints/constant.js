@@ -1,27 +1,17 @@
-import { VALUE_SIZE } from "../trible.js";
+import { cmpValue, VALUE_SIZE } from "../trible.js";
 
 class ConstantConstraint {
   constructor(variable, constant) {
     this.variable = variable;
     this.constant = constant;
-    this.depth = 0;
   }
 
-  peekByte() {
-    return this.constant[this.depth];
-  }
-
-  proposeByte(bitset) {
-    bitset.unsetAll();
-    bitset.set(this.constant[this.depth]);
-  }
-
-  popByte() {
-    this.depth--;
-  }
-
-  pushByte(_byte) {
-    this.depth++;
+  seek(value) {
+    if (cmpValue(value, this.constant) <= 0) {
+      return this.constant;
+    } else {
+      return null;
+    }
   }
 
   variables(bitset) {

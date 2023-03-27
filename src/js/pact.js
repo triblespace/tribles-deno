@@ -1,155 +1,14 @@
-import { ID_SIZE, VALUE_SIZE } from "./trible.js";
+import { ID_SIZE, VALUE_SIZE, cmpBytes } from "./trible.js";
 import { hash_combine, hash_digest, hash_equal, hash_update } from "./wasm.js";
-import { ByteBitset } from "./bitset.js";
+import { ByteBitset, ByteBitsetArray} from "./bitset.js";
 
 // Perstistent Adaptive Cuckoo Trie (PACT)
-
-//TODO Variadic set operations that use cursor jumping for more efficiency on multiple inputs.
 
 function PACTHash(key) {
   if (key.__cached_hash === undefined) {
     key.__cached_hash = hash_digest(key);
   }
   return key.__cached_hash;
-}
-
-const PaddedCursor = class {
-  constructor(cursor, segments, segment_size) {
-    this.cursor = cursor;
-    this.depth = 0;
-
-    this.padding = (new ByteBitset()).setAll();
-    let depth = 0;
-    for (const s of segments) {
-      const pad = segment_size - s;
-
-      depth += pad;
-      for (let j = pad; j < segment_size; j++) {
-        this.padding.unset(depth);
-        depth += 1;
-      }
-    }
-  }
-
-  // Interface API >>>
-
-  peek() {
-    if (this.padding.has(this.depth)) return 0;
-    return this.cursor.peek();
-  }
-
-  propose(bitset) {
-    if (this.padding.has(this.depth)) {
-      bitset.unsetAll();
-      bitset.set(0);
-    } else {
-      this.cursor.propose(bitset);
-    }
-  }
-
-  push(key_fragment) {
-    if (!this.padding.has(this.depth)) {
-      this.cursor.push(key_fragment);
-    }
-    this.depth += 1;
-  }
-
-  pop() {
-    this.depth -= 1;
-    if (!this.padding.has(this.depth)) {
-      this.cursor.pop();
-    }
-  }
-
-  segmentCount() {
-    return this.cursor.segmentCount();
-  }
-
-  // <<< Interface API
-};
-
-export class SegmentConstraint {
-  constructor(pact, segmentVariables) {
-    if (pact.segments.length !== segmentVariables.length) {
-      throw new Error(
-        "Number of segment variables must match the number of segments.",
-      );
-    }
-    if (new Set(segmentVariables).size !== segmentVariables.length) {
-      throw new Error(
-        "Segment variables must be unique. Use explicit equality when inner constraints are required.",
-      );
-    }
-
-    this.nextVariableIndex = 0;
-    this.cursor = new PaddedCursor(pact.cursor(), pact.segments, 32);
-    this.segmentVariables = segmentVariables;
-  }
-
-  peekByte() {
-    if (this.nextVariableIndex === 0) {
-      throw new error("unreachable");
-    }
-    return this.cursor.peek();
-  }
-
-  proposeByte(bitset) {
-    if (this.nextVariableIndex === 0) {
-      throw new error("unreachable");
-    }
-    this.cursor.propose(bitset);
-  }
-
-  pushByte(byte) {
-    if (this.nextVariableIndex === 0) {
-      throw new error("unreachable");
-    }
-    this.cursor.push(byte);
-  }
-
-  popByte() {
-    if (this.nextVariableIndex === 0) {
-      throw new error("unreachable");
-    }
-    this.cursor.pop();
-  }
-
-  variables(bitset) {
-    bitset.unsetAll();
-    for (const variable of this.segmentVariables) {
-      bitset.set(variable);
-    }
-  }
-
-  blocked(bitset) {
-    bitset.unsetAll();
-    for (
-      let i = this.nextVariableIndex + 1;
-      i < this.segmentVariables.length;
-      i++
-    ) {
-      bitset.set(this.segmentVariables[i]);
-    }
-  }
-
-  pushVariable(variable) {
-    if (this.segmentVariables[this.nextVariableIndex] === variable) {
-      this.nextVariableIndex++;
-    }
-  }
-
-  popVariable() {
-    if (this.nextVariableIndex === 0) {
-      throw new error("unreachable");
-    }
-    this.nextVariableIndex--;
-  }
-
-  variableCosts(variable) {
-    if (this.segmentVariables[this.nextVariableIndex] === variable) {
-      return this.cursor.segmentCount();
-    }
-  }
 }
 
 const makePACT = function (segments) {
@@ -161,8 +20,6 @@ const makePACT = function (segments) {
   SEGMENT_LUT.set(segments.flatMap((l, i) => new Array(l).fill(i)));
   SEGMENT_LUT[SEGMENT_LUT.length - 1] = SEGMENT_LUT[SEGMENT_LUT.length - 2];
   // deno-lint-ignore prefer-const
-  let PACTCursor;
-  // deno-lint-ignore prefer-const
   let PACTTree;
   // deno-lint-ignore prefer-const
   let PACTBatch;
@@ -170,47 +27,6 @@ const makePACT = function (segments) {
   let PACTLeaf;
   // deno-lint-ignore prefer-const
   let PACTNode;
-
-  PACTCursor = class {
-    constructor(pact) {
-      this.pact = pact;
-      this.depth = 0;
-      this.path = new Array(KEY_LENGTH + 1).fill(null);
-
-      this.path[0] = pact.child;
-    }
-
-    peek() {
-      const node = this.path[this.depth];
-      if (node === null) return null;
-      return node.peek(this.depth);
-    }
-
-    propose(bitset) {
-      const node = this.path[this.depth];
-      if (node === null) {
-        bitset.unsetAll();
-      } else {
-        node.propose(this.depth, bitset);
-      }
-    }
-
-    pop() {
-      this.depth--;
-    }
-
-    push(byte) {
-      const node = this.path[this.depth].get(this.depth, byte);
-      this.depth++;
-      this.path[this.depth] = node;
-    }
-
-    segmentCount() {
-      const node = this.path[this.depth];
-      if (node === null) return 0;
-      return node.segmentCount(this.depth);
-    }
-  };
 
   function _union(
     leftNode,
@@ -612,6 +428,14 @@ const makePACT = function (segments) {
       return this.child.count();
     }
 
+    countSegment(prefix, depth) {
+      let node = this.child;
+      for(let d = 0; d < depth; d++) {
+        node = node.get(d, prefix[d]);
+      }
+      return node.segmentCount(depth);
+    }
+
     put(key, value = null) {
       if (this.child !== null) {
         const nchild = this.child.put(0, key, value, {});
@@ -620,6 +444,7 @@ const makePACT = function (segments) {
       }
       return new PACTTree(new PACTLeaf(0, key, value, PACTHash(key)));
     }
+
     get(key) {
       let node = this.child;
       if (node === null) return undefined;
@@ -631,12 +456,13 @@ const makePACT = function (segments) {
       return node.value;
     }
 
-    segmentConstraint(vars) {
-      return new SegmentConstraint(this, vars.map((v) => v.index));
+    seek(key) {
+      if (this.child === null) return null;
+      return this.child.seek(0, key);
     }
 
-    cursor() {
-      return new PACTCursor(this);
+    segmentConstraint(vars) {
+      throw "Currently not implemented!"
     }
 
     isEmpty() {
@@ -804,9 +630,10 @@ const makePACT = function (segments) {
       branchChildbits.set(leftIndex);
       branchChildbits.set(rightIndex);
       const hash = hash_combine(this.hash, sibling.hash);
+      const min_key = cmpBytes(this.key, key) > 0 ? key: this.key;
 
       return new PACTNode(
-        key,
+        min_key,
         depth,
         branchChildbits,
         branchChildren,
@@ -815,6 +642,20 @@ const makePACT = function (segments) {
         2,
         owner,
       );
+    }
+
+    minKey() {
+      return this.key;
+    }
+    
+    seek(depth, key) {
+      for (; depth < this.branchDepth; depth++) {
+        if (this.key[depth] !== key[depth]) break;
+      }
+      if (depth !== KEY_LENGTH && this.key[depth] < key[depth]) {
+        return null;
+      }
+      return this.key;
     }
   };
 
@@ -893,11 +734,11 @@ const makePACT = function (segments) {
         let hash;
         let count;
         let segmentCount;
+        const min_key = cmpBytes(this.key, key) > 0 ? key: this.key;
         if (this.childbits.has(pos)) {
           const child = this.children[pos];
           //We need to update the child where this key would belong.
           const oldChildHash = child.hash;
-          const oldChildBranchDepth = child.branchDepth;
           const oldChildCount = child.count();
           const oldChildSegmentCount = child.segmentCount(this.branchDepth);
           nchild = child.put(childDepth, key, value, owner);
@@ -913,6 +754,7 @@ const makePACT = function (segments) {
             this.hash = hash;
             this._count = count;
             this._segmentCount = segmentCount;
+            this.key = min_key;
             return this;
           }
           nchildbits = this.childbits.copy();
@@ -927,6 +769,7 @@ const makePACT = function (segments) {
             this.hash = hash;
             this._count = count;
             this._segmentCount = segmentCount;
+            this.key = min_key;
             return this;
           }
           nchildbits = this.childbits.copy();
@@ -935,7 +778,7 @@ const makePACT = function (segments) {
         const nchildren = this.children.slice();
         nchildren[pos] = nchild;
         return new PACTNode(
-          this.key,
+          min_key,
           this.branchDepth,
           nchildbits,
           nchildren,
@@ -964,7 +807,7 @@ const makePACT = function (segments) {
       const hash = hash_combine(this.hash, nchild.hash);
 
       return new PACTNode(
-        this.key,
+        min_key,
         depth,
         nchildbits,
         nchildren,
@@ -973,6 +816,29 @@ const makePACT = function (segments) {
         segmentCount,
         owner,
       );
+    }
+
+    minKey() {
+      return this.key;
+    }
+    
+    seek(depth, key) {
+      for (; depth < this.branchDepth; depth++) {
+        if (this.key[depth] !== key[depth]) break;
+      }
+      if (depth !== this.branchDepth) {
+        if (this.key[depth] < key[depth]) return null;
+        if (this.key[depth] > key[depth]) return this.minKey();
+      }
+      const child_key = this.children[this.childbits.next(key[depth])].seek(depth, key);
+      if(child_key) {
+        return child_key;
+      }
+      const next_child = this.childbits.next(key[depth] + 1);
+      if(next_child) {
+        return this.children[next_child].minKey();
+      }
+      return null;
     }
   };
 

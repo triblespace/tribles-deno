@@ -1,4 +1,5 @@
 import { ByteBitset } from "../bitset.js";
+import { cmpValue, equalValue } from "../trible.js";
 
 // TODO return single intersection constraint from multi TribleSet Trible
 // constraints -> allows us to have a wasm only fast subconstraint
@@ -9,43 +10,24 @@ class IntersectionConstraint {
     this.variableStack = [];
   }
 
-  // Interface API >>>
-
-  peekByte() {
-    let byte = null;
-    for (const constraint of this.activeConstraints) {
-      const peeked = constraint.peekByte();
-      if (peeked !== null) {
-        if (byte === null) {
-          byte = peeked;
+  seek(value) {
+    let max_source = null;
+    let max = value;
+    while (true) {
+      for (const constraint of this.activeConstraints) {
+        if (constraint === max_source) {
+          return max;
         }
-        if (byte !== peeked) return null;
-      } else {
-        return null;
+        const s = constraint.seek(max);
+        if (s) {
+          if (equalValue(s, max)) {
+            max_source = constraint;
+            max = s;
+          }
+        } else {
+          return null;
+        }
       }
-    }
-
-    return byte;
-  }
-
-  proposeByte(bitset) {
-    bitset.setAll();
-    let b = (new ByteBitset()).unsetAll();
-    for (const constraint of this.activeConstraints) {
-      constraint.proposeByte(b);
-      bitset.setIntersection(bitset, b);
-    }
-  }
-
-  pushByte(byte) {
-    for (const constraint of this.activeConstraints) {
-      constraint.pushByte(byte);
-    }
-  }
-
-  popByte() {
-    for (const constraint of this.activeConstraints) {
-      constraint.popByte();
     }
   }
 

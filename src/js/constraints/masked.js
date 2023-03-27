@@ -11,22 +11,8 @@ class MaskedConstraint {
     }
   }
 
-  // Interface API >>>
-
-  peekByte() {
-    return this.constraint.peekByte();
-  }
-
-  proposeByte(bitset) {
-    return this.constraint.proposeByte(bitset);
-  }
-
-  pushByte(byte) {
-    return this.constraint.pushByte(byte);
-  }
-
-  popByte() {
-    return this.constraint.popByte();
+  seek(value) {
+    return this.constraint.seek(value);
   }
 
   variables(bitset) {

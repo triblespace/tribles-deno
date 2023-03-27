@@ -5,6 +5,9 @@ import {
   PaddedCursor,
 } from "./pact.js";
 import {
+  E_START,
+  A_START,
+  V_START,
   scrambleAEV,
   scrambleAVE,
   scrambleEAV,
@@ -12,6 +15,7 @@ import {
   scrambleVAE,
   scrambleVEA,
 } from "./trible.js";
+import { UPPER, LOWER } from "./query";
 import { and } from "./constraints/and.js";
 import { setMetaId, setTrible, sign, verify } from "./wasm.js";
 
@@ -79,246 +83,53 @@ class TribleConstraint {
     this.eVar = e;
     this.aVar = a;
     this.vVar = v;
-    this.eavCursor = new PaddedCursor(
-      tribleSet.EAV.cursor(),
-      tribleSet.EAV.segments,
-      32,
-    );
-    this.evaCursor = new PaddedCursor(
-      tribleSet.EVA.cursor(),
-      tribleSet.EVA.segments,
-      32,
-    );
-    this.aevCursor = new PaddedCursor(
-      tribleSet.AEV.cursor(),
-      tribleSet.AEV.segments,
-      32,
-    );
-    this.aveCursor = new PaddedCursor(
-      tribleSet.AVE.cursor(),
-      tribleSet.AVE.segments,
-      32,
-    );
-    this.veaCursor = new PaddedCursor(
-      tribleSet.VEA.cursor(),
-      tribleSet.VEA.segments,
-      32,
-    );
-    this.vaeCursor = new PaddedCursor(
-      tribleSet.VAE.cursor(),
-      tribleSet.VAE.segments,
-      32,
-    );
+    this.eValue = new Uint8Array(16);
+    this.aValue = new Uint8Array(16);
+    this.vValue = new Uint8Array(32);
+    this.tribleset = tribleset;
   }
 
-  peekByte() {
+  seek(value) {
+    //TODO check value UPPER
+    const key = new Uint8Array(64);
     switch (this.state) {
       case stack_empty:
         throw new error("unreachable");
 
       case stack_e:
-        return this.eavCursor.peek();
+        key.set(LOWER(value), 0);
+        return this.eavCursor.seek(value);
       case stack_a:
-        return this.aevCursor.peek();
+        key.set(LOWER(value), 0);
+        return this.aevCursor.seek(value);
       case stack_v:
-        return this.veaCursor.peek();
+        return this.veaCursor.seek(value);
 
       case stack_ea:
-        return this.eavCursor.peek();
+        return this.eavCursor.seek(value);
       case stack_ev:
-        return this.evaCursor.peek();
+        return this.evaCursor.seek(value);
       case stack_ae:
-        return this.aevCursor.peek();
+        return this.aevCursor.seek(value);
       case stack_av:
-        return this.aveCursor.peek();
+        return this.aveCursor.seek(value);
       case stack_ve:
-        return this.veaCursor.peek();
+        return this.veaCursor.seek(value);
       case stack_va:
-        return this.vaeCursor.peek();
+        return this.vaeCursor.seek(value);
 
       case stack_eav:
-        return this.eavCursor.peek();
+        return this.eavCursor.seek(value);
       case stack_eva:
-        return this.evaCursor.peek();
+        return this.evaCursor.seek(value);
       case stack_aev:
-        return this.aevCursor.peek();
+        return this.aevCursor.seek(value);
       case stack_ave:
-        return this.aveCursor.peek();
+        return this.aveCursor.seek(value);
       case stack_vea:
-        return this.veaCursor.peek();
+        return this.veaCursor.seek(value);
       case stack_vae:
-        return this.vaeCursor.peek();
-    }
-  }
-
-  proposeByte(bitset) {
-    switch (this.state) {
-      case stack_empty:
-        throw new error("unreachable");
-
-      case stack_e:
-        this.eavCursor.propose(bitset);
-        return;
-      case stack_a:
-        this.aevCursor.propose(bitset);
-        return;
-      case stack_v:
-        this.veaCursor.propose(bitset);
-        return;
-
-      case stack_ea:
-        this.eavCursor.propose(bitset);
-        return;
-      case stack_ev:
-        this.evaCursor.propose(bitset);
-        return;
-      case stack_ae:
-        this.aevCursor.propose(bitset);
-        return;
-      case stack_av:
-        this.aveCursor.propose(bitset);
-        return;
-      case stack_ve:
-        this.veaCursor.propose(bitset);
-        return;
-      case stack_va:
-        this.vaeCursor.propose(bitset);
-        return;
-
-      case stack_eav:
-        this.eavCursor.propose(bitset);
-        return;
-      case stack_eva:
-        this.evaCursor.propose(bitset);
-        return;
-      case stack_aev:
-        this.aevCursor.propose(bitset);
-        return;
-      case stack_ave:
-        this.aveCursor.propose(bitset);
-        return;
-      case stack_vea:
-        this.veaCursor.propose(bitset);
-        return;
-      case stack_vae:
-        this.vaeCursor.propose(bitset);
-        return;
-    }
-  }
-
-  pushByte(byte) {
-    switch (this.state) {
-      case stack_empty:
-        throw new error("unreachable");
-
-      case stack_e:
-        this.eavCursor.push(byte);
-        this.evaCursor.push(byte);
-        return;
-      case stack_a:
-        this.aevCursor.push(byte);
-        this.aveCursor.push(byte);
-        return;
-      case stack_v:
-        this.veaCursor.push(byte);
-        this.vaeCursor.push(byte);
-        return;
-
-      case stack_ea:
-        this.eavCursor.push(byte);
-        return;
-      case stack_ev:
-        this.evaCursor.push(byte);
-        return;
-      case stack_ae:
-        this.aevCursor.push(byte);
-        return;
-      case stack_av:
-        this.aveCursor.push(byte);
-        return;
-      case stack_ve:
-        this.veaCursor.push(byte);
-        return;
-      case stack_va:
-        this.vaeCursor.push(byte);
-        return;
-
-      case stack_eav:
-        this.eavCursor.push(byte);
-        return;
-      case stack_eva:
-        this.evaCursor.push(byte);
-        return;
-      case stack_aev:
-        this.aevCursor.push(byte);
-        return;
-      case stack_ave:
-        this.aveCursor.push(byte);
-        return;
-      case stack_vea:
-        this.veaCursor.push(byte);
-        return;
-      case stack_vae:
-        this.vaeCursor.push(byte);
-        return;
-    }
-  }
-
-  popByte() {
-    switch (this.state) {
-      case stack_empty:
-        throw new error("unreachable");
-
-      case stack_e:
-        this.eavCursor.pop();
-        this.evaCursor.pop();
-        return;
-      case stack_a:
-        this.aevCursor.pop();
-        this.aveCursor.pop();
-        return;
-      case stack_v:
-        this.veaCursor.pop();
-        this.vaeCursor.pop();
-        return;
-
-      case stack_ea:
-        this.eavCursor.pop();
-        return;
-      case stack_ev:
-        this.evaCursor.pop();
-        return;
-      case stack_ae:
-        this.aevCursor.pop();
-        return;
-      case stack_av:
-        this.aveCursor.pop();
-        return;
-      case stack_ve:
-        this.veaCursor.pop();
-        return;
-      case stack_va:
-        this.vaeCursor.pop();
-        return;
-
-      case stack_eav:
-        this.eavCursor.pop();
-        return;
-      case stack_eva:
-        this.evaCursor.pop();
-        return;
-      case stack_aev:
-        this.aevCursor.pop();
-        return;
-      case stack_ave:
-        this.aveCursor.pop();
-        return;
-      case stack_vea:
-        this.veaCursor.pop();
-        return;
-      case stack_vae:
-        this.vaeCursor.pop();
-        return;
+        return this.vaeCursor.seek(value);
     }
   }
 

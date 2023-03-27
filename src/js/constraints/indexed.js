@@ -3,24 +3,13 @@
 // during a walk.
 class IndexConstraint {
   constructor(variable, index) {
-    this.cursor = index.cursor();
+    this.index = index;
     this.variable = variable;
+    this.cursor = null;
   }
 
-  peekByte() {
-    return this.cursor.peek();
-  }
-
-  proposeByte(bitset) {
-    this.cursor.propose(bitset);
-  }
-
-  pushByte(byte) {
-    this.cursor.push(byte);
-  }
-
-  popByte() {
-    this.cursor.pop();
+  seek(value) {
+    return this.cursor.seek(value);
   }
 
   variables(bitset) {
@@ -32,7 +21,11 @@ class IndexConstraint {
     bitset.unsetAll();
   }
 
-  pushVariable(_variable) {}
+  pushVariable(variable) {
+    if (variable === this.variable) {
+      this.cursor = index.cursor();
+    }
+  }
 
   popVariable() {}
 

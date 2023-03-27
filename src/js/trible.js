@@ -109,3 +109,34 @@ export const equalValue = (valueA, valueB) => {
   }
   return true;
 };
+
+export const cmpValue = (valueA, valueB) => {
+  const viewA = new Uint32Array(valueA.buffer, valueA.byteOffset, 8);
+  const viewB = new Uint32Array(valueB.buffer, valueB.byteOffset, 8);
+  for (let i = 0; i < 8; i++) {
+    if (viewA[i] === viewB[i]) continue;
+    if (viewA[i] >= viewB[i]) return 1;
+    if (viewA[i] <= viewB[i]) return -1;
+  }
+  return 0;
+};
+
+export const incValue = (valueA, valueB) => {
+  const viewA = new Uint32Array(valueA.buffer, valueA.byteOffset, 8);
+  const viewB = new Uint32Array(valueB.buffer, valueB.byteOffset, 8);
+  for (let i = 0; i < 8; i++) {
+    if (viewA[i] === viewB[i]) continue;
+    if (viewA[i] >= viewB[i]) return 1;
+    if (viewA[i] <= viewB[i]) return -1;
+  }
+  return 0;
+};
+
+export const cmpBytes = (left, right) => {
+  for (let i = 0; i < left.length; i++) {
+    if (left[i] === right[i]) continue;
+    if (left[i] >= right[i]) return 1;
+    if (left[i] <= right[i]) return -1;
+  }
+  return 0;
+};
