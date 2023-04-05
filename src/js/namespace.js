@@ -5,8 +5,6 @@ import { indexed } from "./constraints/indexed.js";
 import { masked } from "./constraints/masked.js";
 import { A, E, equalValue, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
 import { emptyValuePACT } from "./pact.js";
-import { TribleSet } from "./tribleset.js";
-import { BlobCache } from "./blobcache.js";
 import { KB } from "./kb.js";
 
 const assert = (test, message) => {
@@ -139,7 +137,7 @@ export class NS {
     const self = this;
     return function* (commit) {
       const unique = find(
-        ({ v1, v2 }, [e, a]) =>
+        (ctx, { v1, v2 }, [e, a]) =>
           and(
             indexed(a, self.uniqueAttributeIndex),
             commit.commitKB.tribleset.patternConstraint([[e, a, v1]]),
@@ -160,7 +158,7 @@ export class NS {
       }
 
       const inverseUnique = find(
-        ({ e1, e2 }, [a, v]) =>
+        (ctx, { e1, e2 }, [a, v]) =>
           and(
             indexed(a, self.inverseAttributeIndex),
             commit.commitKB.tribleset.patternConstraint([[e1, a, v]]),
@@ -192,7 +190,7 @@ export class NS {
     } = this.attributes.get(attributeName);
 
     const res = find(
-      ({ v }, [e, a]) =>
+      (ctx, { v }, [e, a]) =>
         and(
           constant(e, eEncodedId),
           constant(a, aEncodedId),
@@ -281,7 +279,7 @@ export class NS {
           }
 
           const res = find(
-            ({}, [e, a, v]) =>
+            (ctx, {}, [e, a, v]) =>
               and(
                 constant(e, eEncodedId),
                 constant(a, aEncodedId),
@@ -341,7 +339,7 @@ export class NS {
         ownKeys: function (_) {
           const attrs = [id];
           const forward = find(
-            ({ a }, [e, v]) =>
+            (ctx, { a }, [e, v]) =>
               and(
                 constant(e, eEncodedId),
                 indexed(a, ns.forwardAttributeIndex),
@@ -365,7 +363,7 @@ export class NS {
           }
 
           const inverse = find(
-            ({ a }, [e, v]) =>
+            (ctx, { a }, [e, v]) =>
               and(
                 constant(v, eEncodedId),
                 indexed(a, ns.inverseAttributeIndex),
@@ -481,8 +479,8 @@ export class NS {
     return { tribles, blobs };
   }
 
-  triplesToPattern(vars, triples) {
-    const { encoder: idEncoder, decoder: idDecoder } = this.ids;
+  triplesToPattern(ctx, triples) {
+    const { encoder: idEncoder } = this.ids;
     const pattern = [];
     const constraints = [];
     for (const [e, a, v] of triples) {
@@ -497,27 +495,24 @@ export class NS {
       } else {
         const eb = new Uint8Array(VALUE_SIZE);
         idEncoder(e, eb);
-        [eVar] = vars;
-        constraints.push(constant(eVar, eb));
+        eVar = ctx.constantVar(eb);
       }
 
       // Attribute
-      [aVar] = vars;
-      constraints.push(constant(aVar, attributeDescription.encodedId));
+      aVar = ctx.constantVar(attributeDescription.encodedId);
 
       // Value
       if (v instanceof Variable) {
         vVar = v.typed(attributeDescription);
       } else {
         const encoder = attributeDescription.encoder;
-        const b = new Uint8Array(VALUE_SIZE);
+        const vb = new Uint8Array(VALUE_SIZE);
         try {
-          encoder(v, b);
+          encoder(v, vb);
         } catch (error) {
           throw Error(`Error encoding value: ${error.message}`);
         }
-        [vVar] = vars;
-        constraints.push(constant(vVar, b));
+        vVar = ctx.constantVar(vb);
       }
       pattern.push([eVar, aVar, vVar]);
     }
@@ -560,12 +555,12 @@ export class NS {
     return new KB(newTribleSet, newBlobCache);
   }
 
-  pattern(source, vars, entities) {
+  pattern(ctx, source, entities) {
     const triples = this.entitiesToTriples(
-      vars,
+      ctx.anonVars(),
       entities,
     );
-    const { pattern, constraints } = this.triplesToPattern(vars, triples);
+    const { pattern, constraints } = this.triplesToPattern(ctx, triples);
 
     return and(...constraints, source.patternConstraint(pattern));
   }

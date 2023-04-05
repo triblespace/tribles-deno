@@ -97,8 +97,8 @@ function kbQuery(b, size) {
   }
 
   // Query some data.
-  const q = find(({ name, title }, anon) =>
-    knightsNS.pattern(knightskb, anon, [
+  const q = find((ctx, { name, title }, []) =>
+    knightsNS.pattern(ctx, knightskb, [
       {
         name,
         titles: [title],
@@ -161,8 +161,8 @@ function kbDSQuery(b) {
   }
 
   // Query some data.
-  const q = find(({ age, lastName }, anon) =>
-    knightsNS.pattern(peoplekb, anon, [
+  const q = find((ctx, { age, lastName }, []) =>
+    knightsNS.pattern(ctx, peoplekb, [
       {
         name: "Ivan",
         eyeColor: "blue",

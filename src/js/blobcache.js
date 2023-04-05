@@ -46,7 +46,7 @@ export function deserialize(tribleset, blobcache, serialized_bytes) {
 
   let blobdata = blobcache;
   for (
-    const { e, a, v } of find(({ e, a, v }, anon) =>
+    const { e, a, v } of find((ctx, { e, a, v }, []) =>
       and(
         tribleset.tripleConstraint(e, a, v),
         blobs.segmentConstraint([v]),
@@ -168,7 +168,7 @@ export class BlobCache {
     const blobs = [];
     for (
       const key of new find(
-        ({ v }, [e, a]) =>
+        (ctx, { v }, [e, a]) =>
           masked(
             this.strong.segmentConstraint([v, a, e]),
             [e, a],

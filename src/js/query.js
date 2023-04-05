@@ -1,4 +1,7 @@
 import { ByteBitset, ByteBitsetArray } from "./bitset.js";
+import { emptyValuePACT } from "./pact.js";
+import { constant } from "./constraints/constant.js";
+import { and } from "./constraints/and.js";
 
 export const UPPER_START = 0;
 export const UPPER_END = 16;
@@ -190,6 +193,7 @@ export class Variable {
     this.decoder = null;
     this.encoder = null;
     this.blobcache = null;
+    this.constant = null;
   }
 
   /**
@@ -224,29 +228,6 @@ export class Variable {
 }
 
 /**
- * An anonymous sequence of variables returned by `VariableContext.anonVars`.
- */
-class AnonSequence {
-  constructor(context) {
-    this.context = context;
-  }
-
-  [Symbol.iterator]() {
-    return this;
-  }
-  next() {
-    const variable = new Variable(
-      this.context,
-      this.context.nextVariableIndex,
-    );
-    this.context.unnamedVariables.push(variable);
-    this.context.variables.push(variable);
-    this.context.nextVariableIndex++;
-    return { value: variable };
-  }
-}
-
-/**
  * Represents a collection of Variables used together, e.g. in a query.
  * Can be used to generate named an unnamed variables.
  */
@@ -256,10 +237,47 @@ export class VariableContext {
     this.variables = [];
     this.unnamedVariables = [];
     this.namedVariables = new Map();
-    this.constantVariables = [];
+    this.constantVariables = emptyValuePACT;
     this.isBlocking = [];
     this.projected = new Set();
   }
+
+  namedVar(name) {
+    let variable = this.namedVariables.get(name);
+    if (variable) {
+      return variable;
+    }
+    variable = new Variable(this, this.nextVariableIndex, name);
+    this.namedVariables.set(name, variable);
+    this.variables.push(variable);
+    this.projected.add(this.nextVariableIndex);
+    this.nextVariableIndex++;
+    return variable;
+  }
+
+  anonVar() {
+    const variable = new Variable(
+      this,
+      this.nextVariableIndex,
+    );
+    this.unnamedVariables.push(variable);
+    this.variables.push(variable);
+    this.nextVariableIndex++;
+    return variable;
+  }
+
+  constantVar(constant) {
+    let variable = this.constantVariables.get(constant);
+    if (!variable) {
+      variable = new Variable(this, this.nextVariableIndex);
+      variable.constant = constant;
+      this.constantVariables = this.constantVariables.put(constant, variable);
+      this.variables.push(variable);
+      this.nextVariableIndex++;
+    }
+    return variable;
+  }
+
   /**
    * Returns an proxy object that generates named variables.
    * Using the same name twice will return the same variable.
@@ -276,16 +294,7 @@ export class VariableContext {
       {},
       {
         get: (_, name) => {
-          let variable = this.namedVariables.get(name);
-          if (variable) {
-            return variable;
-          }
-          variable = new Variable(this, this.nextVariableIndex, name);
-          this.namedVariables.set(name, variable);
-          this.variables.push(variable);
-          this.projected.add(this.nextVariableIndex);
-          this.nextVariableIndex++;
-          return variable;
+          return this.namedVar(name);
         },
       },
     );
@@ -302,7 +311,27 @@ export class VariableContext {
    * ```
    */
   anonVars() {
-    return new AnonSequence(this);
+    const self = this;
+    return {
+      [Symbol.iterator]() {
+        return this;
+      },
+      next() {
+        return { value: self.anonVar() };
+      },
+    };
+  }
+
+  constraints() {
+    const constraints = [];
+
+    for (const constantVariable of this.constantVariables.values()) {
+      constraints.push(
+        constant(constantVariable, constantVariable.constant),
+      );
+    }
+
+    return constraints;
   }
 }
 
@@ -350,7 +379,9 @@ export function decodeWithBlobcache(vars, binding) {
  * @returns {Query} Enumerates possible variable assignments satisfying the input query.
  */
 export function find(queryfn, postprocessing = decodeWithBlobcache) {
-  const vars = new VariableContext();
-  const constraint = queryfn(vars.namedVars(), vars.anonVars());
-  return new Query(constraint, vars, postprocessing);
+  const ctx = new VariableContext();
+  const queryConstraint = queryfn(ctx, ctx.namedVars(), ctx.anonVars());
+  const ctxConstraints = ctx.constraints();
+  const constraint = and(queryConstraint, ...ctxConstraints);
+  return new Query(constraint, ctx, postprocessing);
 }

@@ -1,7 +1,7 @@
 import {
   assert,
   assertEquals,
-} from "https://deno.land/std@0.177.0/testing/asserts.ts";
+} from "https://deno.land/std@0.180.0/testing/asserts.ts";
 import fc from "https://cdn.skypack.dev/fast-check";
 fc.configureGlobal({
   numRuns: Number.MAX_SAFE_INTEGER,
@@ -49,8 +49,8 @@ Deno.test("KB Find", () => {
 
   // Query some data.
   const results = new Set([
-    ...find(({ name, title }, anon) =>
-      knightsNS.pattern(knightskb, anon, [{
+    ...find((ctx, { name, title }, []) =>
+      knightsNS.pattern(ctx, knightskb, [{
         name: name,
         titles: [title],
       }])
@@ -104,8 +104,8 @@ Deno.test("KB Find Single", () => {
 
         /// Query some data.
         const results = new Set([
-          ...find(({ name, title }, anon) =>
-            knightsNS.pattern(knightskb, anon, [{
+          ...find((ctx, { name, title }, []) =>
+            knightsNS.pattern(ctx, knightskb, [{
               name,
               titles: [title],
             }])
@@ -145,10 +145,10 @@ Deno.test("find lower range", () => {
   // Query some data.
   const results = [
     ...find(
-      ({ name, title }, anon) =>
+      (ctx, { name, title }, []) =>
         and(
           ranged(name, types.shortstring, { lower: "K" }),
-          knightsNS.pattern(knightskb, anon, [{
+          knightsNS.pattern(ctx, knightskb, [{
             name,
             titles: [title],
           }]),
@@ -187,10 +187,10 @@ Deno.test("find upper bound", () => {
   // Query some data.
 
   const results = [
-    ...find(({ name, title }, anon) =>
+    ...find((ctx, { name, title }, []) =>
       and(
         ranged(name, types.shortstring, { upper: "K" }),
-        knightsNS.pattern(knightskb, anon, [{
+        knightsNS.pattern(ctx, knightskb, [{
           name,
           titles: [title],
         }]),
@@ -228,8 +228,8 @@ Deno.test("KB Walk", () => {
   // Query some data.
   debugger;
   const [{ romeo }] = [
-    ...find(({ romeo }, anon) =>
-      knightsNS.pattern(knightskb, anon, [{ [id]: romeo, name: "Romeo" }])
+    ...find((ctx, { romeo }, []) =>
+      knightsNS.pattern(ctx, knightskb, [{ [id]: romeo, name: "Romeo" }])
     ),
   ];
   assertEquals(
@@ -262,8 +262,8 @@ Deno.test("KB Walk ownKeys", () => {
   }]);
   // Query some data.
   const [{ romeo }] = [
-    ...find(({ romeo }, anon) =>
-      knightsNS.pattern(knightskb, anon, [{ [id]: romeo, name: "Romeo" }])
+    ...find((ctx, { romeo }, []) =>
+      knightsNS.pattern(ctx, knightskb, [{ [id]: romeo, name: "Romeo" }])
     ),
   ];
   assertEquals(

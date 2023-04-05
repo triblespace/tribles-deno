@@ -139,11 +139,6 @@ function* splitTribles(bytes) {
   }
 }
 
-export class NoveltyConstraint {
-  constructor(baseKB, currentKB, triples) {
-  }
-}
-
 export class Commit {
   constructor(commitId, baseKB, commitKB, currentKB) {
     this.commitId = commitId;
