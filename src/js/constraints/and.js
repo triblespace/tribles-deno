@@ -15,25 +15,27 @@ class IntersectionConstraint {
     return bitset;
   }
 
-  estimate(binding) {
+  estimate(variable, binding) {
     let min = Number.MAX_VALUE;
     for (const constraint of this.constraints) {
-      min = Math.min(min, constraint.estimate(binding));
+      min = Math.min(min, constraint.estimate(variable, binding));
     }
-
     return min;
   }
 
-  *expand(binding) {
+  *expand(variable, binding) {
     let min = Number.MAX_VALUE;
     let expander = null;
     let shrinkers = [];
     for (const candidate of this.constraints) {
+      if(!candidate.variables().has(variable)) {
+        continue;
+      }
       if(expander === null) {
         expander = candidate;
         continue;
       }
-      const candiate_estimate = candidate.estimate(binding);
+      const candiate_estimate = candidate.estimate(variable, binding);
       if(min < candiate_estimate) {
         shrinkers.push(expander);
         min = candiate_estimate;
@@ -43,9 +45,9 @@ class IntersectionConstraint {
       }
     }
 
-    propose: for(const proposal of expander.expand(binding)) {
+    propose: for(const proposal of expander.expand(variable, binding)) {
       for (const shrinker of shrinkers) {
-        if(shrinker.shrink(proposal)) {
+        if(shrinker.shrink(variable, proposal, binding)) {
           continue propose;
         }
       }
@@ -53,9 +55,9 @@ class IntersectionConstraint {
     }
   }
 
-  shrink(binding) {
+  shrink(variable, value, binding) {
     for (const constraint of this.constraints) {
-      if(constraint.shrink(binding)) {
+      if(constraint.shrink(variable, value, binding)) {
         return true;
       }
     }

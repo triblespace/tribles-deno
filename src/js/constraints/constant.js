@@ -12,16 +12,16 @@ class ConstantConstraint {
     return bitset;
   }
 
-  estimate(binding) {
+  estimate(variable, binding) {
     return 1;
   }
 
-  *expand(binding) {
+  *expand(variable, binding) {
     yield binding.set(this.variable, this.constant);
   }
 
-  shrink(binding) {
-    return !equalValue(binding.get(this.variable), this.constant);
+  shrink(variable, value, binding) {
+    return !equalValue(value, this.constant);
   }
 }
 

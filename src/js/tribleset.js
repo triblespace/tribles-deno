@@ -120,7 +120,7 @@ class TribleConstraint {
     return bitset;
   }
 
-  estimate(binding) {
+  estimate(variable, binding) {
     let bound = binding.bound();
     const e = bound.has(this.eVar);
     const a = bound.has(this.aVar);
@@ -152,11 +152,11 @@ class TribleConstraint {
     }
   }
 
-  *expand(binding) {
+  *expand(variable, binding) {
     return this.constraint.expand(binding);
   }
 
-  shrink(binding) {
+  shrink(variable, value, binding) {
     return this.constraint.shrink(binding);
   }
 }

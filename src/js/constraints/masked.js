@@ -18,16 +18,16 @@ class MaskedConstraint {
     return bitset;
   }
 
-  estimate(binding) {
-    return this.constraint.estimate(binding);
+  estimate(variable, binding) {
+    return this.constraint.estimate(variable, binding);
   }
 
-  *expand(binding) {
-    return this.constraint.expand(binding);
+  *expand(variable, binding) {
+    return this.constraint.expand(variable, binding);
   }
 
-  shrink(binding) {
-    return this.constraint.shrink(binding);
+  shrink(variable, value, binding) {
+    return this.constraint.shrink(variable, binding);
   }
 }
 

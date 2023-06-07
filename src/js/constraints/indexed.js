@@ -13,16 +13,16 @@ class IndexConstraint {
     return bitset;
   }
 
-  estimate(binding) {
+  estimate(variable, binding) {
     return this.index.count();
   }
 
-  *expand(binding) {
+  *expand(variable, binding) {
     yield* this.index.keys();
   }
 
-  shrink(binding) {
-    return !this.index.has(binding.get(this.variable));
+  shrink(variable, value, binding) {
+    return !this.index.has(value);
   }
 }
 

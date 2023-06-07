@@ -16,16 +16,16 @@ class RangeConstraint {
     return bitset;
   }
 
-  estimate(binding) {
+  estimate(variable, binding) {
     return Number.MAX_VALUE;
   }
 
-  *expand(binding) {
-    return this.constraint.expand(binding);
+  *expand(variable, binding) {
+    throw Error("Expansion too large.");
   }
 
-  shrink(binding) {
-    return this.constraint.shrink(binding);
+  shrink(variable, value, binding) {
+    throw Error("TODO");
   }
 }
 
