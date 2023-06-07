@@ -11,43 +11,23 @@ class MaskedConstraint {
     }
   }
 
-  // Interface API >>>
-
-  peekByte() {
-    return this.constraint.peekByte();
-  }
-
-  proposeByte(bitset) {
-    return this.constraint.proposeByte(bitset);
-  }
-
-  pushByte(byte) {
-    return this.constraint.pushByte(byte);
-  }
-
-  popByte() {
-    return this.constraint.popByte();
-  }
-
-  variables(bitset) {
-    this.constraint.variables(bitset);
+  variables() {
+    let bitset = new ByteBitset();
+    this.constraint.variables();
     bitset.setSubtraction(bitset, this.mask);
+    return bitset;
   }
 
-  blocked(bitset) {
-    this.constraint.blocked(bitset);
+  estimate(binding) {
+    return this.constraint.estimate(binding);
   }
 
-  pushVariable(variable) {
-    this.constraint.pushVariable(variable);
+  *expand(binding) {
+    return this.constraint.expand(binding);
   }
 
-  popVariable() {
-    this.constraint.popVariable();
-  }
-
-  variableCosts(variable) {
-    return this.constraint.variableCosts(variable);
+  shrink(binding) {
+    return this.constraint.shrink(binding);
   }
 }
 

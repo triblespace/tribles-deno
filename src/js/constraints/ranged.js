@@ -8,67 +8,24 @@ class RangeConstraint {
     this.lowerBound = lowerBound;
     this.upperBound = upperBound;
     this.variable = variable;
-    this.depth = 0;
-    this.lowerFringe = 0;
-    this.upperFringe = 0;
-  }
-  peekByte() {
-    return null;
   }
 
-  proposeByte(bitset) {
-    const lowerByte = this.depth === this.lowerFringe
-      ? this.lowerBound[this.depth]
-      : 0;
-    const upperByte = this.depth === this.upperFringe
-      ? this.upperBound[this.depth]
-      : 255;
-
-    bitset.setRange(lowerByte, upperByte);
-  }
-
-  pushByte(byte) {
-    if (
-      this.depth === this.lowerFringe &&
-      byte === this.lowerBound[this.depth]
-    ) {
-      this.lowerFringe++;
-    }
-    if (
-      this.depth === this.upperFringe &&
-      byte === this.upperBound[this.depth]
-    ) {
-      this.upperFringe++;
-    }
-    this.depth++;
-  }
-
-  popByte() {
-    this.depth--;
-
-    if (this.depth < this.lowerFringe) {
-      this.lowerFringe = this.depth;
-    }
-    if (this.depth < this.upperFringe) {
-      this.upperFringe = this.depth;
-    }
-  }
-
-  variables(bitset) {
-    bitset.unsetAll();
+  variables() {
+    let bitset = new ByteBitset();
     bitset.set(this.variable);
+    return bitset;
   }
 
-  blocked(bitset) {
-    bitset.unsetAll();
-  }
-
-  pushVariable(_variable) {}
-
-  popVariable() {}
-
-  variableCosts(_variable) {
+  estimate(binding) {
     return Number.MAX_VALUE;
+  }
+
+  *expand(binding) {
+    return this.constraint.expand(binding);
+  }
+
+  shrink(binding) {
+    return this.constraint.shrink(binding);
   }
 }
 

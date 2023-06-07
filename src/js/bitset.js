@@ -178,6 +178,19 @@ export class ByteBitset {
     );
   }
 
+  isEqual(other) {
+    return (
+      this.u32array[0] === other.u32array[0] &&
+      this.u32array[1] === other.u32array[1] &&
+      this.u32array[2] === other.u32array[2] &&
+      this.u32array[3] === other.u32array[3] &&
+      this.u32array[4] === other.u32array[4] &&
+      this.u32array[5] === other.u32array[5] &&
+      this.u32array[6] === other.u32array[6] &&
+      this.u32array[7] === other.u32array[7]
+    );
+  }
+
   isSupersetOf(other) {
     return (
       ((this.u32array[0] & other.u32array[0]) ^ other.u32array[0]) === 0 &&

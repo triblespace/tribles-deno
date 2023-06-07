@@ -114,22 +114,12 @@ export class SegmentConstraint {
     this.cursor.pop();
   }
 
-  variables(bitset) {
-    bitset.unsetAll();
+  variables() {
+    let bitset = new ByteBitset();
     for (const variable of this.segmentVariables) {
       bitset.set(variable);
     }
-  }
-
-  blocked(bitset) {
-    bitset.unsetAll();
-    for (
-      let i = this.nextVariableIndex + 1;
-      i < this.segmentVariables.length;
-      i++
-    ) {
-      bitset.set(this.segmentVariables[i]);
-    }
+    return bitset;
   }
 
   pushVariable(variable) {
@@ -620,6 +610,7 @@ const makePACT = function (segments) {
       }
       return new PACTTree(new PACTLeaf(0, key, value, PACTHash(key)));
     }
+
     get(key) {
       let node = this.child;
       if (node === null) return undefined;
@@ -629,6 +620,17 @@ const makePACT = function (segments) {
         if (node === null) return undefined;
       }
       return node.value;
+    }
+
+    has(key) {
+      let node = this.child;
+      if (node === null) return false;
+      for (let depth = 0; depth < KEY_LENGTH; depth++) {
+        const sought = key[depth];
+        node = node.get(depth, sought);
+        if (node === null) return false;
+      }
+      return true;
     }
 
     segmentConstraint(vars) {

@@ -1,44 +1,27 @@
-import { VALUE_SIZE } from "../trible.js";
+import { VALUE_SIZE, equalValue } from "../trible.js";
 
 class ConstantConstraint {
   constructor(variable, constant) {
     this.variable = variable;
     this.constant = constant;
-    this.depth = 0;
   }
 
-  peekByte() {
-    return this.constant[this.depth];
-  }
-
-  proposeByte(bitset) {
-    bitset.unsetAll();
-    bitset.set(this.constant[this.depth]);
-  }
-
-  popByte() {
-    this.depth--;
-  }
-
-  pushByte(_byte) {
-    this.depth++;
-  }
-
-  variables(bitset) {
-    bitset.unsetAll();
+  variables() {
+    let bitset = new ByteBitset();
     bitset.set(this.variable);
+    return bitset;
   }
 
-  blocked(bitset) {
-    bitset.unsetAll();
-  }
-
-  pushVariable(_variable) {}
-
-  popVariable() {}
-
-  variableCosts(_variable) {
+  estimate(binding) {
     return 1;
+  }
+
+  *expand(binding) {
+    yield binding.set(this.variable, this.constant);
+  }
+
+  shrink(binding) {
+    return !equalValue(binding.get(this.variable), this.constant);
   }
 }
 

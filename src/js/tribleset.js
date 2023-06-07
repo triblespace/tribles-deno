@@ -14,6 +14,7 @@ import {
 } from "./trible.js";
 import { and } from "./constraints/and.js";
 import { setMetaId, setTrible, sign, verify } from "./wasm.js";
+import { ByteBitset } from "./bitset.js";
 
 const BUFFER_SIZE = 64;
 
@@ -111,407 +112,52 @@ class TribleConstraint {
     );
   }
 
-  peekByte() {
-    switch (this.state) {
-      case stack_empty:
-        throw new error("unreachable");
-
-      case stack_e:
-        return this.eavCursor.peek();
-      case stack_a:
-        return this.aevCursor.peek();
-      case stack_v:
-        return this.veaCursor.peek();
-
-      case stack_ea:
-        return this.eavCursor.peek();
-      case stack_ev:
-        return this.evaCursor.peek();
-      case stack_ae:
-        return this.aevCursor.peek();
-      case stack_av:
-        return this.aveCursor.peek();
-      case stack_ve:
-        return this.veaCursor.peek();
-      case stack_va:
-        return this.vaeCursor.peek();
-
-      case stack_eav:
-        return this.eavCursor.peek();
-      case stack_eva:
-        return this.evaCursor.peek();
-      case stack_aev:
-        return this.aevCursor.peek();
-      case stack_ave:
-        return this.aveCursor.peek();
-      case stack_vea:
-        return this.veaCursor.peek();
-      case stack_vae:
-        return this.vaeCursor.peek();
-    }
-  }
-
-  proposeByte(bitset) {
-    switch (this.state) {
-      case stack_empty:
-        throw new error("unreachable");
-
-      case stack_e:
-        this.eavCursor.propose(bitset);
-        return;
-      case stack_a:
-        this.aevCursor.propose(bitset);
-        return;
-      case stack_v:
-        this.veaCursor.propose(bitset);
-        return;
-
-      case stack_ea:
-        this.eavCursor.propose(bitset);
-        return;
-      case stack_ev:
-        this.evaCursor.propose(bitset);
-        return;
-      case stack_ae:
-        this.aevCursor.propose(bitset);
-        return;
-      case stack_av:
-        this.aveCursor.propose(bitset);
-        return;
-      case stack_ve:
-        this.veaCursor.propose(bitset);
-        return;
-      case stack_va:
-        this.vaeCursor.propose(bitset);
-        return;
-
-      case stack_eav:
-        this.eavCursor.propose(bitset);
-        return;
-      case stack_eva:
-        this.evaCursor.propose(bitset);
-        return;
-      case stack_aev:
-        this.aevCursor.propose(bitset);
-        return;
-      case stack_ave:
-        this.aveCursor.propose(bitset);
-        return;
-      case stack_vea:
-        this.veaCursor.propose(bitset);
-        return;
-      case stack_vae:
-        this.vaeCursor.propose(bitset);
-        return;
-    }
-  }
-
-  pushByte(byte) {
-    switch (this.state) {
-      case stack_empty:
-        throw new error("unreachable");
-
-      case stack_e:
-        this.eavCursor.push(byte);
-        this.evaCursor.push(byte);
-        return;
-      case stack_a:
-        this.aevCursor.push(byte);
-        this.aveCursor.push(byte);
-        return;
-      case stack_v:
-        this.veaCursor.push(byte);
-        this.vaeCursor.push(byte);
-        return;
-
-      case stack_ea:
-        this.eavCursor.push(byte);
-        return;
-      case stack_ev:
-        this.evaCursor.push(byte);
-        return;
-      case stack_ae:
-        this.aevCursor.push(byte);
-        return;
-      case stack_av:
-        this.aveCursor.push(byte);
-        return;
-      case stack_ve:
-        this.veaCursor.push(byte);
-        return;
-      case stack_va:
-        this.vaeCursor.push(byte);
-        return;
-
-      case stack_eav:
-        this.eavCursor.push(byte);
-        return;
-      case stack_eva:
-        this.evaCursor.push(byte);
-        return;
-      case stack_aev:
-        this.aevCursor.push(byte);
-        return;
-      case stack_ave:
-        this.aveCursor.push(byte);
-        return;
-      case stack_vea:
-        this.veaCursor.push(byte);
-        return;
-      case stack_vae:
-        this.vaeCursor.push(byte);
-        return;
-    }
-  }
-
-  popByte() {
-    switch (this.state) {
-      case stack_empty:
-        throw new error("unreachable");
-
-      case stack_e:
-        this.eavCursor.pop();
-        this.evaCursor.pop();
-        return;
-      case stack_a:
-        this.aevCursor.pop();
-        this.aveCursor.pop();
-        return;
-      case stack_v:
-        this.veaCursor.pop();
-        this.vaeCursor.pop();
-        return;
-
-      case stack_ea:
-        this.eavCursor.pop();
-        return;
-      case stack_ev:
-        this.evaCursor.pop();
-        return;
-      case stack_ae:
-        this.aevCursor.pop();
-        return;
-      case stack_av:
-        this.aveCursor.pop();
-        return;
-      case stack_ve:
-        this.veaCursor.pop();
-        return;
-      case stack_va:
-        this.vaeCursor.pop();
-        return;
-
-      case stack_eav:
-        this.eavCursor.pop();
-        return;
-      case stack_eva:
-        this.evaCursor.pop();
-        return;
-      case stack_aev:
-        this.aevCursor.pop();
-        return;
-      case stack_ave:
-        this.aveCursor.pop();
-        return;
-      case stack_vea:
-        this.veaCursor.pop();
-        return;
-      case stack_vae:
-        this.vaeCursor.pop();
-        return;
-    }
-  }
-
-  variables(bitset) {
-    bitset.unsetAll();
+  variables() {
+    let bitset = new ByteBitset();
     bitset.set(this.eVar);
     bitset.set(this.aVar);
     bitset.set(this.vVar);
+    return bitset;
   }
 
-  blocked(bitset) {
-    bitset.unsetAll();
-  }
+  estimate(binding) {
+    let bound = binding.bound();
+    const e = bound.has(this.eVar);
+    const a = bound.has(this.aVar);
+    const v = bound.has(this.vVar);
 
-  pushVariable(variable) {
-    if (this.eVar === variable) {
-      switch (this.state) {
-        case stack_empty:
-          this.state = stack_e;
-          return;
-
-        case stack_a:
-          this.state = stack_ae;
-          return;
-        case stack_v:
-          this.state = stack_ve;
-          return;
-
-        case stack_av:
-          this.state = stack_ave;
-          return;
-        case stack_va:
-          this.state = stack_vae;
-          return;
-
-        default:
-          throw new Error("unreachable");
-      }
+    if(e && a && v) {
+      return null;
     }
-    if (this.aVar === variable) {
-      switch (this.state) {
-        case stack_empty:
-          this.state = stack_a;
-          return;
-
-        case stack_e:
-          this.state = stack_ea;
-          return;
-        case stack_v:
-          this.state = stack_va;
-          return;
-
-        case stack_ev:
-          this.state = stack_eva;
-          return;
-        case stack_ve:
-          this.state = stack_vea;
-          return;
-
-        default:
-          throw new Error("unreachable");
-      }
+    if(e && a && !v) {
+      //return eav;
     }
-    if (this.vVar == variable) {
-      switch (this.state) {
-        case stack_empty:
-          this.state = stack_v;
-          return;
-
-        case stack_e:
-          this.state = stack_ev;
-          return;
-        case stack_a:
-          this.state = stack_av;
-          return;
-
-        case stack_ea:
-          this.state = stack_eav;
-          return;
-        case stack_ae:
-          this.state = stack_aev;
-          return;
-
-        default:
-          throw new Error("unreachable");
-          return;
-      }
+    if(e && !a && v) {
+      //return eva;
+    }
+    if(e && !a && !v) {
+      //return eav;
+    }
+    if(!e && a && v) {
+      //return ave;
+    }
+    if(!e && a && !v) {
+      //return aev;
+    }
+    if(!e && !a && v) {
+      //return vea;
+    }
+    if(!e && !a && !v) {
+      //return eav;
     }
   }
 
-  popVariable() {
-    switch (this.state) {
-      case stack_empty:
-        throw new Error("unreachable");
-
-      case stack_e:
-      case stack_a:
-      case stack_v:
-        this.state = stack_empty;
-        return;
-
-      case stack_ea:
-      case stack_ev:
-        this.state = stack_e;
-        return;
-      case stack_ae:
-      case stack_av:
-        this.state = stack_a;
-        return;
-      case stack_ve:
-      case stack_va:
-        this.state = stack_v;
-        return;
-
-      case stack_eav:
-        this.state = stack_ea;
-        return;
-      case stack_eva:
-        this.state = stack_ev;
-        return;
-      case stack_aev:
-        this.state = stack_ae;
-        return;
-      case stack_ave:
-        this.state = stack_av;
-        return;
-      case stack_vea:
-        this.state = stack_ve;
-        return;
-      case stack_vae:
-        this.state = stack_va;
-        return;
-    }
+  *expand(binding) {
+    return this.constraint.expand(binding);
   }
 
-  variableCosts(variable) {
-    if (this.eVar === variable) {
-      switch (this.state) {
-        case stack_empty:
-          return this.eavCursor.segmentCount();
-
-        case stack_a:
-          return this.aevCursor.segmentCount();
-        case stack_v:
-          return this.veaCursor.segmentCount();
-
-        case stack_av:
-          return this.aveCursor.segmentCount();
-        case stack_va:
-          return this.vaeCursor.segmentCount();
-
-        default:
-          throw new Error("unreachable");
-      }
-    }
-    if (this.aVar === variable) {
-      switch (this.state) {
-        case stack_empty:
-          return this.aevCursor.segmentCount();
-
-        case stack_e:
-          return this.eavCursor.segmentCount();
-        case stack_v:
-          return this.vaeCursor.segmentCount();
-
-        case stack_ev:
-          return this.evaCursor.segmentCount();
-        case stack_ve:
-          return this.veaCursor.segmentCount();
-
-        default:
-          throw new Error("unreachable");
-      }
-    }
-    if (this.vVar === variable) {
-      switch (this.state) {
-        case stack_empty:
-          return this.veaCursor.segmentCount();
-
-        case stack_e:
-          return this.evaCursor.segmentCount();
-        case stack_a:
-          return this.aveCursor.segmentCount();
-
-        case stack_ea:
-          return this.eavCursor.segmentCount();
-        case stack_ae:
-          return this.aevCursor.segmentCount();
-
-        default:
-          throw new Error("unreachable");
-      }
-    }
+  shrink(binding) {
+    return this.constraint.shrink(binding);
   }
 }
 

@@ -12,100 +12,28 @@ export const LOWER_END = 32;
 export const UPPER = (value) => value.subarray(UPPER_START, UPPER_END);
 export const LOWER = (value) => value.subarray(LOWER_START, LOWER_END);
 
-const MODE_PATH = 0;
-const MODE_BRANCH = 1;
-const MODE_BACKTRACK = 2;
-
-/**
- * Finds assignments for the currently explored variable of the provided constraint.
- */
-function VariableIterator(constraint, key_state) {
-  return {
-    branch_points: (new ByteBitset()).unsetAll(),
-    branch_state: new ByteBitsetArray(32),
-    key_state: key_state,
-    mode: MODE_PATH,
-    depth: 0,
-    constraint: constraint,
-
-    [Symbol.iterator]() {
-      return this;
-    },
-
-    next(cancel) {
-      if (cancel) {
-        while (0 < this.depth) {
-          this.depth -= 1;
-          this.constraint.popByte();
-        }
-        this.mode = MODE_PATH;
-        return { done: true, value: undefined };
-      }
-      outer:
-      while (true) {
-        switch (this.mode) {
-          case MODE_PATH:
-            while (this.depth < this.key_state.length) {
-              const byte = this.constraint.peekByte();
-              if (byte !== null) {
-                this.key_state[this.depth] = byte;
-                this.constraint.pushByte(byte);
-                this.depth += 1;
-              } else {
-                this.constraint.proposeByte(this.branch_state.get(this.depth));
-                this.branch_points.set(this.depth);
-                this.mode = MODE_BRANCH;
-                continue outer;
-              }
-            }
-            this.mode = MODE_BACKTRACK;
-            return { done: false, value: this.key_state };
-          case MODE_BRANCH:
-            const byte = this.branch_state.get(this.depth).drainNext();
-            if (byte !== null) {
-              this.key_state[this.depth] = byte;
-              this.constraint.pushByte(byte);
-              this.depth += 1;
-              this.mode = MODE_PATH;
-              continue outer;
-            } else {
-              this.branch_points.unset(this.depth);
-              this.mode = MODE_BACKTRACK;
-              continue outer;
-            }
-          case MODE_BACKTRACK:
-            const parent_depth = this.branch_points.prev(255);
-            if (parent_depth !== null) {
-              while (parent_depth < this.depth) {
-                this.depth -= 1;
-                this.constraint.popByte();
-              }
-              this.mode = MODE_BRANCH;
-              continue outer;
-            } else {
-              while (0 < this.depth) {
-                this.depth -= 1;
-                this.constraint.popByte();
-              }
-              return { done: true, value: undefined };
-            }
-        }
-      }
-    },
-  };
-}
-
 /**
  * Assigns values to variables.
  */
 export class Bindings {
-  constructor(length, buffer = new Uint8Array(length * 32)) {
+  constructor(length, buffer = new Uint8Array(32 + length * 32)) {
     this.length = length;
     this.buffer = buffer;
   }
 
-  get(offset) {
-    return this.buffer.subarray(offset * 32, (offset + 1) * 32);
+  bound() {
+    return new ByteBitset(new UInt32Array(this.buffer.buffer, 0, 8));
+  }
+
+  get(variable) {
+    return this.buffer.subarray(32 + variable * 32, 32 + (variable + 1) * 32);
+  }
+
+  set(variable, value) {
+    let copy = this.copy()
+    copy.get(variable).set(value);
+    copy.bound().set(variable);
+    return copy;
   }
 
   copy() {
@@ -122,43 +50,34 @@ export class Bindings {
 export class Query {
   constructor(
     constraint,
-    vars,
+    ctx,
     postprocessing = (r) => r,
   ) {
     this.constraint = constraint;
-    this.vars = vars;
+    this.ctx = ctx;
     this.postprocessing = postprocessing;
 
-    this.unexploredVariables = new ByteBitset();
-    constraint.variables(this.unexploredVariables);
-    const variableCount = this.unexploredVariables.count();
-
-    this.bindings = new Bindings(variableCount);
+    this.variables = constraint.variables();
   }
 
   *[Symbol.iterator]() {
-    for (const binding of this.__resolve()) {
-      yield this.postprocessing(this.vars, binding);
+    for (const binding of this.bindAll(new Bindings(this.variables.count()))) {
+      yield this.postprocessing(this.ctx, binding);
     }
   }
 
-  *__resolve() {
-    if (this.unexploredVariables.isEmpty()) {
-      yield this.bindings.copy();
+  *bindAll(binding) {
+    const boundVariables = binding.bound();
+    if (this.variables.isEqual(boundVariables)) {
+      yield this.binding;
     } else {
       let nextVariable;
       let nextVariableCosts = Number.MAX_VALUE;
 
-      const variables = new ByteBitset();
-      this.constraint.blocked(variables);
-      variables.setSubtraction(this.unexploredVariables, variables);
+      const unboundVariables = new ByteBitset().setSubtraction(this.variables, boundVariables);
 
-      if (variables.isEmpty()) {
-        throw new Error("Can't evaluate query: blocked dead end.");
-      }
-
-      for (const variable of variables.entries()) {
-        const costs = this.constraint.variableCosts(variable);
+      for (const variable of unboundVariables.entries()) {
+        const costs = this.constraint.estimate(variable, binding);
         if (costs <= nextVariableCosts) {
           nextVariable = variable;
           nextVariableCosts = costs;
@@ -166,17 +85,9 @@ export class Query {
         if (nextVariableCosts <= 1) break;
       }
 
-      this.unexploredVariables.unset(nextVariable);
-      this.constraint.pushVariable(nextVariable);
-      const variableAssignments = VariableIterator(
-        this.constraint,
-        this.bindings.get(nextVariable),
-      );
-      for (const _ of variableAssignments) {
-        yield* this.__resolve();
+      for (const value of this.constraint.expand(nextVariable, binding)) {
+        yield* this.bindAll(binding.copy().set(nextVariable, value));
       }
-      this.constraint.popVariable();
-      this.unexploredVariables.set(nextVariable);
     }
   }
 }
