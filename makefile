@@ -1,12 +1,12 @@
 build: clean
-	mkdir build
-	zig build-lib --cache-dir build/zig-cache -target wasm32-freestanding -dynamic -OReleaseFast -femit-bin=build/lib.wasm src/zig/main.zig
-	wasmwrap --input build/lib.wasm --output src/js/wasmdata.js
+	mkdir target
+	cd src/rust/ ; cargo build --target-dir ../../target --target wasm32-unknown-unknown --release
+	wasmwrap --input target/wasm32-unknown-unknown/release/tribles_deno.wasm --output src/js/wasmdata.js
 	deno bundle mod.js bundle.js
 	deno fmt
 
 clean:
-	rm -rf build
+	rm -rf target
 
 bench: build
 	deno run --v8-flags=--max-heap-size=8192 --unstable --allow-env --allow-read --allow-hrtime ./bench
