@@ -7,3 +7,5 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+siphasher = "0.3.10"
+blake3 = "1.4.0"
