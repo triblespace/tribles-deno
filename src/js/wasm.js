@@ -60,7 +60,7 @@ export function hash_equal(l, r) {
 
 // # Blake2b256
 const blake3_digest_size = 32;
-const blake_buffer_size = 1024;
+const blake_buffer_size = 16384;
 
 const _global_blake3_out = new Uint8Array(
   instance.exports.memory.buffer,
