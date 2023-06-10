@@ -41,36 +41,36 @@ pub extern fn hash_equal() -> bool {
 // Blake3
 
 #[no_mangle]
-pub static mut global_blake2b256_out : [u8; 32] = [0; 32];
+pub static mut global_blake3_out : [u8; 32] = [0; 32];
 #[no_mangle]
-pub static mut global_blake2b256_buffer : [u8; 16384] = [0; 16384];
+pub static mut global_blake3_buffer : [u8; 16384] = [0; 16384];
 
-static mut BLAKE2B256_STATE : MaybeUninit<blake3::Hasher> = MaybeUninit::uninit();
+static mut BLAKE3_STATE : MaybeUninit<blake3::Hasher> = MaybeUninit::uninit();
 
 #[no_mangle]
 pub extern fn blake3_init() {
     unsafe{
-        BLAKE2B256_STATE = MaybeUninit::new(blake3::Hasher::new());
+        BLAKE3_STATE = MaybeUninit::new(blake3::Hasher::new());
     }
 }
 
 #[no_mangle]
-pub extern fn blake2b256_update(len: usize) {
+pub extern fn blake3_update(len: usize) {
     unsafe {
-        BLAKE2B256_STATE.assume_init_mut().update(&global_blake2b256_buffer[0..len]);
+        BLAKE3_STATE.assume_init_mut().update(&global_blake3_buffer[0..len]);
     }
 }
 
 #[no_mangle]
-pub extern fn blake2b256_finish() {
+pub extern fn blake3_finish() {
     unsafe {
-        global_blake2b256_out = BLAKE2B256_STATE.assume_init_mut().finalize().into();
+        global_blake3_out = BLAKE3_STATE.assume_init_mut().finalize().into();
     }
 }
 
 #[no_mangle]
-pub extern fn blake2b256_deinit() {
+pub extern fn blake3_deinit() {
     unsafe {
-        BLAKE2B256_STATE.assume_init_drop();
+        BLAKE3_STATE.assume_init_drop();
     }
 }
