@@ -1,16 +1,7 @@
 import { TRIBLE_SIZE } from "./trible.js";
-import { types } from "./types.js";
+import { blake3 } from "./wasm.js";
+import { NS } from "./namespace.js";
 import { UFOID } from "./types/ufoid.js";
-import { id } from "./namespace.js";
-import { authNS } from "./auth.js";
-import {
-  deserialize as tribleDeserialize,
-  serialize as tribleSerialize,
-} from "./tribleset.js";
-import {
-  deserialize as blobDeserialize,
-  serialize as blobSerialize,
-} from "./blobcache.js";
 
 // Each commits starts with a 16 byte zero marker for framing.
 //
@@ -49,69 +40,66 @@ import {
 //                                 │
 //                              trible
 
-const udp_max_commit_size = 1021;
+const BLAKE3_VERIFICATION = UFOID.now();
+const verificationMethodId = UFOID.now();
 
-export function validateCommitSize(
-  max_trible_count = udp_max_commit_size,
-  middleware = (commit) => [commit],
-) {
-  return async function* (commit) {
-    for await (const commit of middleware(commit)) {
-      if (commit.commitKB.tribleset.count() > max_trible_count) {
-        throw Error(
-          `Commit too large: Commits must not contain more than ${max_trible_count} tribles.`,
-        );
-      }
-      yield commit;
-    }
-  };
-}
-
-// TODO:
-// export function autoSplitCommitGroup(groupCommitFn) {
-//   (kb, commitId) => {
-//   return kb.with(commitNS, () => [{
-//     [id]: commitFragmentId,
-//     group: commitId,
-//     subrange: {range_start: 0,
-//                range_end: data_tribles_count,
-//                start: trible_offset},
-//     createdAt: geostamp.stamp(),
-//   }]);
-//   }
-// }
-
-
-const commitGroupId = UFOID.now();
-const commitSegmentId = UFOID.now();
-const creationStampId = UFOID.now();
-const shortMessageId = UFOID.now();
-const messageId = UFOID.now();
-const authoredById = UFOID.now();
-
-const commitNS = new NS({
+const serdeNS = new NS({
   [id]: { ...types.ufoid },
-  group: { id: commitGroupId, ...types.ufoid },
-  segment: { id: commitSegmentId, ...types.subrange },
-  createdAt: { id: creationStampId, ...types.geostamp },
-  shortMessage: { id: shortMessageId, ...types.shortstring },
-  message: { id: messageId, ...types.longstring },
-  authoredBy: { id: authoredById, isLink: true },
+  verificationMethod: { id: verificationMethodId, ...types.ufoid },
 });
 
-export class Commit {
-  constructor(commitId, baseKB, commitKB, currentKB) {
-    this.commitId = commitId;
-    this.baseKB = baseKB;
-    this.currentKB = currentKB;
-    this.commitKB = commitKB;
+const HEADER_SIZE = 64;
+
+export function serialize(kb, metaId) {
+    const tribleset = kb.tribleset;
+    const tribles_count = tribleset.count();
+    const tribles = tribleset.tribles();
+
+    let buffer = new Uint8Array(HEADER_SIZE + (tribles_count * TRIBLE_SIZE));
+
+    buffer.subarray(48, 64).set(metaId);
+
+    let i = 0;
+    for (const trible of tribles) {
+        buffer.set(trible, HEADER_SIZE + (i * TRIBLE_SIZE));
+        i += 1;
+    }
+
+    let { verificationMethod } = serdeNS.walk(kb, metaId);
+    if(!verificationMethod) {
+        throw Error("failed to serialize: no verification method specified")
+    }
+    if (verificationMethod.to_hex() === BLAKE3_VERIFICATION) {
+        blake3(buffer.subarray(48), buffer.subarray(16, 48))
+        return buffer;
+    }
+
+    throw Error("failed to serialize: unsupported verification method");
+}
+
+function* splitTribles(bytes) {
+    for (let t = 0; t < bytes.length; t += TRIBLE_SIZE) {
+      yield bytes.subarray(t, t + TRIBLE_SIZE);
+    }
   }
 
-  patternConstraint(pattern) {
-    for (const [_e, _a, v] of pattern) {
-      v.proposeBlobCache(this.blobcache);
+export function deserialize(kb, bytes) {
+    const dataset = kb.tribleset.with(
+        splitTribles(bytes.subarray(HEADER_SIZE)),
+    );
+    
+    const metaId = new UFOID(bytes.slice(48, 64));
+    
+    let { verificationMethod } = serdeNS.walk(kb, metaId);
+    if(!verificationMethod) {
+        throw Error("failed to deserialize: no verification method specified")
     }
-    return currentKB.tribleset.patternConstraint(pattern);
-    //new NoveltyConstraint(this.baseKB, this.currentKB, triplesWithVars),
-  }
+    if (verificationMethod.to_hex() === BLAKE3_VERIFICATION) {
+        if(!equalValue(buffer.subarray(16, 48), blake3(buffer.subarray(48)))) {
+            throw Error("failed to deserialize: verification failed");
+        }
+        return { metaId, dataset };
+    }
+
+    throw Error("failed to deserialize: unsupported verification method");
 }

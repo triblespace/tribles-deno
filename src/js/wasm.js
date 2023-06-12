@@ -73,7 +73,7 @@ const _global_blake3_buffer = new Uint8Array(
   blake_buffer_size,
 );
 
-export function blake3(data, out) {
+export function blake3(data, out = new Uint8Array(32)) {
   instance.exports.blake3_init();
   let i = 0;
   for (; (i + blake_buffer_size) < data.length; i += blake_buffer_size) {
@@ -88,4 +88,6 @@ export function blake3(data, out) {
   instance.exports.blake3_finish();
   out.set(_global_blake3_out);
   instance.exports.blake3_deinit();
+
+  return out;
 }

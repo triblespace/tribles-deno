@@ -31,7 +31,7 @@ export class Head {
    * The async call returns when all subscribers are notified of the resulting commits.
    *
    * @param {commitFn} commitFn - A function that computes the changes to the stored KB.
-   * @param {Uint8Array=} commitId - the entity id representing this commit
+   * @param {Uint8Array} commitId - the entity id representing this commit
    */
   async commit(commitFn, commitId = UFOID.now()) {
     const baseKB = this._current_kb;
