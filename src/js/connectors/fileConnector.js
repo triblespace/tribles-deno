@@ -1,22 +1,31 @@
-async function connect(tribles_path, blobs_path) {
-  const tribles_file = await Deno.open(tribles_path, {
-    read: true,
-    write: true,
-  });
-  const blobs_file = await Deno.open(blobs_path, { read: true, write: true });
+import {serialize, deserialize } from "./serde.js";
 
-  return new FileRemote(tribles_file, blobs_file);
+async function loadTribles(path) {
+  const file = await Deno.open(path, {
+    read: true,
+    write: false,
+  });
+  
+  for await (const chunk of file.readable) {
+    console.log(decoder.decode(chunk));
+  }
 }
 
-class FileRemote {
-  constructor(
-    tribles_file,
-    blobs_file,
-  ) {
-    this.tribles_file = tribles_file;
-    this.blobs_file = blobs_file;
-  }
+async function storeTribles(path, middleware = (commit) => [commit]) {
+  const file = await Deno.open(path, {
+    read: false,
+    append: true,
+    create: true,
+  });
 
-  blobcache() {
-  }
+  return ({
+    close: () => file.close(),
+    middleware: async function*(commit) {
+      const writer = file.writable.getWriter();
+      for await (const commit of middleware(commit)) {
+       await writer.write(serialize(commit.commitKB.tribleset, commit.commitId));
+       yield commit;
+      }
+    }
+  });
 }
