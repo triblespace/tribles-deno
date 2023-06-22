@@ -36,7 +36,7 @@ function websocketLog(url) {
     }
   });
 
-  const push = (commit) => {
+  const push = async (commit) => {
     const data = commit.serialize();
     socket.send(data)
   }
@@ -56,8 +56,7 @@ function websocketLog(url) {
 
   return { push,
            pull,
-           close,
-           socket };
+           close};
 }
 
 export { websocketLog };
