@@ -13,56 +13,7 @@ import {
   scrambleVEA,
 } from "./trible.js";
 import { and } from "./constraints/and.js";
-import { setMetaId, setTrible, sign, verify } from "./wasm.js";
 import { ByteBitset } from "./bitset.js";
-
-const BUFFER_SIZE = 64;
-
-const stack_empty = 0;
-const stack_e = 1;
-const stack_a = 2;
-const stack_v = 3;
-const stack_ea = 4;
-const stack_ev = 5;
-const stack_ae = 6;
-const stack_av = 7;
-const stack_ve = 8;
-const stack_va = 9;
-const stack_eav = 10;
-const stack_eva = 11;
-const stack_aev = 12;
-const stack_ave = 13;
-const stack_vea = 14;
-const stack_vae = 15;
-
-export function deserialize(tribleset, bytes) {
-  if (!commit_verify(bytes)) {
-    throw Error("Failed to verify serialized tribleset!");
-  }
-  const pubkey = bytes.slice(16, 48);
-  const metaId = bytes.slice(112, 128);
-
-  const dataset = tribleset.with(
-    splitTribles(bytes.subarray(commit_header_size)),
-  );
-
-  return { pubkey, metaId, dataset };
-}
-
-export function serialize(tribleset, metaId, secret) { // TODO replace this with WebCrypto Keypair once it supports ed25519.
-  setMetaId(metaId);
-
-  const tribles_count = tribleset.count();
-  const tribles = tribleset.tribles();
-
-  let i = 0;
-  for (const trible of tribles) {
-    setTrible(i, trible);
-    i += 1;
-  }
-
-  return sign(secret, tribles_count);
-}
 
 /**
  * A constraint limits the passed variables e, a and v to values with
@@ -76,7 +27,6 @@ class TribleConstraint {
       );
     }
 
-    this.state = stack_empty;
     this.eVar = e;
     this.aVar = a;
     this.vVar = v;
@@ -132,21 +82,28 @@ class TribleConstraint {
     if(e && a && !v) {
       //return eav;
     }
+            throw Error("bad state")
+          }
+        }
     if(e && !a && v) {
       //return eva;
     }
     if(e && !a && !v) {
       //return eav;
     }
+          
+        }
     if(!e && a && v) {
       //return ave;
     }
     if(!e && a && !v) {
       //return aev;
-    }
+        }
     if(!e && !a && v) {
       //return vea;
     }
+          
+        }
     if(!e && !a && !v) {
       //return eav;
     }

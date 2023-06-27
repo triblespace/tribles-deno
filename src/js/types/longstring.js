@@ -1,8 +1,8 @@
-import { blake2b256 } from "../wasm.js";
+import { blake3 } from "../wasm.js";
 
 function longstringEncoder(v, b) {
   const d = new TextEncoder("utf-8").encode(v);
-  blake2b256(d, b);
+  blake3(d, b);
   return d;
 }
 

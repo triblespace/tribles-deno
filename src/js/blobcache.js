@@ -95,11 +95,11 @@ export class BlobCache {
     }
   }
 
-  empty() {
+  clear() {
     return new BlobCache(this.onMiss, this.strong.empty(), this.weak);
   }
 
-  clear() {
+  empty() {
     return new BlobCache(this.onMiss, this.strong.empty(), this.weak.empty());
   }
 
