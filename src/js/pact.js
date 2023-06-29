@@ -13,135 +13,6 @@ function PACTHash(key) {
   return key.__cached_hash;
 }
 
-const PaddedCursor = class {
-  constructor(cursor, segments, segment_size) {
-    this.cursor = cursor;
-    this.depth = 0;
-
-    this.padding = (new ByteBitset()).setAll();
-    let depth = 0;
-    for (const s of segments) {
-      const pad = segment_size - s;
-
-      depth += pad;
-      for (let j = pad; j < segment_size; j++) {
-        this.padding.unset(depth);
-        depth += 1;
-      }
-    }
-  }
-
-  // Interface API >>>
-
-  peek() {
-    if (this.padding.has(this.depth)) return 0;
-    return this.cursor.peek();
-  }
-
-  propose(bitset) {
-    if (this.padding.has(this.depth)) {
-      bitset.unsetAll();
-      bitset.set(0);
-    } else {
-      this.cursor.propose(bitset);
-    }
-  }
-
-  push(key_fragment) {
-    if (!this.padding.has(this.depth)) {
-      this.cursor.push(key_fragment);
-    }
-    this.depth += 1;
-  }
-
-  pop() {
-    this.depth -= 1;
-    if (!this.padding.has(this.depth)) {
-      this.cursor.pop();
-    }
-  }
-
-  segmentCount() {
-    return this.cursor.segmentCount();
-  }
-
-  // <<< Interface API
-};
-
-export class SegmentConstraint {
-  constructor(pact, segmentVariables) {
-    if (pact.segments.length !== segmentVariables.length) {
-      throw new Error(
-        "Number of segment variables must match the number of segments.",
-      );
-    }
-    if (new Set(segmentVariables).size !== segmentVariables.length) {
-      throw new Error(
-        "Segment variables must be unique. Use explicit equality when inner constraints are required.",
-      );
-    }
-
-    this.nextVariableIndex = 0;
-    this.cursor = new PaddedCursor(pact.cursor(), pact.segments, 32);
-    this.segmentVariables = segmentVariables;
-  }
-
-  peekByte() {
-    if (this.nextVariableIndex === 0) {
-      throw new error("unreachable");
-    }
-    return this.cursor.peek();
-  }
-
-  proposeByte(bitset) {
-    if (this.nextVariableIndex === 0) {
-      throw new error("unreachable");
-    }
-    this.cursor.propose(bitset);
-  }
-
-  pushByte(byte) {
-    if (this.nextVariableIndex === 0) {
-      throw new error("unreachable");
-    }
-    this.cursor.push(byte);
-  }
-
-  popByte() {
-    if (this.nextVariableIndex === 0) {
-      throw new error("unreachable");
-    }
-    this.cursor.pop();
-  }
-
-  variables() {
-    let bitset = new ByteBitset();
-    for (const variable of this.segmentVariables) {
-      bitset.set(variable);
-    }
-    return bitset;
-  }
-
-  pushVariable(variable) {
-    if (this.segmentVariables[this.nextVariableIndex] === variable) {
-      this.nextVariableIndex++;
-    }
-  }
-
-  popVariable() {
-    if (this.nextVariableIndex === 0) {
-      throw new error("unreachable");
-    }
-    this.nextVariableIndex--;
-  }
-
-  variableCosts(variable) {
-    if (this.segmentVariables[this.nextVariableIndex] === variable) {
-      return this.cursor.segmentCount();
-    }
-  }
-}
-
 const makePACT = function (segments) {
   const KEY_LENGTH = segments.reduce((a, n) => a + n, 0);
   if (KEY_LENGTH > 128) {
@@ -151,8 +22,6 @@ const makePACT = function (segments) {
   SEGMENT_LUT.set(segments.flatMap((l, i) => new Array(l).fill(i)));
   SEGMENT_LUT[SEGMENT_LUT.length - 1] = SEGMENT_LUT[SEGMENT_LUT.length - 2];
   // deno-lint-ignore prefer-const
-  let PACTCursor;
-  // deno-lint-ignore prefer-const
   let PACTTree;
   // deno-lint-ignore prefer-const
   let PACTBatch;
@@ -160,47 +29,6 @@ const makePACT = function (segments) {
   let PACTLeaf;
   // deno-lint-ignore prefer-const
   let PACTNode;
-
-  PACTCursor = class {
-    constructor(pact) {
-      this.pact = pact;
-      this.depth = 0;
-      this.path = new Array(KEY_LENGTH + 1).fill(null);
-
-      this.path[0] = pact.child;
-    }
-
-    peek() {
-      const node = this.path[this.depth];
-      if (node === null) return null;
-      return node.peek(this.depth);
-    }
-
-    propose(bitset) {
-      const node = this.path[this.depth];
-      if (node === null) {
-        bitset.unsetAll();
-      } else {
-        node.propose(this.depth, bitset);
-      }
-    }
-
-    pop() {
-      this.depth--;
-    }
-
-    push(byte) {
-      const node = this.path[this.depth].get(this.depth, byte);
-      this.depth++;
-      this.path[this.depth] = node;
-    }
-
-    segmentCount() {
-      const node = this.path[this.depth];
-      if (node === null) return 0;
-      return node.segmentCount(this.depth);
-    }
-  };
 
   function _union(
     leftNode,
@@ -547,17 +375,27 @@ const makePACT = function (segments) {
     return false;
   }
 
-  function* _walk(node, key = new Uint8Array(KEY_LENGTH), depth = 0) {
-    for (; depth < node.branchDepth; depth++) {
+  function* _find(node, key = new Uint8Array(KEY_LENGTH), start = 0, end = KEY_LENGTH) {
+    let node = node;
+    for (let depth = start; depth < end && node !== null; depth++) {
+      const sought = key[depth];
+      node = node.get(depth, sought);
+    }
+    return undefined;
+  }
+
+  function* _walk(node, key = new Uint8Array(KEY_LENGTH), start = 0, end = KEY_LENGTH) {
+    let depth = start;
+    for (; depth < node.branchDepth && depth < end; depth++) {
       key[depth] = node.peek(depth);
     }
-    if (depth === KEY_LENGTH) {
-      yield [key, node.value];
+    if (depth === end) {
+      yield [key, node];
     } else {
       for (let index of node.childbits.entries()) {
         key[depth] = index;
         const child = node.get(depth, index);
-        yield* _walk(child, key, depth + 1);
+        yield* _walk(child, key, depth + 1, end);
       }
     }
   }
@@ -612,33 +450,46 @@ const makePACT = function (segments) {
     }
 
     get(key) {
-      let node = this.child;
-      if (node === null) return undefined;
-      for (let depth = 0; depth < KEY_LENGTH; depth++) {
-        const sought = key[depth];
-        node = node.get(depth, sought);
-        if (node === null) return undefined;
-      }
-      return node.value;
+      _find(this.child, key)?.value
     }
 
     has(key) {
-      let node = this.child;
-      if (node === null) return false;
-      for (let depth = 0; depth < KEY_LENGTH; depth++) {
-        const sought = key[depth];
-        node = node.get(depth, sought);
-        if (node === null) return false;
+      Boolean(_find(this.child, key));
+    }
+
+    segmentCount(key = new Uint8Array(KEY_LENGTH), end = 0) {
+      let node = _find(this.child, key, 0, end);
+      if (!node) return 0;
+      return node.segmentCount(end);
+    }
+
+    *infix(key = new Uint8Array(KEY_LENGTH), start = 0, end = KEY_LENGTH) {
+      let node = _find(this.child, key, 0, start);
+      if (!node) return;
+      for (const [k, _] of _walk(this.child)) {
+        yield k;
       }
-      return true;
     }
 
-    segmentConstraint(vars) {
-      return new SegmentConstraint(this, vars.map((v) => v.index));
+    *entries() {
+      if (this.child === null) return;
+      for (const [k, n] of _walk(this.child)) {
+        yield [k.slice(), n.value];
+      }
     }
 
-    cursor() {
-      return new PACTCursor(this);
+    *keys() {
+      if (this.child === null) return;
+      for (const [k, _] of _walk(this.child)) {
+        yield k.slice();
+      }
+    }
+
+    *values() {
+      if (this.child === null) return;
+      for (const [_, n] of _walk(this.child)) {
+        yield n.value;
+      }
     }
 
     isEmpty() {
@@ -729,27 +580,6 @@ const makePACT = function (segments) {
         return new PACTTree(null);
       }
       return new PACTTree(_difference(thisNode, otherNode));
-    }
-
-    *entries() {
-      if (this.child === null) return;
-      for (const [k, v] of _walk(this.child)) {
-        yield [k.slice(), v];
-      }
-    }
-
-    *keys() {
-      if (this.child === null) return;
-      for (const [k, v] of _walk(this.child)) {
-        yield k.slice();
-      }
-    }
-
-    *values() {
-      if (this.child === null) return;
-      for (const [k, v] of _walk(this.child)) {
-        yield v;
-      }
     }
   };
 

@@ -30,36 +30,8 @@ class TribleConstraint {
     this.eVar = e;
     this.aVar = a;
     this.vVar = v;
-    this.eavCursor = new PaddedCursor(
-      tribleSet.EAV.cursor(),
-      tribleSet.EAV.segments,
-      32,
-    );
-    this.evaCursor = new PaddedCursor(
-      tribleSet.EVA.cursor(),
-      tribleSet.EVA.segments,
-      32,
-    );
-    this.aevCursor = new PaddedCursor(
-      tribleSet.AEV.cursor(),
-      tribleSet.AEV.segments,
-      32,
-    );
-    this.aveCursor = new PaddedCursor(
-      tribleSet.AVE.cursor(),
-      tribleSet.AVE.segments,
-      32,
-    );
-    this.veaCursor = new PaddedCursor(
-      tribleSet.VEA.cursor(),
-      tribleSet.VEA.segments,
-      32,
-    );
-    this.vaeCursor = new PaddedCursor(
-      tribleSet.VAE.cursor(),
-      tribleSet.VAE.segments,
-      32,
-    );
+    
+    this.set = tribleSet;
   }
 
   variables() {
@@ -76,34 +48,35 @@ class TribleConstraint {
     const a = bound.has(this.aVar);
     const v = bound.has(this.vVar);
 
+    const $e = this.eVar === variable;
+    const $a = this.aVar === variable;
+    const $v = this.vVar === variable;
+
     if(e && a && v) {
-      return null;
+      throw Error("estimate for fulfilled constraint");
     }
-    if(e && a && !v) {
-      //return eav;
+
+    if(e && a && !v && $v) {
+      return eav.estimate(binding.get(this.eVar), binding.get(this.aVar));
     }
-            throw Error("bad state")
-          }
-        }
+
     if(e && !a && v) {
       //return eva;
     }
     if(e && !a && !v) {
       //return eav;
     }
-          
-        }
+
     if(!e && a && v) {
       //return ave;
     }
     if(!e && a && !v) {
       //return aev;
-        }
+    }
     if(!e && !a && v) {
       //return vea;
     }
-          
-        }
+
     if(!e && !a && !v) {
       //return eav;
     }
