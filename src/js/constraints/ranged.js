@@ -1,4 +1,5 @@
-import { VALUE_SIZE } from "../trible.js";
+import { lessValue, VALUE_SIZE } from "../trible.js";
+import { filterInPlance } from "../util.js";
 
 const MIN_KEY = new Uint8Array(VALUE_SIZE).fill(0);
 const MAX_KEY = new Uint8Array(VALUE_SIZE).fill(~0);
@@ -20,12 +21,15 @@ class RangeConstraint {
     return Number.MAX_VALUE;
   }
 
-  *expand(variable, binding) {
-    throw Error("Expansion too large.");
+  propose(variable, binding) {
+    throw Error("Proposal too large.");
   }
 
-  shrink(variable, value, binding) {
-    throw Error("TODO");
+  confirm(variable, binding, values) {
+    filterInPlance(values, (value) => {
+      !lessValue(value, this.lowerBound) &&
+        !lessValue(this.upperBound, value);
+    });
   }
 }
 

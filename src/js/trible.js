@@ -109,3 +109,12 @@ export const equalValue = (valueA, valueB) => {
   }
   return true;
 };
+
+export const lessValue = (valueA, valueB) => {
+  for (let i = 0; i < 32; i++) {
+    if (valueA[i] < valueB[i]) {
+      return true;
+    }
+  }
+  return false;
+};

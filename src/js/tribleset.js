@@ -30,7 +30,7 @@ class TribleConstraint {
     this.eVar = e;
     this.aVar = a;
     this.vVar = v;
-    
+
     this.set = tribleSet;
   }
 
@@ -52,32 +52,32 @@ class TribleConstraint {
     const $a = this.aVar === variable;
     const $v = this.vVar === variable;
 
-    if(e && a && v) {
+    if (e && a && v) {
       throw Error("estimate for fulfilled constraint");
     }
 
-    if(e && a && !v && $v) {
+    if (e && a && !v && $v) {
       return eav.estimate(binding.get(this.eVar), binding.get(this.aVar));
     }
 
-    if(e && !a && v) {
+    if (e && !a && v) {
       //return eva;
     }
-    if(e && !a && !v) {
+    if (e && !a && !v) {
       //return eav;
     }
 
-    if(!e && a && v) {
+    if (!e && a && v) {
       //return ave;
     }
-    if(!e && a && !v) {
+    if (!e && a && !v) {
       //return aev;
     }
-    if(!e && !a && v) {
+    if (!e && !a && v) {
       //return vea;
     }
 
-    if(!e && !a && !v) {
+    if (!e && !a && !v) {
       //return eav;
     }
   }

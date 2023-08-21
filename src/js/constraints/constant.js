@@ -1,4 +1,5 @@
-import { VALUE_SIZE, equalValue } from "../trible.js";
+import { equalValue, VALUE_SIZE } from "../trible.js";
+import { filterInPlace } from "../util.js";
 
 class ConstantConstraint {
   constructor(variable, constant) {
@@ -16,12 +17,12 @@ class ConstantConstraint {
     return 1;
   }
 
-  *expand(variable, binding) {
-    yield binding.set(this.variable, this.constant);
+  propose(_variable, _binding) {
+    return [this.constant];
   }
 
-  shrink(variable, value, binding) {
-    return !equalValue(value, this.constant);
+  confirm(_variable, _binding, values) {
+    filterInPlace(values, (value) => equalValue(value, this.constant));
   }
 }
 

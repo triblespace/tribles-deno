@@ -12,21 +12,21 @@ export function s3Store(config) {
   const missHandler = async (hash) => {
     const request = await client.getObject(hashToName(hash));
     return request.body;
-  }
+  };
 
   const flush = async (commit) => {
-      const blobcache = commit.kb.blobcache;
-      const flushedBlobs = blobcache.strongBlobs();
-      const flushOps = flushedBlobs.map(({ key, blob }) =>
-        client.putObject(hashToName(key), blob)
-      );
-      await Promise.all(flushOps);
+    const blobcache = commit.kb.blobcache;
+    const flushedBlobs = blobcache.strongBlobs();
+    const flushOps = flushedBlobs.map(({ key, blob }) =>
+      client.putObject(hashToName(key), blob)
+    );
+    await Promise.all(flushOps);
 
-      return new KB(commit.currentKB.tribleset, blobcache.clear());
+    return new KB(commit.currentKB.tribleset, blobcache.clear());
   };
 
   return {
     missHandler,
-    flush
+    flush,
   };
 }

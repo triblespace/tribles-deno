@@ -3,7 +3,7 @@ import { Commit } from "../commit.js";
 export const PROTOCOL = "tribles/commit";
 
 function websocketLog(url) {
-  const socket = new WebSocket(url, PROTOCOL)
+  const socket = new WebSocket(url, PROTOCOL);
   socket.binaryType = "arraybuffer";
 
   const commitQueue = [];
@@ -21,14 +21,14 @@ function websocketLog(url) {
     }
 
     let promise;
-    if(promise = awaitsQueue.shift()) {
-      if(success) {
+    if (promise = awaitsQueue.shift()) {
+      if (success) {
         promise.resolve(commit);
       } else {
         promise.reject(error);
       }
     } else {
-      if(success) {
+      if (success) {
         commitQueue.push(Promise.resolve(commit));
       } else {
         commitQueue.push(Promise.reject(error));
@@ -38,25 +38,25 @@ function websocketLog(url) {
 
   const push = async (commit) => {
     const data = commit.serialize();
-    socket.send(data)
-  }
+    socket.send(data);
+  };
 
   const pull = async () => {
     let commit;
-    if(commit = commitQueue.shift()) {
+    if (commit = commitQueue.shift()) {
       return commit;
     } else {
-      return new Promise((resolve, reject) => awaitsQueue.push({resolve, reject}));
+      return new Promise((resolve, reject) =>
+        awaitsQueue.push({ resolve, reject })
+      );
     }
-  }
+  };
 
   const close = () => {
-    socket.close()
-  }
+    socket.close();
+  };
 
-  return { push,
-           pull,
-           close};
+  return { push, pull, close };
 }
 
 export { websocketLog };

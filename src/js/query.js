@@ -30,7 +30,7 @@ export class Bindings {
   }
 
   set(variable, value) {
-    let copy = this.copy()
+    let copy = this.copy();
     copy.get(variable).set(value);
     copy.bound().set(variable);
     return copy;
@@ -74,7 +74,10 @@ export class Query {
       let nextVariable;
       let nextVariableCosts = Number.MAX_VALUE;
 
-      const unboundVariables = new ByteBitset().setSubtraction(this.variables, boundVariables);
+      const unboundVariables = new ByteBitset().setSubtraction(
+        this.variables,
+        boundVariables,
+      );
 
       for (const variable of unboundVariables.entries()) {
         const costs = this.constraint.estimate(variable, binding);
@@ -85,7 +88,7 @@ export class Query {
         if (nextVariableCosts <= 1) break;
       }
 
-      for (const value of this.constraint.expand(nextVariable, binding)) {
+      for (const value of this.constraint.propose(nextVariable, binding)) {
         yield* this.bindAll(binding.copy().set(nextVariable, value));
       }
     }

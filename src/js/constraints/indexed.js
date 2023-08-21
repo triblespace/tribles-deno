@@ -1,3 +1,5 @@
+import { filterInPlace } from "../util.js";
+
 // This constraint is used when there is a fixed number of possible values for a variable.
 // As with a collection where items should exist in, or when enumerating attributes from a namespace
 // during a walk.
@@ -13,16 +15,16 @@ class IndexConstraint {
     return bitset;
   }
 
-  estimate(variable, binding) {
+  estimate(_variable, _binding) {
     return this.index.count();
   }
 
-  *expand(variable, binding) {
-    yield* this.index.keys();
+  propose(_variable, _binding) {
+    [...this.index.keys()];
   }
 
-  shrink(variable, value, binding) {
-    return !this.index.has(value);
+  confirm(_variable, _binding, values) {
+    filterInPlace(values, (value) => this.index.has(value));
   }
 }
 

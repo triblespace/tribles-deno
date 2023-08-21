@@ -86,7 +86,7 @@ export function blake3(data) {
   instance.exports.blake3_update(data.length - i);
 
   instance.exports.blake3_finish();
-  const out = new Uint8Array(32)
+  const out = new Uint8Array(32);
   out.set(_global_blake3_out);
   instance.exports.blake3_deinit();
 

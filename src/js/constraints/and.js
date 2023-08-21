@@ -1,7 +1,5 @@
 import { ByteBitset } from "../bitset.js";
 
-// TODO return single intersection constraint from multi TribleSet Trible
-// constraints -> allows us to have a wasm only fast subconstraint
 class IntersectionConstraint {
   constructor(constraints) {
     this.constraints = constraints;
@@ -23,45 +21,26 @@ class IntersectionConstraint {
     return min;
   }
 
-  *expand(variable, binding) {
-    let min = Number.MAX_VALUE;
-    let expander = null;
-    let shrinkers = [];
-    for (const candidate of this.constraints) {
-      if(!candidate.variables().has(variable)) {
-        continue;
-      }
-      if(expander === null) {
-        expander = candidate;
-        continue;
-      }
-      const candiate_estimate = candidate.estimate(variable, binding);
-      if(min < candiate_estimate) {
-        shrinkers.push(expander);
-        min = candiate_estimate;
-        expander = candidate;
-      } else {
-        shrinkers.push(candidate);
-      }
+  *propose(variable, binding) {
+    const relevant_constraints = this.constraints.filter((c) =>
+      c.variables().has(variable)
+    );
+    relevant_constraints.sort((a, b) =>
+      a.estimate(variable, binding) - b.estimate(variable, binding)
+    );
+
+    const proposal = relevant_constraints[0].propose(variable, binding);
+    for (let i = 1; i < relevant_constraints.length; i++) {
+      relevant_constraints[i].confirm(variable, binding, proposal);
     }
 
-    propose: for(const proposal of expander.expand(variable, binding)) {
-      for (const shrinker of shrinkers) {
-        if(shrinker.shrink(variable, proposal, binding)) {
-          continue propose;
-        }
-      }
-      yield proposal;
-    }
+    return proposal;
   }
 
-  shrink(variable, value, binding) {
+  confirm(variable, binding, values) {
     for (const constraint of this.constraints) {
-      if(constraint.shrink(variable, value, binding)) {
-        return true;
-      }
+      constraint.confirm(variable, values, binding);
     }
-    return false;
   }
 }
 

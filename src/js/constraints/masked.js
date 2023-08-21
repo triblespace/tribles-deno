@@ -22,12 +22,12 @@ class MaskedConstraint {
     return this.constraint.estimate(variable, binding);
   }
 
-  *expand(variable, binding) {
-    return this.constraint.expand(variable, binding);
+  propose(variable, binding) {
+    return this.constraint.propose(variable, binding);
   }
 
-  shrink(variable, value, binding) {
-    return this.constraint.shrink(variable, binding);
+  confirm(variable, binding, values) {
+    this.constraint.confirm(variable, binding, values);
   }
 }
 
