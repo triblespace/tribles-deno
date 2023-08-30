@@ -1,4 +1,15 @@
-import { ID_SIZE, VALUE_SIZE } from "./trible.js";
+import {
+  AEVOrder,
+  AVEOrder,
+  EAVOrder,
+  EVAOrder,
+  ID_SIZE,
+  TRIBLE_SIZE,
+  tribleSegment,
+  VAEOrder,
+  VALUE_SIZE,
+  VEAOrder,
+} from "./trible.js";
 import { hash_combine, hash_digest, hash_equal, hash_update } from "./wasm.js";
 import { ByteBitset } from "./bitset.js";
 
@@ -394,164 +405,6 @@ function* _walk(
   }
 }
 
-const Patch = class {
-  constructor(child) {
-    this.keyLength = KEY_LENGTH;
-    this.child = child;
-    this.segments = segments;
-  }
-
-  batch() {
-    return new PACTBatch(this.child);
-  }
-
-  count() {
-    if (this.child) return this.child.count();
-    return 0;
-  }
-
-  put(key, value) {
-    if (this.child) {
-      const nchild = this.child.put(0, key, value, {});
-      if (this.child === nchild) return this;
-      return new Tree(nchild);
-    }
-    return new Tree(new Leaf(0, key, value, PACTHash(key)));
-  }
-
-  get(key) {
-    _find(this.child, key)?.value;
-  }
-
-  has(key) {
-    Boolean(_find(this.child, key));
-  }
-
-  segmentCount(key, start_depth) {
-    this.child.segmentCount(key, start_depth, 0);
-  }
-
-  infixes(key = new Uint8Array(KEY_LENGTH), start = 0, end = KEY_LENGTH) {
-    const out = [];
-    this.child.infixes(key, start, end, out);
-    return out;
-  }
-
-  has_prefix(key = new Uint8Array(KEY_LENGTH), end = KEY_LENGTH) {
-    return this.child.has_prefix(key, end);
-  }
-
-  *entries() {
-    if (this.child) {
-      for (const [k, n] of _walk(this.child)) {
-        yield [k.slice(), n.value];
-      }
-    }
-  }
-
-  *keys() {
-    if (this.child) {
-      for (const [k, _] of _walk(this.child)) {
-        yield k.slice();
-      }
-    }
-  }
-
-  *values() {
-    if (this.child) {
-      for (const [_, n] of _walk(this.child)) {
-        yield n.value;
-      }
-    }
-  }
-
-  isEmpty() {
-    return !this.child;
-  }
-
-  isEqual(other) {
-    return (
-      this.child === other.child ||
-      (this.keyLength === other.keyLength &&
-        !!this.child &&
-        !!other.child &&
-        hash_equal(this.child.hash, other.child.hash))
-    );
-  }
-
-  isSubsetOf(other) {
-    return (
-      this.keyLength === other.keyLength &&
-      (!this.child || (!!other.child && _isSubsetOf(this.child, other.child)))
-    );
-  }
-
-  // Note that the empty set has no intersection with itself.
-  isIntersecting(other) {
-    return (
-      this.keyLength === other.keyLength &&
-      !!this.child &&
-      !!other.child &&
-      (this.child === other.child ||
-        hash_equal(this.child.hash, other.child.hash) ||
-        _isIntersecting(this.child, other.child))
-    );
-  }
-
-  union(other) {
-    if (!this.child) {
-      return new Tree(other.child);
-    }
-    if (!other.child) {
-      return new Tree(this.child);
-    }
-    return new Tree(_union(this.child, other.child));
-  }
-
-  subtract(other) {
-    if (!other.child) {
-      return new Tree(this.child);
-    }
-    if (
-      !this.child ||
-      hash_equal(this.child.hash, other.child.hash)
-    ) {
-      return new Tree();
-    } else {
-      return new Tree(_subtract(this.child, other.child));
-    }
-  }
-
-  intersect(other) {
-    if (!this.child || !other.child) {
-      return new Tree(null);
-    }
-    if (
-      this.child === other.child ||
-      hash_equal(this.child.hash, other.child.hash)
-    ) {
-      return new Tree(this.child);
-    }
-    return new Tree(_intersect(this.child, other.child));
-  }
-
-  difference(other) {
-    if (!this.child) {
-      return new Tree(other.child);
-    }
-    if (!other.child) {
-      return new Tree(this.child);
-    }
-    if (
-      this.child === other.child ||
-      hash_equal(this.child.hash, other.child.hash)
-    ) {
-      return new Tree(null);
-    }
-    return new Tree(_difference(this.child, other.child));
-  }
-};
-
 const Leaf = class {
   constructor(key, value) {
     this.key = key.slice(depth);
@@ -580,7 +433,7 @@ const Leaf = class {
     return hash_digest(this.key);
   }
 
-  put(order, batch, at_depth, entry) {
+  put(order, _segment, batch, entry, at_depth) {
     let depth = at_depth;
     for (; depth < this.key.length; depth++) {
       let key_depth = order(depth);
@@ -619,8 +472,8 @@ const Leaf = class {
     return 1;
   }
 
-  infixes(order, key, start_depth, _end_depth, fn, out) {
-    for (let depth = at_depth; depth < start_depth; depth++) {
+  infixes(order, key, tree_start_depth, _tree_end_depth, fn, out, at_depth) {
+    for (let depth = at_depth; depth < tree_start_depth; depth++) {
       let key_depth = order(depth);
       if (this.key[key_depth] != key[key_depth]) {
         return;
@@ -691,7 +544,7 @@ const Branch = class {
     return undefined;
   }
 
-  put(order, segment, batch, at_depth, entry) {
+  put(order, segment, batch, entry, at_depth) {
     let depth = at_depth;
     for (; depth < this.branchDepth; depth++) {
       const key_order = order(depth);
@@ -728,7 +581,7 @@ const Branch = class {
       const oldChildHash = child.hash;
       const oldChildCount = child.count();
       const oldChildSegmentCount = child.segmentCount(this.branchDepth);
-      nchild = child.put(order, batch, this.branchDepth, entry);
+      nchild = child.put(order, segment, batch, entry, this.branchDepth);
       if (!nchild) return undefined;
       hash = hash_update(this.hash, oldChildHash, nchild.hash);
       count = this._count - oldChildCount + nchild.count();
@@ -880,22 +733,201 @@ const Branch = class {
   }
 };
 
-const emptyIdIdValueTriblePACT = makePACT([ID_SIZE, ID_SIZE, VALUE_SIZE]);
-const emptyIdValueIdTriblePACT = makePACT([ID_SIZE, VALUE_SIZE, ID_SIZE]);
-const emptyValueIdIdTriblePACT = makePACT([VALUE_SIZE, ID_SIZE, ID_SIZE]);
-const emptyTriblePACT = emptyIdIdValueTriblePACT;
+const PATCH = class {
+  constructor(keyLength, order, segments, child) {
+    this.keyLength = keyLength;
+    this.order = order, this.segments = segments, this.child = child;
+    this.segments = segments;
+  }
+  count() {
+    if (this.child) return this.child.count();
+    return 0;
+  }
 
-const emptyIdPACT = makePACT([ID_SIZE]);
-const emptyValuePACT = makePACT([VALUE_SIZE]);
+  put(batch, entry) {
+    if (this.child) {
+      const nchild = this.child.put(
+        this.order.treeToKey,
+        this.segment,
+        batch,
+        entry,
+        0,
+      );
+      if (this.child === nchild) return this;
+      return new PATCH(this.keyLength, this.order, this.segments, nchild);
+    }
+    return new PATCH(this.keyLength, this.order, this.segments, entry.leaf);
+  }
+
+  get(key) {
+    _find(this.child, key)?.value;
+  }
+
+  has(key) {
+    Boolean(_find(this.child, key));
+  }
+
+  segmentCount(key, start_depth) {
+    this.child.segmentCount(key, start_depth, 0);
+  }
+
+  infixes(
+    key = new Uint8Array(this.keyLength),
+    start = 0,
+    end = this.keyLength,
+  ) {
+    const out = [];
+    this.child.infixes(
+      this.order.treeToKey,
+      key,
+      this.order.keyToTree(start),
+      this.order.keyToTree(end),
+      fn,
+      out,
+      0,
+    );
+    return out;
+  }
+
+  has_prefix(key = new Uint8Array(KEY_LENGTH), end = KEY_LENGTH) {
+    return this.child.has_prefix(key, end);
+  }
+
+  *entries() {
+    if (this.child) {
+      for (const [k, n] of _walk(this.child)) {
+        yield [k.slice(), n.value];
+      }
+    }
+  }
+
+  *keys() {
+    if (this.child) {
+      for (const [k, _] of _walk(this.child)) {
+        yield k.slice();
+      }
+    }
+  }
+
+  *values() {
+    if (this.child) {
+      for (const [_, n] of _walk(this.child)) {
+        yield n.value;
+      }
+    }
+  }
+
+  isEmpty() {
+    return !this.child;
+  }
+
+  isEqual(other) {
+    return (
+      this.child === other.child ||
+      (this.keyLength === other.keyLength &&
+        !!this.child &&
+        !!other.child &&
+        hash_equal(this.child.hash, other.child.hash))
+    );
+  }
+
+  isSubsetOf(other) {
+    return (
+      this.keyLength === other.keyLength &&
+      (!this.child || (!!other.child && _isSubsetOf(this.child, other.child)))
+    );
+  }
+
+  // Note that the empty set has no intersection with itself.
+  isIntersecting(other) {
+    return (
+      this.keyLength === other.keyLength &&
+      !!this.child &&
+      !!other.child &&
+      (this.child === other.child ||
+        hash_equal(this.child.hash, other.child.hash) ||
+        _isIntersecting(this.child, other.child))
+    );
+  }
+
+  union(other) {
+    if (!this.child) {
+      return new Tree(other.child);
+    }
+    if (!other.child) {
+      return new Tree(this.child);
+    }
+    return new Tree(_union(this.child, other.child));
+  }
+
+  subtract(other) {
+    if (!other.child) {
+      return new Tree(this.child);
+    }
+    if (
+      !this.child ||
+      hash_equal(this.child.hash, other.child.hash)
+    ) {
+      return new Tree();
+    } else {
+      return new Tree(_subtract(this.child, other.child));
+    }
+  }
+
+  intersect(other) {
+    if (!this.child || !other.child) {
+      return new Tree(null);
+    }
+    if (
+      this.child === other.child ||
+      hash_equal(this.child.hash, other.child.hash)
+    ) {
+      return new Tree(this.child);
+    }
+    return new Tree(_intersect(this.child, other.child));
+  }
+
+  difference(other) {
+    if (!this.child) {
+      return new Tree(other.child);
+    }
+    if (!other.child) {
+      return new Tree(this.child);
+    }
+    if (
+      this.child === other.child ||
+      hash_equal(this.child.hash, other.child.hash)
+    ) {
+      return new Tree(null);
+    }
+    return new Tree(_difference(this.child, other.child));
+  }
+};
+
+function singleSegment(at_depth) {
+  return 0;
+}
+
+const naturalOrder = {
+  treeToKey: (at_depth) => at_depth,
+  keyToTree: (at_depth) => at_depth,
+};
+
+const emptyEAVTriblePact = new PATCH(TRIBLE_SIZE, EAVOrder, tribleSegment);
+const emptyEVATriblePact = new PATCH(TRIBLE_SIZE, EVAOrder, tribleSegment);
+const emptyAEVTriblePact = new PATCH(TRIBLE_SIZE, AEVOrder, tribleSegment);
+const emptyAVETriblePact = new PATCH(TRIBLE_SIZE, AVEOrder, tribleSegment);
+const emptyVEATriblePact = new PATCH(TRIBLE_SIZE, VEAOrder, tribleSegment);
+const emptyVAETriblePact = new PATCH(TRIBLE_SIZE, VAEOrder, tribleSegment);
+
+const emptyIdPATCH = new PATCH(ID_SIZE, naturalOrder, singleSegment);
+const emptyValuePATCH = new PATCH(VALUE_SIZE, naturalOrder, singleSegment);
 
 export {
   emptyIdIdValueTriblePACT,
-  emptyIdPACT,
+  emptyIdPATCH,
   emptyIdValueIdTriblePACT,
   emptyTriblePACT,
   emptyValueIdIdTriblePACT,
-  emptyValuePACT,
-  makePACT,
-  PACTHash,
-  PaddedCursor,
+  emptyValuePATCH,
 };

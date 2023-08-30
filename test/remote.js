@@ -47,7 +47,6 @@ Deno.test("KB Find", () => {
     loves: romeo,
   }]);
 
-  
   assertEquals(
     results,
     new Set([

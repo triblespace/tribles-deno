@@ -21,16 +21,12 @@ class IntersectionConstraint {
     return min;
   }
 
-  *propose(variable, binding) {
-    const relevant_constraints = this.constraints.filter((c) =>
-      c.variables().has(variable)
-    );
-    relevant_constraints.sort((a, b) =>
-      a.estimate(variable, binding) - b.estimate(variable, binding)
-    );
+  propose(variable, binding) {
+    const relevant_constraints = this.constraints.filter((c) => c.variables().has(variable));
+    relevant_constraints.sort((a, b) => a.estimate(variable, binding) - b.estimate(variable, binding))
 
     const proposal = relevant_constraints[0].propose(variable, binding);
-    for (let i = 1; i < relevant_constraints.length; i++) {
+    for(let i = 1; i < relevant_constraints.length; i++) {
       relevant_constraints[i].confirm(variable, binding, proposal);
     }
 
