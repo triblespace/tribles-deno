@@ -31,7 +31,7 @@ class IndexConstraint {
 /**
  * Create a constraint for the given variable to the values of the provided index.
  * @param {Variable} variable - The constrained variable.
- * @param {PACT} index - The constant values.
+ * @param {PATCH} index - The constant values.
  * @returns {Constraint} The constraint usable with other constraints or `find`.
  */
 export function indexed(variable, index) {
@@ -45,7 +45,7 @@ export function indexed(variable, index) {
  * @returns {Constraint} The constraint usable with other constraints or `find`.
  */
 export function collection(variable, collection) {
-  const indexBatch = emptyValuePACT.batch();
+  const indexBatch = emptyValuePATCH.batch();
   for (const c of collection) {
     indexBatch.put(c);
   }

@@ -2,7 +2,7 @@ import {
   bench,
   runBenchmarks,
 } from "https://deno.land/std@0.180.0/testing/bench.ts";
-import { emptyValuePACT } from "../src/js/pact.js";
+import { emptyValuePATCH } from "../src/js/patch.js";
 import { A, E, TRIBLE_SIZE, V_LOWER, V_UPPER } from "../src/js/trible.js";
 import { UFOID } from "../mod.js";
 
@@ -29,10 +29,10 @@ function generate_sample(size, sharing_prob = 0.1) {
 
 function persistentPut(b, size) {
   const sample = generate_sample(size);
-  let pact = emptyValuePACT;
+  let patch = emptyValuePATCH;
   b.start();
   for (const blob of sample) {
-    pact = pact.put(blob, { blob: blob });
+    patch = patch.put(blob, { blob: blob });
   }
   b.stop();
 }
@@ -71,9 +71,9 @@ bench({
 
 function batchedPut(b, size) {
   const sample = generate_sample(size);
-  const pact = emptyValuePACT;
+  const patch = emptyValuePATCH;
   b.start();
-  const batch = pact.batch();
+  const batch = patch.batch();
   for (const blob of sample) {
     batch.put(blob, { blob: blob });
   }
@@ -159,7 +159,7 @@ bench({
 });
 
 /*
-function iterateSet(b, pactType, size) {
+function iterateSet(b, patchType, size) {
   const set = new Set(generate_sample(size).map(t => t.map((b) => b.toString(16).padStart(2, "0")).join("")));
   b.start();
   let i = 0;
@@ -169,12 +169,12 @@ function iterateSet(b, pactType, size) {
   b.stop();
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "IterateSet",
   func: iterateSet,
 });
 
-function iterateSetWithTransform(b, pactType, size) {
+function iterateSetWithTransform(b, patchType, size) {
   const sample = generate_sample(size);
   b.start();
   const set = new Set(sample.map(t => t.map((b) => b.toString(16).padStart(2, "0")).join("")));
@@ -185,7 +185,7 @@ function iterateSetWithTransform(b, pactType, size) {
   b.stop();
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "IterateSetWithTransform",
   func: iterateSetWithTransform,
 });

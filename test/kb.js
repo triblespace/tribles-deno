@@ -274,7 +274,7 @@ Deno.test("KB Walk ownKeys", () => {
   );
 });
 
-Deno.test("TribleSet PACT segmentCount positive", () => {
+Deno.test("TribleSet PATCH segmentCount positive", () => {
   const size = 3;
 
   const idOwner = new IDOwner(types.ufoid);
@@ -322,7 +322,7 @@ Deno.test("TribleSet PACT segmentCount positive", () => {
   const work = [knightskb.tribleset.EAV.child];
   while (work.length > 0) {
     const c = work.shift();
-    if (c && c.constructor.name === "PACTNode") {
+    if (c && c.constructor.name === "PATCHNode") {
       if (c._segmentCount < 0) console.log(c._segmentCount);
       assert(c._segmentCount >= 0);
       if (c.children) work.push(...c.children);

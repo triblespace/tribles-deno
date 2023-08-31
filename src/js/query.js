@@ -1,5 +1,5 @@
 import { ByteBitset, ByteBitsetArray } from "./bitset.js";
-import { emptyValuePACT } from "./pact.js";
+import { emptyValuePATCH } from "./patch.js";
 import { constant } from "./constraints/constant.js";
 import { and } from "./constraints/and.js";
 
@@ -151,7 +151,7 @@ export class VariableContext {
     this.variables = [];
     this.unnamedVariables = [];
     this.namedVariables = new Map();
-    this.constantVariables = emptyValuePACT;
+    this.constantVariables = emptyValuePATCH;
     this.isBlocking = [];
     this.projected = new Set();
   }

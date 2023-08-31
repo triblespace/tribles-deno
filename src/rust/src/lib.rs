@@ -2,7 +2,7 @@ use std::mem::MaybeUninit;
 use std::hash::Hasher;
 use siphasher::sip128::{Hasher128, SipHasher24};
 
-//PACT hash
+//PATCH hash
 
 #[no_mangle]
 pub static mut global_hash_secret : [u8; 16] = [0; 16];

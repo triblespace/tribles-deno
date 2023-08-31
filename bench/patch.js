@@ -2,7 +2,7 @@ import {
   bench,
   runBenchmarks,
 } from "https://deno.land/std@0.180.0/testing/bench.ts";
-import { emptyTriblePACT as baseline, PACTHash } from "../src/js/pact.js";
+import { emptyTriblePATCH as baseline, PATCHHash } from "../src/js/patch.js";
 import { A, E, TRIBLE_SIZE, V_LOWER, V_UPPER } from "../src/js/trible.js";
 import { UFOID } from "../mod.js";
 
@@ -29,7 +29,7 @@ const variants = [
   },
 ];
 
-const benchAllPACT = ({ name, func }) => {
+const benchAllPATCH = ({ name, func }) => {
   variants.forEach(({ runs, name: variantName, size }) => {
     bench({
       name: `baseline@${variantName}:${name}`,
@@ -62,46 +62,46 @@ function generate_sample(size, sharing_prob = 0.1) {
   return tribles;
 }
 
-function persistentPut(b, pactType, size) {
+function persistentPut(b, patchType, size) {
   const sample = generate_sample(size);
-  let pact = pactType;
+  let patch = patchType;
   b.start();
   for (const t of sample) {
-    pact = pact.put(t);
+    patch = patch.put(t);
   }
   b.stop();
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "put",
   func: persistentPut,
 });
 
-function putPrehashed(b, pactType, size) {
+function putPrehashed(b, patchType, size) {
   const sample = generate_sample(size);
 
   for (const t of sample) {
-    PACTHash(t);
+    PATCHHash(t);
   }
 
-  let pact = pactType;
+  let patch = patchType;
   b.start();
   for (const t of sample) {
-    pact = pact.put(t);
+    patch = patch.put(t);
   }
   b.stop();
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "putPrecompHash",
   func: putPrehashed,
 });
 
-function batchedPut(b, pactType, size) {
+function batchedPut(b, patchType, size) {
   const sample = generate_sample(size);
-  const pact = pactType;
+  const patch = patchType;
   b.start();
-  const batch = pact.batch();
+  const batch = patch.batch();
   for (const t of sample) {
     batch.put(t);
   }
@@ -109,21 +109,21 @@ function batchedPut(b, pactType, size) {
   b.stop();
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "putBatch",
   func: batchedPut,
 });
 
-function batchedPutPrehashed(b, pactType, size) {
+function batchedPutPrehashed(b, patchType, size) {
   const sample = generate_sample(size);
 
   for (const t of sample) {
-    PACTHash(t);
+    PATCHHash(t);
   }
 
-  const pact = pactType;
+  const patch = patchType;
   b.start();
-  const batch = pact.batch();
+  const batch = patch.batch();
   for (const t of sample) {
     batch.put(t);
   }
@@ -131,199 +131,199 @@ function batchedPutPrehashed(b, pactType, size) {
   b.stop();
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "putBatchPrecompHash",
   func: batchedPutPrehashed,
 });
 
-function setUnion(b, pactType, size) {
-  let pactA = pactType.batch();
-  let pactB = pactType.batch();
+function setUnion(b, patchType, size) {
+  let patchA = patchType.batch();
+  let patchB = patchType.batch();
   for (const t of generate_sample(size)) {
-    pactA.put(t);
+    patchA.put(t);
   }
-  pactA = pactA.complete();
+  patchA = patchA.complete();
   for (const t of generate_sample(size)) {
-    pactB.put(t);
+    patchB.put(t);
   }
-  pactB = pactB.complete();
+  patchB = patchB.complete();
   b.start();
-  pactA.union(pactB);
+  patchA.union(patchB);
   b.stop();
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "SetUnion",
   func: setUnion,
 });
 
-function setIntersect(b, pactType, size) {
-  let pactA = pactType.batch();
-  let pactB;
-  let pactC;
+function setIntersect(b, patchType, size) {
+  let patchA = patchType.batch();
+  let patchB;
+  let patchC;
   for (const t of generate_sample(size)) {
-    pactA.put(t);
+    patchA.put(t);
   }
-  pactA = pactA.complete();
-  pactB = pactA.batch();
+  patchA = patchA.complete();
+  patchB = patchA.batch();
   for (const t of generate_sample(size)) {
-    pactB.put(t);
+    patchB.put(t);
   }
-  pactB = pactB.complete();
-  pactC = pactA.batch();
+  patchB = patchB.complete();
+  patchC = patchA.batch();
   for (const t of generate_sample(size)) {
-    pactC.put(t);
+    patchC.put(t);
   }
-  pactC = pactC.complete();
+  patchC = patchC.complete();
   b.start();
-  pactB.intersect(pactC);
+  patchB.intersect(patchC);
   b.stop();
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "SetIntersect",
   func: setIntersect,
 });
 
-function setSubtract(b, pactType, size) {
-  let pactA = pactType.batch();
-  let pactB;
-  let pactC;
+function setSubtract(b, patchType, size) {
+  let patchA = patchType.batch();
+  let patchB;
+  let patchC;
   for (const t of generate_sample(size)) {
-    pactA.put(t);
+    patchA.put(t);
   }
-  pactA = pactA.complete();
-  pactB = pactA.batch();
+  patchA = patchA.complete();
+  patchB = patchA.batch();
   for (const t of generate_sample(size)) {
-    pactB.put(t);
+    patchB.put(t);
   }
-  pactB = pactB.complete();
-  pactC = pactA.batch();
+  patchB = patchB.complete();
+  patchC = patchA.batch();
   for (const t of generate_sample(size)) {
-    pactC.put(t);
+    patchC.put(t);
   }
-  pactC = pactC.complete();
+  patchC = patchC.complete();
   b.start();
-  pactB.subtract(pactC);
+  patchB.subtract(patchC);
   b.stop();
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "SetSubtract",
   func: setSubtract,
 });
 
-function setDifference(b, pactType, size) {
-  let pactA = pactType.batch();
-  let pactB;
-  let pactC;
+function setDifference(b, patchType, size) {
+  let patchA = patchType.batch();
+  let patchB;
+  let patchC;
   for (const t of generate_sample(size)) {
-    pactA.put(t);
+    patchA.put(t);
   }
-  pactA = pactA.complete();
-  pactB = pactA.batch();
+  patchA = patchA.complete();
+  patchB = patchA.batch();
   for (const t of generate_sample(size)) {
-    pactB.put(t);
+    patchB.put(t);
   }
-  pactB = pactB.complete();
-  pactC = pactA.batch();
+  patchB = patchB.complete();
+  patchC = patchA.batch();
   for (const t of generate_sample(size)) {
-    pactC.put(t);
+    patchC.put(t);
   }
-  pactC = pactC.complete();
+  patchC = patchC.complete();
   b.start();
-  pactB.difference(pactC);
+  patchB.difference(patchC);
   b.stop();
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "SetDifference",
   func: setDifference,
 });
 
-function setSubsetOf(b, pactType, size) {
-  let pactA = pactType.batch();
-  let pactB;
-  let pactC;
+function setSubsetOf(b, patchType, size) {
+  let patchA = patchType.batch();
+  let patchB;
+  let patchC;
   for (const t of generate_sample(size)) {
-    pactA.put(t);
+    patchA.put(t);
   }
-  pactA = pactA.complete();
-  pactB = pactA.batch();
+  patchA = patchA.complete();
+  patchB = patchA.batch();
   for (const t of generate_sample(size)) {
-    pactB.put(t);
+    patchB.put(t);
   }
-  pactB = pactB.complete();
-  pactC = pactA.batch();
+  patchB = patchB.complete();
+  patchC = patchA.batch();
   for (const t of generate_sample(size)) {
-    pactC.put(t);
+    patchC.put(t);
   }
-  pactC = pactC.complete();
+  patchC = patchC.complete();
   if (0.5 < Math.random()) {
     b.start();
-    pactB.isSubsetOf(pactC);
+    patchB.isSubsetOf(patchC);
     b.stop();
   } else {
     b.start();
-    pactA.isSubsetOf(pactC);
+    patchA.isSubsetOf(patchC);
     b.stop();
   }
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "SetSubsetOf",
   func: setSubsetOf,
 });
 
-function setIntersecting(b, pactType, size) {
-  let pactA = pactType.batch();
-  let pactB = pactType.batch();
-  let pactC = pactType.batch();
+function setIntersecting(b, patchType, size) {
+  let patchA = patchType.batch();
+  let patchB = patchType.batch();
+  let patchC = patchType.batch();
   for (const t of generate_sample(size)) {
-    pactA.put(t);
+    patchA.put(t);
   }
   for (const t of generate_sample(size)) {
-    pactA.put(t);
-    pactB.put(t);
+    patchA.put(t);
+    patchB.put(t);
   }
   for (const t of generate_sample(size)) {
-    pactB.put(t);
-    pactC.put(t);
+    patchB.put(t);
+    patchC.put(t);
   }
-  pactA = pactA.complete();
-  pactB = pactB.complete();
-  pactC = pactC.complete();
+  patchA = patchA.complete();
+  patchB = patchB.complete();
+  patchC = patchC.complete();
   if (0.5 < Math.random()) {
     b.start();
-    pactB.isIntersecting(pactC);
+    patchB.isIntersecting(patchC);
     b.stop();
   } else {
     b.start();
-    pactA.isIntersecting(pactC);
+    patchA.isIntersecting(patchC);
     b.stop();
   }
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "SetIntersecting",
   func: setIntersecting,
 });
 
-function iterate(b, pactType, size) {
-  let pact = pactType.batch();
+function iterate(b, patchType, size) {
+  let patch = patchType.batch();
   for (const t of generate_sample(size)) {
-    pact.put(t);
+    patch.put(t);
   }
-  pact = pact.complete();
+  patch = patch.complete();
   b.start();
   let i = 0;
-  for (const k of pact.keys()) {
+  for (const k of patch.keys()) {
     i++;
   }
   b.stop();
 }
 
-benchAllPACT({
+benchAllPATCH({
   name: "Iterate",
   func: iterate,
 });

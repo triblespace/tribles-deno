@@ -1,4 +1,4 @@
-import { emptyValueIdIdTriblePACT, emptyValuePACT } from "./pact.js";
+import { emptyValueIdIdTriblePATCH, emptyValuePATCH } from "./patch.js";
 import { scrambleVAE, V } from "./trible.js";
 import { masked } from "./constraints/masked.js";
 
@@ -14,13 +14,13 @@ export class BlobCache {
   /**
    * Create a blobcache.
    * @param {Function} onMiss - Callback invoked when a blob is retreived that can't be found in the strong nor weak blobs.
-   * @param {PACT} strong - A PACT storing the strong blobs.
-   * @param {PACT} weak - A PACT storing the weak blobs.
+   * @param {PATCH} strong - A PATCH storing the strong blobs.
+   * @param {PATCH} weak - A PATCH storing the weak blobs.
    */
   constructor(
     onMiss = async () => {},
-    strong = emptyValueIdIdTriblePACT,
-    weak = emptyValuePACT,
+    strong = emptyValueIdIdTriblePATCH,
+    weak = emptyValuePATCH,
   ) {
     this.strong = strong;
     this.weak = weak;

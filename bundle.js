@@ -707,7 +707,7 @@ class ByteBitsetArray {
         return new ByteBitset(this.buffer.subarray(offset * 8, (offset + 1) * 8));
     }
 }
-function PACTHash(key) {
+function PATCHHash(key) {
     if (key.__cached_hash === undefined) {
         key.__cached_hash = hash_digest(key);
     }
@@ -757,15 +757,15 @@ const PaddedCursor = class {
     }
 };
 class SegmentConstraint {
-    constructor(pact, segmentVariables){
-        if (pact.segments.length !== segmentVariables.length) {
+    constructor(patch, segmentVariables){
+        if (patch.segments.length !== segmentVariables.length) {
             throw new Error("Number of segment variables must match the number of segments.");
         }
         if (new Set(segmentVariables).size !== segmentVariables.length) {
             throw new Error("Segment variables must be unique. Use explicit equality when inner constraints are required.");
         }
         this.nextVariableIndex = 0;
-        this.cursor = new PaddedCursor(pact.cursor(), pact.segments, 32);
+        this.cursor = new PaddedCursor(patch.cursor(), patch.segments, 32);
         this.segmentVariables = segmentVariables;
     }
     peekByte() {
@@ -821,7 +821,7 @@ class SegmentConstraint {
         }
     }
 }
-const makePACT = function(segments) {
+const makePATCH = function(segments) {
     const KEY_LENGTH = segments.reduce((a, n)=>a + n, 0);
     if (KEY_LENGTH > 128) {
         throw Error("Compressed key must not be longer than 128 bytes.");
@@ -829,17 +829,17 @@ const makePACT = function(segments) {
     const SEGMENT_LUT = new Uint8Array(KEY_LENGTH + 1);
     SEGMENT_LUT.set(segments.flatMap((l, i)=>new Array(l).fill(i)));
     SEGMENT_LUT[SEGMENT_LUT.length - 1] = SEGMENT_LUT[SEGMENT_LUT.length - 2];
-    let PACTCursor;
-    let PACTTree;
-    let PACTBatch;
-    let PACTLeaf;
-    let PACTNode;
-    PACTCursor = class {
-        constructor(pact){
-            this.pact = pact;
+    let PATCHCursor;
+    let PATCHTree;
+    let PATCHBatch;
+    let PATCHLeaf;
+    let PATCHNode;
+    PATCHCursor = class {
+        constructor(patch){
+            this.patch = patch;
             this.depth = 0;
             this.path = new Array(KEY_LENGTH + 1).fill(null);
-            this.path[0] = pact.child;
+            this.path[0] = patch.child;
         }
         peek() {
             const node = this.path[this.depth];
@@ -917,7 +917,7 @@ const makePACT = function(segments) {
             count += union.count();
             segmentCount += union.segmentCount(depth);
         }
-        return new PACTNode(key.slice(), depth, unionChildbits, children, hash, count, segmentCount, {});
+        return new PATCHNode(key.slice(), depth, unionChildbits, children, hash, count, segmentCount, {});
     }
     function _subtract(leftNode, rightNode, depth = 0, key = new Uint8Array(KEY_LENGTH)) {
         if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
@@ -964,7 +964,7 @@ const makePACT = function(segments) {
             }
         }
         if (leftChildbits.isEmpty()) return null;
-        return new PACTNode(key.slice(), depth, leftChildbits, children, hash, count, segmentCount, {});
+        return new PATCHNode(key.slice(), depth, leftChildbits, children, hash, count, segmentCount, {});
     }
     function _intersect(leftNode, rightNode, depth = 0, key = new Uint8Array(KEY_LENGTH)) {
         if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
@@ -1002,7 +1002,7 @@ const makePACT = function(segments) {
             }
         }
         if (intersectChildbits.isEmpty()) return null;
-        return new PACTNode(key.slice(), depth, intersectChildbits, children, hash, count, segmentCount, {});
+        return new PATCHNode(key.slice(), depth, intersectChildbits, children, hash, count, segmentCount, {});
     }
     function _difference(leftNode, rightNode, depth = 0, key = new Uint8Array(KEY_LENGTH)) {
         if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
@@ -1057,7 +1057,7 @@ const makePACT = function(segments) {
             }
         }
         if (diffChildbits.isEmpty()) return null;
-        return new PACTNode(key.slice(), depth, diffChildbits, children, hash, count, segmentCount, {});
+        return new PATCHNode(key.slice(), depth, diffChildbits, children, hash, count, segmentCount, {});
     }
     function _isSubsetOf(leftNode, rightNode, depth = 0) {
         if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
@@ -1128,7 +1128,7 @@ const makePACT = function(segments) {
             }
         }
     }
-    PACTBatch = class {
+    PATCHBatch = class {
         constructor(child){
             this.child = child;
             this.owner = {};
@@ -1137,7 +1137,7 @@ const makePACT = function(segments) {
         complete() {
             if (this.completed) throw Error("Batch already completed.");
             this.completed = true;
-            return new PACTTree(this.child);
+            return new PATCHTree(this.child);
         }
         put(key, value = null) {
             if (this.completed) {
@@ -1146,19 +1146,19 @@ const makePACT = function(segments) {
             if (this.child) {
                 this.child = this.child.put(0, key, value, this.owner);
             } else {
-                this.child = new PACTLeaf(0, key, value, PACTHash(key));
+                this.child = new PATCHLeaf(0, key, value, PATCHHash(key));
             }
             return this;
         }
     };
-    PACTTree = class {
+    PATCHTree = class {
         constructor(child = null){
             this.keyLength = KEY_LENGTH;
             this.child = child;
             this.segments = segments;
         }
         batch() {
-            return new PACTBatch(this.child);
+            return new PATCHBatch(this.child);
         }
         count() {
             if (this.child === null) return 0;
@@ -1168,9 +1168,9 @@ const makePACT = function(segments) {
             if (this.child !== null) {
                 const nchild = this.child.put(0, key, value, {});
                 if (this.child === nchild) return this;
-                return new PACTTree(nchild);
+                return new PATCHTree(nchild);
             }
-            return new PACTTree(new PACTLeaf(0, key, value, PACTHash(key)));
+            return new PATCHTree(new PATCHLeaf(0, key, value, PATCHHash(key)));
         }
         get(key) {
             let node = this.child;
@@ -1186,7 +1186,7 @@ const makePACT = function(segments) {
             return new SegmentConstraint(this, vars.map((v1)=>v1.index));
         }
         cursor() {
-            return new PACTCursor(this);
+            return new PATCHCursor(this);
         }
         isEmpty() {
             return this.child === null;
@@ -1204,49 +1204,49 @@ const makePACT = function(segments) {
             const thisNode = this.child;
             const otherNode = other.child;
             if (thisNode === null) {
-                return new PACTTree(otherNode);
+                return new PATCHTree(otherNode);
             }
             if (otherNode === null) {
-                return new PACTTree(thisNode);
+                return new PATCHTree(thisNode);
             }
-            return new PACTTree(_union(thisNode, otherNode));
+            return new PATCHTree(_union(thisNode, otherNode));
         }
         subtract(other) {
             const thisNode = this.child;
             const otherNode = other.child;
             if (otherNode === null) {
-                return new PACTTree(thisNode);
+                return new PATCHTree(thisNode);
             }
             if (this.child === null || hash_equal(this.child.hash, other.child.hash)) {
-                return new PACTTree();
+                return new PATCHTree();
             } else {
-                return new PACTTree(_subtract(thisNode, otherNode));
+                return new PATCHTree(_subtract(thisNode, otherNode));
             }
         }
         intersect(other) {
             const thisNode = this.child;
             const otherNode = other.child;
             if (thisNode === null || otherNode === null) {
-                return new PACTTree(null);
+                return new PATCHTree(null);
             }
             if (thisNode === otherNode || hash_equal(thisNode.hash, otherNode.hash)) {
-                return new PACTTree(otherNode);
+                return new PATCHTree(otherNode);
             }
-            return new PACTTree(_intersect(thisNode, otherNode));
+            return new PATCHTree(_intersect(thisNode, otherNode));
         }
         difference(other) {
             const thisNode = this.child;
             const otherNode = other.child;
             if (thisNode === null) {
-                return new PACTTree(otherNode);
+                return new PATCHTree(otherNode);
             }
             if (otherNode === null) {
-                return new PACTTree(thisNode);
+                return new PATCHTree(thisNode);
             }
             if (thisNode === otherNode || hash_equal(thisNode.hash, otherNode.hash)) {
-                return new PACTTree(null);
+                return new PATCHTree(null);
             }
-            return new PACTTree(_difference(thisNode, otherNode));
+            return new PATCHTree(_difference(thisNode, otherNode));
         }
         *entries() {
             if (this.child === null) return;
@@ -1270,7 +1270,7 @@ const makePACT = function(segments) {
             }
         }
     };
-    PACTLeaf = class {
+    PATCHLeaf = class {
         constructor(depth, key, value, hash){
             this.key = key.slice(depth);
             this.value = value;
@@ -1302,7 +1302,7 @@ const makePACT = function(segments) {
             if (depth === KEY_LENGTH) {
                 return this;
             }
-            const sibling = new PACTLeaf(depth + 1, key, value, PACTHash(key));
+            const sibling = new PATCHLeaf(depth + 1, key, value, PATCHHash(key));
             const branchChildren = [];
             const leftIndex = this.key[depth - this.depth];
             const rightIndex = key[depth];
@@ -1312,10 +1312,10 @@ const makePACT = function(segments) {
             branchChildbits.set(leftIndex);
             branchChildbits.set(rightIndex);
             const hash = hash_combine(this.hash, sibling.hash);
-            return new PACTNode(key, depth, branchChildbits, branchChildren, hash, 2, 2, owner);
+            return new PATCHNode(key, depth, branchChildbits, branchChildren, hash, 2, 2, owner);
         }
     };
-    PACTNode = class {
+    PATCHNode = class {
         constructor(key, branchDepth, childbits, children, hash, count, segmentCount, owner){
             this.key = key;
             this.branchDepth = branchDepth;
@@ -1391,7 +1391,7 @@ const makePACT = function(segments) {
                     }
                     nchildbits = this.childbits.copy();
                 } else {
-                    nchild = new PACTLeaf(depth + 1, key, value, PACTHash(key));
+                    nchild = new PATCHLeaf(depth + 1, key, value, PATCHHash(key));
                     hash = hash_combine(this.hash, nchild.hash);
                     count = this._count + 1;
                     segmentCount = this._segmentCount + 1;
@@ -1408,9 +1408,9 @@ const makePACT = function(segments) {
                 }
                 const nchildren = this.children.slice();
                 nchildren[pos] = nchild;
-                return new PACTNode(this.key, this.branchDepth, nchildbits, nchildren, hash, count, segmentCount, owner);
+                return new PATCHNode(this.key, this.branchDepth, nchildbits, nchildren, hash, count, segmentCount, owner);
             }
-            const nchild = new PACTLeaf(depth + 1, key, value, PACTHash(key));
+            const nchild = new PATCHLeaf(depth + 1, key, value, PATCHHash(key));
             const nchildren = [];
             const lindex = this.key[depth];
             const rindex = key[depth];
@@ -1422,30 +1422,30 @@ const makePACT = function(segments) {
             const count = this._count + 1;
             const segmentCount = SEGMENT_LUT[depth] === SEGMENT_LUT[this.branchDepth] ? this._segmentCount + 1 : 2;
             const hash = hash_combine(this.hash, nchild.hash);
-            return new PACTNode(this.key, depth, nchildbits, nchildren, hash, count, segmentCount, owner);
+            return new PATCHNode(this.key, depth, nchildbits, nchildren, hash, count, segmentCount, owner);
         }
     };
-    return new PACTTree();
+    return new PATCHTree();
 };
-const emptyIdIdValueTriblePACT = makePACT([
+const emptyIdIdValueTriblePATCH = makePATCH([
     16,
     16,
     32
 ]);
-const emptyIdValueIdTriblePACT = makePACT([
+const emptyIdValueIdTriblePATCH = makePATCH([
     16,
     32,
     16
 ]);
-const emptyValueIdIdTriblePACT = makePACT([
+const emptyValueIdIdTriblePATCH = makePATCH([
     32,
     16,
     16
 ]);
-const emptyIdPACT = makePACT([
+const emptyIdPATCH = makePATCH([
     16
 ]);
-const emptyValuePACT1 = makePACT([
+const emptyValuePATCH1 = makePATCH([
     32
 ]);
 class ConstantConstraint {
@@ -1758,7 +1758,7 @@ class VariableContext {
         this.variables = [];
         this.unnamedVariables = [];
         this.namedVariables = new Map();
-        this.constantVariables = emptyValuePACT1;
+        this.constantVariables = emptyValuePATCH1;
         this.isBlocking = [];
         this.projected = new Set();
     }
@@ -1870,7 +1870,7 @@ function indexed(variable, index) {
     return new IndexConstraint(variable.index, index);
 }
 function collection(variable, collection) {
-    const indexBatch = emptyValuePACT.batch();
+    const indexBatch = emptyValuePATCH.batch();
     for (const c of collection){
         indexBatch.put(c);
     }
@@ -2336,7 +2336,7 @@ class TribleConstraint {
     }
 }
 class TribleSet {
-    constructor(EAV = emptyIdIdValueTriblePACT, EVA = emptyIdValueIdTriblePACT, AEV = emptyIdIdValueTriblePACT, AVE = emptyIdValueIdTriblePACT, VEA = emptyValueIdIdTriblePACT, VAE = emptyValueIdIdTriblePACT){
+    constructor(EAV = emptyIdIdValueTriblePATCH, EVA = emptyIdValueIdTriblePATCH, AEV = emptyIdIdValueTriblePATCH, AVE = emptyIdValueIdTriblePATCH, VEA = emptyValueIdIdTriblePATCH, VAE = emptyValueIdIdTriblePATCH){
         this.EAV = EAV;
         this.EVA = EVA;
         this.AEV = AEV;
@@ -2408,7 +2408,7 @@ function deserialize1(tribleset, blobcache, serialized_bytes) {
     if (serialized_bytes.length % 64 !== 0) {
         throw Error("serialized blob data must be multiple of 64byte");
     }
-    let blobs = emptyValuePACT1.batch();
+    let blobs = emptyValuePATCH1.batch();
     let offset = 0;
     const dataview = new DataView(serialized_bytes.buffer);
     while(offset < serialized_bytes.length){
@@ -2469,7 +2469,7 @@ function serialize1(blobcache) {
     return bytes;
 }
 class BlobCache {
-    constructor(onMiss = async ()=>{}, strong = emptyValueIdIdTriblePACT, weak = emptyValuePACT1){
+    constructor(onMiss = async ()=>{}, strong = emptyValueIdIdTriblePATCH, weak = emptyValuePATCH1){
         this.strong = strong;
         this.weak = weak;
         this.onMiss = onMiss;
@@ -2622,10 +2622,10 @@ class IDSequence {
 class NS {
     constructor(decl){
         const attributes = new Map();
-        let forwardAttributeIndex = emptyValuePACT1;
-        let inverseAttributeIndex = emptyValuePACT1;
-        const newUniqueAttributeIndex = emptyValuePACT1.batch();
-        const newUniqueInverseAttributeIndex = emptyValuePACT1.batch();
+        let forwardAttributeIndex = emptyValuePATCH1;
+        let inverseAttributeIndex = emptyValuePATCH1;
+        const newUniqueAttributeIndex = emptyValuePATCH1.batch();
+        const newUniqueInverseAttributeIndex = emptyValuePATCH1.batch();
         const idDescription = decl[id];
         if (!idDescription) {
             throw Error(`Incomplete namespace: Missing [id] field.`);
@@ -3259,7 +3259,7 @@ function ranged(variable, type, { lower , upper  }) {
 class IDOwner {
     constructor(type){
         this.idType = type;
-        this.ownedIDs = emptyIdPACT;
+        this.ownedIDs = emptyIdPATCH;
     }
     type() {
         return {

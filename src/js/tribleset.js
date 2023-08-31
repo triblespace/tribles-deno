@@ -1,9 +1,8 @@
 import {
-  emptyIdIdValueTriblePACT,
-  emptyIdValueIdTriblePACT,
-  emptyValueIdIdTriblePACT,
-  PaddedCursor,
-} from "./pact.js";
+  emptyIdIdValueTriblePATCH,
+  emptyIdValueIdTriblePATCH,
+  emptyValueIdIdTriblePATCH,
+} from "./patch.js";
 import {
   scrambleAEV,
   scrambleAVE,
@@ -96,12 +95,12 @@ class TribleConstraint {
  */
 export class TribleSet {
   constructor(
-    EAV = emptyIdIdValueTriblePACT,
-    EVA = emptyIdValueIdTriblePACT,
-    AEV = emptyIdIdValueTriblePACT,
-    AVE = emptyIdValueIdTriblePACT,
-    VEA = emptyValueIdIdTriblePACT,
-    VAE = emptyValueIdIdTriblePACT,
+    EAV = emptyIdIdValueTriblePATCH,
+    EVA = emptyIdValueIdTriblePATCH,
+    AEV = emptyIdIdValueTriblePATCH,
+    AVE = emptyIdValueIdTriblePATCH,
+    VEA = emptyValueIdIdTriblePATCH,
+    VAE = emptyValueIdIdTriblePATCH,
   ) {
     this.EAV = EAV;
     this.EVA = EVA;

@@ -1,10 +1,10 @@
-import { emptyIdPACT } from "./pact.js";
+import { emptyIdPATCH } from "./patch.js";
 import { VALUE_SIZE } from "./trible.js";
 
 export class IDOwner {
   constructor(type) {
     this.idType = type;
-    this.ownedIDs = emptyIdPACT;
+    this.ownedIDs = emptyIdPATCH;
   }
 
   type() {

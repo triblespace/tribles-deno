@@ -617,7 +617,7 @@ const Branch = class {
   }
 
   segmentCount(order, segment, at_depth) {
-    // Because a pact might compress an entire segment within a node below it,
+    // Because a patch might compress an entire segment within a node below it,
     // we need to make sure that our current node is actually inside that
     // segment and not in a segment below it.
     if (segment(order(at_depth)) === segment(order(this.branchDepth))) {
@@ -924,10 +924,10 @@ const emptyIdPATCH = new PATCH(ID_SIZE, naturalOrder, singleSegment);
 const emptyValuePATCH = new PATCH(VALUE_SIZE, naturalOrder, singleSegment);
 
 export {
-  emptyIdIdValueTriblePACT,
+  emptyIdIdValueTriblePATCH,
   emptyIdPATCH,
-  emptyIdValueIdTriblePACT,
-  emptyTriblePACT,
-  emptyValueIdIdTriblePACT,
+  emptyIdValueIdTriblePATCH,
+  emptyTriblePATCH,
+  emptyValueIdIdTriblePATCH,
   emptyValuePATCH,
 };

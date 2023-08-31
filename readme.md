@@ -10,7 +10,7 @@ It is still in early development.
 
 So far the following components have been implemented.
 
-- PACT js implementation.
+- PATCH js implementation.
 - TribleSet js immutable trible database.
 - BlobCache js immutable trible database.
 - KB js immutable trible knowledge-base.
@@ -26,7 +26,7 @@ So far the following components have been implemented.
 
 Currently to be done and missing is:
 
-- PACT rust implementation.
+- PATCH rust implementation.
 - tribleset rust implementation.
 - More rust...
 - JS Ontology tools to dynamically load KnowlegeBase namespaces and
@@ -147,9 +147,9 @@ capabilities. These can be roughly categorized as follows:
   key.
 - Structured binary information storage: Provided by Trible Sets and Blob
   Caches. Trible Sets support set operations and query primitives for higher
-  layers. They store data as covering PACT indices. Blob caches on the other
+  layers. They store data as covering PATCH indices. Blob caches on the other
   hand store those values which require more space than the inlined 32byte. They
-  use PACTS to map the value hash to the actual blob or a method to retrieve it
+  use PATCHS to map the value hash to the actual blob or a method to retrieve it
   lazily, e.g. via the network.
 - Semantic information storage with a host language friendly API: The Knowledge
   Base data-structure makes use of one Trible Set and one Blob Cache. Instead of
@@ -171,7 +171,7 @@ The resulting structure looks like this:
 
 ```
                   ┌────────┐
-                  │  PACT  │
+                  │  PATCH  │
                   └────────┘             Unstructured
 ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
                ┌───────┴───────┐

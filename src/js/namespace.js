@@ -4,7 +4,7 @@ import { constant } from "./constraints/constant.js";
 import { indexed } from "./constraints/indexed.js";
 import { masked } from "./constraints/masked.js";
 import { A, E, equalValue, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
-import { emptyValuePACT } from "./pact.js";
+import { emptyValuePATCH } from "./patch.js";
 import { KB } from "./kb.js";
 
 const assert = (test, message) => {
@@ -38,10 +38,10 @@ class IDSequence {
 export class NS {
   constructor(decl) {
     const attributes = new Map(); // attribute name -> attribute description
-    let forwardAttributeIndex = emptyValuePACT; // non inverse attribute id -> [attribute description]
-    let inverseAttributeIndex = emptyValuePACT; // inverse attribute id -> [attribute description],
-    const newUniqueAttributeIndex = emptyValuePACT.batch();
-    const newUniqueInverseAttributeIndex = emptyValuePACT.batch();
+    let forwardAttributeIndex = emptyValuePATCH; // non inverse attribute id -> [attribute description]
+    let inverseAttributeIndex = emptyValuePATCH; // inverse attribute id -> [attribute description],
+    const newUniqueAttributeIndex = emptyValuePATCH.batch();
+    const newUniqueInverseAttributeIndex = emptyValuePATCH.batch();
 
     const idDescription = decl[id];
     if (!idDescription) {
