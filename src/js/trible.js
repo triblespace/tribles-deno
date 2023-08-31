@@ -27,54 +27,76 @@ export const V = (trible) => trible.subarray(V_START, V_END);
 export const V_UPPER = (trible) => trible.subarray(V_UPPER_START, V_UPPER_END);
 export const V_LOWER = (trible) => trible.subarray(V_LOWER_START, V_LOWER_END);
 
-export function scrambleEAV(trible) {
-  return trible;
+const TribleSegmentation = (at_depth) => {
+  if(at_depth < E_END) return 0;
+  if(at_depth < A_END) return 1;
+  return 2;
 }
 
-export function scrambleEVA(trible) {
-  const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(E(trible), 0);
-  indexOrderedKey.set(V(trible), 16);
-  indexOrderedKey.set(A(trible), 48);
-  indexOrderedKey.__cached_hash = trible.__cached_hash;
-  return indexOrderedKey;
-}
-
-export function scrambleAEV(trible) {
-  const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(A(trible), 0);
-  indexOrderedKey.set(E(trible), 16);
-  indexOrderedKey.set(V(trible), 32);
-  indexOrderedKey.__cached_hash = trible.__cached_hash;
-  return indexOrderedKey;
-}
-
-export function scrambleAVE(trible) {
-  const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(A(trible), 0);
-  indexOrderedKey.set(V(trible), 16);
-  indexOrderedKey.set(E(trible), 48);
-  indexOrderedKey.__cached_hash = trible.__cached_hash;
-  return indexOrderedKey;
-}
-
-export function scrambleVEA(trible) {
-  const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(V(trible), 0);
-  indexOrderedKey.set(E(trible), 32);
-  indexOrderedKey.set(A(trible), 48);
-  indexOrderedKey.__cached_hash = trible.__cached_hash;
-  return indexOrderedKey;
-}
-
-export function scrambleVAE(trible) {
-  const indexOrderedKey = new Uint8Array(64);
-  indexOrderedKey.set(V(trible), 0);
-  indexOrderedKey.set(A(trible), 32);
-  indexOrderedKey.set(E(trible), 48);
-  indexOrderedKey.__cached_hash = trible.__cached_hash;
-  return indexOrderedKey;
-}
+export const EAVOrder = {
+  keyToTree: (at_depth) => at_depth,
+  treeToKey: (at_depth) => at_depth,
+};
+export const EVAOrder = {
+  keyToTree: (at_depth) => {
+    if (at_depth < 16) return at_depth;
+    if (at_depth < 32) return at_depth + 32;
+    return at_depth - 16;
+  },
+  treeToKey: (at_depth) => {
+    if (at_depth < 16) return at_depth;
+    if (at_depth < 48) return at_depth + 16;
+    return at_depth - 32;
+  },
+};
+export const AEVOrder = {
+  keyToTree: (at_depth) => {
+    if (at_depth < 16) return at_depth + 16;
+    if (at_depth < 32) return at_depth - 16;
+    return at_depth;
+  },
+  treeToKey: (at_depth) => {
+    if (at_depth < 16) return at_depth + 16;
+    if (at_depth < 32) return at_depth - 16;
+    return at_depth;
+  },
+};
+export const AVEOrder = {
+  keyToTree: (at_depth) => {
+    if (at_depth < 16) return at_depth + 48;
+    if (at_depth < 32) return at_depth - 16;
+    return at_depth - 16;
+  },
+  treeToKey: (at_depth) => {
+    if (at_depth < 16) return at_depth + 16;
+    if (at_depth < 48) return at_depth + 16;
+    return at_depth - 48;
+  },
+};
+export const VEAOrder = {
+  keyToTree: (at_depth) => {
+    if (at_depth < 16) return at_depth + 32;
+    if (at_depth < 32) return at_depth + 32;
+    return at_depth - 32;
+  },
+  treeToKey: (at_depth) => {
+    if (at_depth < 32) return at_depth + 32;
+    if (at_depth < 48) return at_depth - 32;
+    return at_depth - 32;
+  },
+};
+export const VAEOrder = {
+  keyToTree: (at_depth) => {
+    if (at_depth < 16) return at_depth + 48;
+    if (at_depth < 32) return at_depth + 16;
+    return at_depth - 32;
+  },
+  treeToKey: (at_depth) => {
+    if (at_depth < 32) return at_depth + 32;
+    if (at_depth < 48) return at_depth - 16;
+    return at_depth - 48;
+  },
+};
 
 export const zero = (v) => {
   const view = new Uint32Array(v.buffer, v.byteOffset, 4);

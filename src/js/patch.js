@@ -5,7 +5,7 @@ import {
   EVAOrder,
   ID_SIZE,
   TRIBLE_SIZE,
-  tribleSegment,
+  TribleSegmentation,
   VAEOrder,
   VALUE_SIZE,
   VEAOrder,
@@ -482,7 +482,7 @@ const Leaf = class {
     out.push(fn(this.key));
   }
 
-  has_prefix(order, key, end_depth) {
+  hasPrefix(order, key, end_depth) {
     for (let depth = at_depth; depth <= end_depth; depth++) {
       let key_depth = order(depth);
       if (this.key[key_depth] != key[key_depth]) {
@@ -705,7 +705,7 @@ const Branch = class {
     );
   }
 
-  has_prefix(order, key, end_depth, at_depth) {
+  hasPrefix(order, key, end_depth, at_depth) {
     for (
       let depth = at_depth;
       depth < Math.min(end_depth, this.branchDepth);
@@ -722,7 +722,7 @@ const Branch = class {
 
     const child = this.children[key[order(this.branchDepth)]];
     if (child) {
-      return child.has_prefix(
+      return child.hasPrefix(
         order,
         key,
         end_depth,
@@ -736,8 +736,9 @@ const Branch = class {
 const PATCH = class {
   constructor(keyLength, order, segments, child) {
     this.keyLength = keyLength;
-    this.order = order, this.segments = segments, this.child = child;
+    this.order = order;
     this.segments = segments;
+    this.child = child;
   }
   count() {
     if (this.child) return this.child.count();
@@ -767,8 +768,8 @@ const PATCH = class {
     Boolean(_find(this.child, key));
   }
 
-  segmentCount(key, start_depth) {
-    this.child.segmentCount(key, start_depth, 0);
+  prefixSegmentCount(key, start_depth) {
+    this.child.prefixSegmentCount(key, start_depth, 0);
   }
 
   infixes(
@@ -789,8 +790,8 @@ const PATCH = class {
     return out;
   }
 
-  has_prefix(key = new Uint8Array(KEY_LENGTH), end = KEY_LENGTH) {
-    return this.child.has_prefix(key, end);
+  hasPrefix(key = new Uint8Array(KEY_LENGTH), end = KEY_LENGTH) {
+    return this.child.hasPrefix(key, end);
   }
 
   *entries() {
@@ -913,21 +914,13 @@ const naturalOrder = {
   keyToTree: (at_depth) => at_depth,
 };
 
-const emptyEAVTriblePact = new PATCH(TRIBLE_SIZE, EAVOrder, tribleSegment);
-const emptyEVATriblePact = new PATCH(TRIBLE_SIZE, EVAOrder, tribleSegment);
-const emptyAEVTriblePact = new PATCH(TRIBLE_SIZE, AEVOrder, tribleSegment);
-const emptyAVETriblePact = new PATCH(TRIBLE_SIZE, AVEOrder, tribleSegment);
-const emptyVEATriblePact = new PATCH(TRIBLE_SIZE, VEAOrder, tribleSegment);
-const emptyVAETriblePact = new PATCH(TRIBLE_SIZE, VAEOrder, tribleSegment);
+export const emptyEAVTriblePact = new PATCH(TRIBLE_SIZE, EAVOrder, TribleSegmentation);
+export const emptyEVATriblePact = new PATCH(TRIBLE_SIZE, EVAOrder, TribleSegmentation);
+export const emptyAEVTriblePact = new PATCH(TRIBLE_SIZE, AEVOrder, TribleSegmentation);
+export const emptyAVETriblePact = new PATCH(TRIBLE_SIZE, AVEOrder, TribleSegmentation);
+export const emptyVEATriblePact = new PATCH(TRIBLE_SIZE, VEAOrder, TribleSegmentation);
+export const emptyVAETriblePact = new PATCH(TRIBLE_SIZE, VAEOrder, TribleSegmentation);
 
-const emptyIdPATCH = new PATCH(ID_SIZE, naturalOrder, singleSegment);
-const emptyValuePATCH = new PATCH(VALUE_SIZE, naturalOrder, singleSegment);
+export const emptyIdPATCH = new PATCH(ID_SIZE, naturalOrder, singleSegment);
+export const emptyValuePATCH = new PATCH(VALUE_SIZE, naturalOrder, singleSegment);
 
-export {
-  emptyIdIdValueTriblePATCH,
-  emptyIdPATCH,
-  emptyIdValueIdTriblePATCH,
-  emptyTriblePATCH,
-  emptyValueIdIdTriblePATCH,
-  emptyValuePATCH,
-};
