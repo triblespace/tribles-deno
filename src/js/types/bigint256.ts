@@ -1,4 +1,4 @@
-import { bigIntToBytes, bytesToBigInt } from "./util.js";
+import { bigIntToBytes, bytesToBigInt } from "./util.ts";
 
 function bigint256Encoder(v, b) {
   if (

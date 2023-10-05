@@ -1,5 +1,5 @@
-import { TribleSet } from "./tribleset.js";
-import { BlobCache } from "./blobcache.js";
+import { TribleSet } from "./tribleset.ts";
+import { BlobCache } from "./blobcache.ts";
 
 const assert = (test, message) => {
   if (!test) {

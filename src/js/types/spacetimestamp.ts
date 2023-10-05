@@ -3,7 +3,7 @@ import {
   bytesToBigInt,
   spreadBits,
   unspreadBits,
-} from "./util.js";
+} from "./util.ts";
 
 function spacetimestampEncoder(v, b) {
   const { t = 0, x = 0, y = 0, z = 0 } = v;

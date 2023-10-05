@@ -1,7 +1,7 @@
-import { ByteBitset, ByteBitsetArray } from "./bitset.js";
+import { ByteBitset, ByteBitsetArray } from "./bitset.ts";
 import { emptyValuePATCH } from "./patch.ts";
-import { constant } from "./constraints/constant.js";
-import { and } from "./constraints/and.js";
+import { constant } from "./constraints/constant.ts";
+import { and } from "./constraints/and.ts";
 
 export const UPPER_START = 0;
 export const UPPER_END = 16;

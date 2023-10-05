@@ -1,10 +1,10 @@
-import { types } from "./types.js";
-import { UFOID } from "./types/ufoid.js";
-import { id } from "./namespace.js";
-import { TRIBLE_SIZE } from "./trible.js";
+import { types } from "./types.ts";
+import { UFOID } from "./types/ufoid.ts";
+import { id } from "./namespace.ts";
+import { TRIBLE_SIZE } from "./trible.ts";
 import { blake3 } from "./wasm.js";
-import { NS } from "./namespace.js";
-import { UFOID } from "./types/ufoid.js";
+import { NS } from "./namespace.ts";
+import { UFOID } from "./types/ufoid.ts";
 
 //
 // The payload consists of both the data and metadata trible

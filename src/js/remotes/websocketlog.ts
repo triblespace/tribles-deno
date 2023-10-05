@@ -1,4 +1,4 @@
-import { Commit } from "../commit.js";
+import { Commit } from "../commit.ts";
 
 export const PROTOCOL = "tribles/commit";
 

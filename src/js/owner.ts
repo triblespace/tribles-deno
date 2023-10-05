@@ -1,5 +1,5 @@
 import { emptyIdPATCH } from "./patch.ts";
-import { VALUE_SIZE } from "./trible.js";
+import { VALUE_SIZE } from "./trible.ts";
 
 export class IDOwner {
   constructor(type) {

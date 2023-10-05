@@ -1,4 +1,4 @@
-import { ByteBitset } from "../bitset.js";
+import { ByteBitset } from "../bitset.ts";
 
 class IntersectionConstraint {
   constructor(constraints) {

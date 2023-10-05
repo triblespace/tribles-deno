@@ -9,9 +9,8 @@ import {
   VAEOrder,
   VALUE_SIZE,
   VEAOrder,
-} from "./trible.js";
+} from "./trible.ts";
 import { hash_combine, hash_digest, hash_equal, hash_update } from "./wasm.js";
-import { ByteBitset } from "./bitset.js";
 
 type FixedUint8Array<L extends number> = Uint8Array & {length: L};
 
@@ -1049,12 +1048,12 @@ const naturalOrder = {
   keyToTree: (at_depth: number) => at_depth,
 };
 
-export const emptyEAVTriblePact = new PATCH(TRIBLE_SIZE, EAVOrder, TribleSegmentation, undefined);
-export const emptyEVATriblePact = new PATCH(TRIBLE_SIZE, EVAOrder, TribleSegmentation, undefined);
-export const emptyAEVTriblePact = new PATCH(TRIBLE_SIZE, AEVOrder, TribleSegmentation, undefined);
-export const emptyAVETriblePact = new PATCH(TRIBLE_SIZE, AVEOrder, TribleSegmentation, undefined);
-export const emptyVEATriblePact = new PATCH(TRIBLE_SIZE, VEAOrder, TribleSegmentation, undefined);
-export const emptyVAETriblePact = new PATCH(TRIBLE_SIZE, VAEOrder, TribleSegmentation, undefined);
+export const emptyEAVTriblePATCH = new PATCH(TRIBLE_SIZE, EAVOrder, TribleSegmentation, undefined);
+export const emptyEVATriblePATCH = new PATCH(TRIBLE_SIZE, EVAOrder, TribleSegmentation, undefined);
+export const emptyAEVTriblePATCH = new PATCH(TRIBLE_SIZE, AEVOrder, TribleSegmentation, undefined);
+export const emptyAVETriblePATCH = new PATCH(TRIBLE_SIZE, AVEOrder, TribleSegmentation, undefined);
+export const emptyVEATriblePATCH = new PATCH(TRIBLE_SIZE, VEAOrder, TribleSegmentation, undefined);
+export const emptyVAETriblePATCH = new PATCH(TRIBLE_SIZE, VAEOrder, TribleSegmentation, undefined);
 
 export const emptyIdPATCH = new PATCH(ID_SIZE, naturalOrder, singleSegment, undefined);
 export const emptyValuePATCH = new PATCH(VALUE_SIZE, naturalOrder, singleSegment, undefined);

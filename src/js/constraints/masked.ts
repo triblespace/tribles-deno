@@ -1,4 +1,4 @@
-import { ByteBitset } from "../bitset.js";
+import { ByteBitset } from "../bitset.ts";
 
 // Can be used like a projection, but one must makes sure that the masked constraint
 // implicitly existentially quantifies the variables masked.

@@ -1,19 +1,14 @@
 import {
   Entry,
-  emptyIdIdValueTriblePATCH,
-  emptyIdValueIdTriblePATCH,
-  emptyValueIdIdTriblePATCH,
+  emptyEAVTriblePATCH,
+  emptyEVATriblePATCH,
+  emptyAEVTriblePATCH,
+  emptyAVETriblePATCH,
+  emptyVEATriblePATCH,
+  emptyVAETriblePATCH
 } from "./patch.ts";
-import {
-  scrambleAEV,
-  scrambleAVE,
-  scrambleEAV,
-  scrambleEVA,
-  scrambleVAE,
-  scrambleVEA,
-} from "./trible.js";
-import { and } from "./constraints/and.js";
-import { ByteBitset } from "./bitset.js";
+import { and } from "./constraints/and.ts";
+import { ByteBitset } from "./bitset.ts";
 
 /**
  * A constraint limits the passed variables e, a and v to values with
@@ -435,12 +430,12 @@ class TribleConstraint {
  */
 export class TribleSet {
   constructor(
-    EAV = emptyEAVTriblePact,
-    EVA = emptyEVATriblePact,
-    AEV = emptyAEVTriblePact,
-    AVE = emptyAVETriblePact,
-    VEA = emptyVEATriblePact,
-    VAE = emptyVAETriblePact,
+    EAV = emptyEAVTriblePATCH,
+    EVA = emptyEVATriblePATCH,
+    AEV = emptyAEVTriblePATCH,
+    AVE = emptyAVETriblePATCH,
+    VEA = emptyVEATriblePATCH,
+    VAE = emptyVAETriblePATCH,
   ) {
     this.EAV = EAV;
     this.EVA = EVA;

@@ -1,5 +1,5 @@
-import { lessValue, VALUE_SIZE } from "../trible.js";
-import { filterInPlance } from "../util.js";
+import { lessValue, VALUE_SIZE } from "../trible.ts";
+import { filterInPlance } from "../util.ts";
 
 const MIN_KEY = new Uint8Array(VALUE_SIZE).fill(0);
 const MAX_KEY = new Uint8Array(VALUE_SIZE).fill(~0);

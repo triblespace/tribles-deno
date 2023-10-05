@@ -1,5 +1,5 @@
-import { equalValue, VALUE_SIZE } from "../trible.js";
-import { filterInPlace } from "../util.js";
+import { equalValue, VALUE_SIZE } from "../trible.ts";
+import { filterInPlace } from "../util.ts";
 
 class ConstantConstraint {
   constructor(variable, constant) {

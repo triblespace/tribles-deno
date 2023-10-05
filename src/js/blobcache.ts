@@ -1,6 +1,6 @@
-import { emptyValueIdIdTriblePATCH, emptyValuePATCH } from "./patch.ts";
-import { scrambleVAE, V } from "./trible.js";
-import { masked } from "./constraints/masked.js";
+import { emptyVAETriblePATCH, emptyValuePATCH } from "./patch.ts";
+import { V } from "./trible.ts";
+import { masked } from "./constraints/masked.ts";
 
 /** A blobcache is an immutably persistent datastructure that stores blobs associated
  * with the value hashes stored in the tribles of a tribleset.
@@ -19,7 +19,7 @@ export class BlobCache {
    */
   constructor(
     onMiss = async () => {},
-    strong = emptyValueIdIdTriblePATCH,
+    strong = emptyVAETriblePATCH,
     weak = emptyValuePATCH,
   ) {
     this.strong = strong;
@@ -46,7 +46,7 @@ export class BlobCache {
       } else {
         new_or_cached_blob = cached_blob;
       }
-      strong = strong.put(scrambleVAE(trible), new_or_cached_blob);
+      strong = strong.put(trible, new_or_cached_blob);
     }
 
     return new BlobCache(this.onMiss, strong, weak);

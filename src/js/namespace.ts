@@ -1,11 +1,11 @@
-import { find, Variable } from "./query.js";
-import { and } from "./constraints/and.js";
-import { constant } from "./constraints/constant.js";
-import { indexed } from "./constraints/indexed.js";
-import { masked } from "./constraints/masked.js";
-import { A, E, equalValue, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
+import { find, Variable } from "./query.ts";
+import { and } from "./constraints/and.ts";
+import { constant } from "./constraints/constant.ts";
+import { indexed } from "./constraints/indexed.ts";
+import { masked } from "./constraints/masked.ts";
+import { A, E, equalValue, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.ts";
 import { emptyValuePATCH } from "./patch.ts";
-import { KB } from "./kb.js";
+import { KB } from "./kb.ts";
 
 const assert = (test, message) => {
   if (!test) {

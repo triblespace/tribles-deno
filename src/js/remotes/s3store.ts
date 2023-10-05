@@ -1,5 +1,5 @@
 import { S3Client } from "https://deno.land/x/s3_lite_client@0.6.0/mod.ts";
-import { KB } from "../kb.js";
+import { KB } from "../kb.ts";
 
 function hashToName(hash) {
   return Array.from(hash).map((byte) => byte.toString(16).padStart(2, "0"))

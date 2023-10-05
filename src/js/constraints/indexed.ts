@@ -1,4 +1,4 @@
-import { filterInPlace } from "../util.js";
+import { filterInPlace } from "../util.ts";
 
 // This constraint is used when there is a fixed number of possible values for a variable.
 // As with a collection where items should exist in, or when enumerating attributes from a namespace

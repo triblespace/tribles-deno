@@ -2,7 +2,7 @@ build: clean
 	mkdir target
 	cd src/rust/ ; cargo build --target-dir ../../target --target wasm32-unknown-unknown --release
 	wasmwrap --input target/wasm32-unknown-unknown/release/tribles_deno.wasm --output src/js/wasmdata.js
-	deno bundle mod.js bundle.js
+	deno bundle mod.ts bundle.js
 	deno fmt
 
 clean:
