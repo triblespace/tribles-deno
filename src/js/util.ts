@@ -8,3 +8,9 @@ export function filterInPlace<T>(arr: T[], filter: (value: T) => boolean) {
   }
   arr.splice(next);
 }
+
+export type FixedUint8Array<L extends number> = Uint8Array & {length: L};
+
+export function fixedUint8Array<L extends number>(length: L): FixedUint8Array<L> {
+  return new Uint8Array(length) as FixedUint8Array<L>;
+}

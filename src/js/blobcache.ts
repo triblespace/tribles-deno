@@ -1,6 +1,7 @@
-import { emptyVAETriblePATCH, emptyValuePATCH } from "./patch.ts";
-import { V } from "./trible.ts";
+import { Entry, PATCH, naturalOrder, singleSegment, batch } from "./patch.ts";
+import { V, VAEOrder, TRIBLE_SIZE, TribleSegmentation, VALUE_SIZE } from "./trible.ts";
 import { masked } from "./constraints/masked.ts";
+import { FixedUint8Array, fixedUint8Array } from "./util.ts";
 
 /** A blobcache is an immutably persistent datastructure that stores blobs associated
  * with the value hashes stored in the tribles of a tribleset.
@@ -11,16 +12,20 @@ import { masked } from "./constraints/masked.ts";
  * memory consumption require it.
  */
 export class BlobCache {
+  strong: PATCH<typeof TRIBLE_SIZE, typeof VAEOrder, typeof TribleSegmentation, Uint8Array>;
+  weak: PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, WeakRef<Uint8Array>>
+  onMiss: (value: FixedUint8Array<typeof VALUE_SIZE>) => Promise<Uint8Array>;
+
   /**
    * Create a blobcache.
-   * @param {Function} onMiss - Callback invoked when a blob is retreived that can't be found in the strong nor weak blobs.
-   * @param {PATCH} strong - A PATCH storing the strong blobs.
-   * @param {PATCH} weak - A PATCH storing the weak blobs.
+   * @param onMiss - Callback invoked when a blob is retreived that can't be found in the strong nor weak blobs.
+   * @param strong - A PATCH storing the strong blobs.
+   * @param weak - A PATCH storing the weak blobs.
    */
   constructor(
-    onMiss = async () => {},
-    strong = emptyVAETriblePATCH,
-    weak = emptyValuePATCH,
+    onMiss: (value: FixedUint8Array<typeof VALUE_SIZE>) => Promise<Uint8Array> = (_value: FixedUint8Array<typeof VALUE_SIZE>) => Promise.reject(Error("no onMiss handler provided")),
+    strong = new PATCH<typeof TRIBLE_SIZE, typeof VAEOrder, typeof TribleSegmentation, Uint8Array>(TRIBLE_SIZE, VAEOrder, TribleSegmentation, undefined),
+    weak = new PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, WeakRef<Uint8Array>>(VALUE_SIZE, naturalOrder, singleSegment, undefined),
   ) {
     this.strong = strong;
     this.weak = weak;
@@ -29,24 +34,26 @@ export class BlobCache {
 
   /**
    * Returns a new blobcache object with the passed blobs stored as strong blobs.
-   * @param {Iterable} blobs - A collection of `[trible, blob]` pairs.
-   * @return {BlobCache} A new blobcache.
+   * @param blobs - A collection of `[trible, blob]` pairs.
+   * @return A new blobcache.
    */
-  with(blobs) {
+  with(blobs: Iterable<[FixedUint8Array<typeof TRIBLE_SIZE>, Uint8Array]>): BlobCache {
+    const btch = batch();
+
     let weak = this.weak;
     let strong = this.strong;
 
     for (const [trible, blob] of blobs) {
       const key = V(trible);
-      const cached_blob = this.weak.get(key).deref();
+      const cached_blob = this.weak.get(key)?.deref();
 
       let new_or_cached_blob = blob;
       if (cached_blob === undefined) {
-        weak = weak.put(key, new WeakRef(blob));
+        weak = weak.put(btch, new Entry(key ,new WeakRef(blob)));
       } else {
         new_or_cached_blob = cached_blob;
       }
-      strong = strong.put(trible, new_or_cached_blob);
+      strong = strong.put(btch, new Entry(trible, new_or_cached_blob));
     }
 
     return new BlobCache(this.onMiss, strong, weak);
@@ -55,44 +62,24 @@ export class BlobCache {
   /**
    * Retrieves the blob for the given key, performing a lookup in the cache first,
    * and falling back to using the caches `onMiss handler on failure.
-   * @param {Uint8Array} key - The 32 bytes identifying the blob.
-   * @return {Promise<Uint8Array>} The retrieved blob data.
+   * @param key - The 32 bytes identifying the blob.
+   * @return The retrieved blob data.
    */
-  async get(key) {
-    let blob = this.weak.get(key).deref();
+  async get(key: FixedUint8Array<typeof VALUE_SIZE>) {
+    let blob = this.weak.get(key)?.deref();
 
     if (blob === undefined) {
       blob = await this.onMiss(key);
       if (blob === undefined) {
         throw Error("No blob for key.");
       }
-      this.weak = this.weak.put(key, new WeakRef(blob));
+      this.weak = this.weak.put(batch(), new Entry(key, new WeakRef(blob)));
     }
     return blob;
   }
 
-  strongConstraint(e, a, v) {
-    return this.strong.segmentConstraint([v, a, e]);
-  }
-
   strongBlobs() {
-    const blobs = [];
-    for (
-      const key of new find(
-        (ctx, { v }, [e, a]) =>
-          masked(
-            this.strong.segmentConstraint([v, a, e]),
-            [e, a],
-          ),
-        (variables, binding) => {
-          const { v } = variables.namedVars();
-          return binding.get(v.index);
-        },
-      )
-    ) {
-      const blob = this.weak.get(key);
-      blobs.push({ key, blob });
-    }
+    return this.strong.infixes((trible, blob) => ({key: V(trible), blob }), fixedUint8Array(64), 0, VALUE_SIZE);
   }
 
   clear() {
