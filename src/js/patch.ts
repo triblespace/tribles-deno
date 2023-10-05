@@ -80,8 +80,6 @@ function _union<L extends number, Value>(
       )
     };
   }
-
-
   
   if (depth === keyLength) return leftNode;
 
@@ -169,13 +167,17 @@ function _subtract<L extends number, Value>(
     return undefined;
   }
 
+  const leaf = (children.find(() => true) as Node<L, Value>).leaf();
+
+  if(children.length === 1) {
+    return leaf;
+  }
+
   children.forEach(child => {
     hash = hash_combine(hash, child.hash()) as Hash;
     count += child.count();
     segmentCount += child.segmentCount(order, segments, depth);
   });
-
-  const leaf = (children.find(() => true) as Node<L, Value>).leaf();
 
   return new Branch(
     batch,
@@ -188,62 +190,70 @@ function _subtract<L extends number, Value>(
   );
 }
 
-function _intersect(
-  leftNode,
-  rightNode,
-  depth = 0,
-  key = new Uint8Array(KEY_LENGTH),
-) {
-  if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
+function _intersect<L extends number, Value>(
+  keyLength: L,
+  order: Ordering<L>,
+  segments: Segmentation<L>,
+  batch: Batch,
+  leftNode: Node<L, Value>,
+  rightNode: Node<L, Value>,
+  depth: number = 0
+): Node<L, Value> | undefined {
+  if (hash_equal(leftNode.hash(), rightNode.hash()) || depth === keyLength) {
     return leftNode;
   }
-  const maxDepth = Math.min(leftNode.branchDepth(), rightNode.branchDepth());
-  for (; depth < maxDepth; depth++) {
-    const leftByte = leftNode.peek(depth);
-    if (leftByte !== rightNode.peek(depth)) return undefined;
-    key[depth] = leftByte;
-  }
-  if (depth === KEY_LENGTH) return leftNode;
+  const branchDepth = Math.min(leftNode.branchDepth(keyLength), rightNode.branchDepth(keyLength));
+  for (; depth < branchDepth; depth++) {
+    const leftByte = leftNode.peek(order, depth);
+    const rightByte = rightNode.peek(order, depth);
 
-  const leftChildbits = new ByteBitset();
-  const rightChildbits = new ByteBitset();
-  const intersectChildbits = new ByteBitset();
-  const children = [];
-  let hash = new Uint8Array(16);
+    if (leftByte !== rightByte) {
+      return undefined;
+    };
+  }
+  
+  if (depth === keyLength) return leftNode;
+
+  const children: ChildTable<L, Value> = [];
+  let hash = fixedUint8Array(16);
   let count = 0;
   let segmentCount = 0;
 
-  leftNode.propose(depth, leftChildbits);
-  rightNode.propose(depth, rightChildbits);
+  const left_children: ChildTable<L, Value> = [];
+  leftNode.eachChild((child, index) => {
+    left_children[index] = child;
+  });
 
-  intersectChildbits.setIntersection(leftChildbits, rightChildbits);
-
-  for (let index of intersectChildbits.entries()) {
-    const leftChild = leftNode.get(depth, index);
-    const rightChild = rightNode.get(depth, index);
-
-    key[depth] = index;
-    const intersection = _intersect(leftChild, rightChild, depth + 1);
-    if (intersection) {
-      intersectChildbits.unset(index);
-    } else {
-      children[index] = intersection;
-      hash = hash_combine(hash, intersection.hash);
-      count += intersection.count();
-      segmentCount += intersection.segmentCount(depth);
+  rightNode.eachChild((child, index) => {
+    if(index in left_children) {
+      children[index] = _union(keyLength, order, segments, batch, left_children[index], child, branchDepth);
     }
+  });
+
+  if(children.length === 0) {
+    return undefined;
   }
-  if (intersectChildbits.isEmpty()) return undefined;
+
+  const leaf = (children.find(() => true) as Node<L, Value>).leaf();
+
+  if(children.length === 1) {
+    return leaf;
+  }
+
+  children.forEach(child => {
+    hash = hash_combine(hash, child.hash()) as Hash;
+    count += child.count();
+    segmentCount += child.segmentCount(order, segments, depth);
+  });
 
   return new Branch(
-    key.slice(),
+    batch,
     depth,
-    intersectChildbits,
     children,
+    leaf,
     hash,
     count,
     segmentCount,
-    {},
   );
 }
 
@@ -456,6 +466,10 @@ class Leaf<L extends number, Value> implements Node<L, Value>{
 
   hash(): Hash {
     return hash_digest(this.key) as Hash;
+  }
+
+  leaf(): Leaf<L, Value> {
+    return this;
   }
 
   put(order: Ordering<L>, _segment: Segmentation<L>, batch: Batch, entry: Entry<L, Value>, at_depth: number): Node<L, Value> | undefined {
