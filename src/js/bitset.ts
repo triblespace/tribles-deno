@@ -18,6 +18,8 @@ function popcnt32(n: number) {
 }
 
 export class ByteBitset {
+  u32array: Uint32Array;
+
   constructor(u32array = new Uint32Array(8)) {
     this.u32array = u32array;
   }
@@ -48,19 +50,19 @@ export class ByteBitset {
       popcnt32(this.u32array[7]);
   }
 
-  has(byte) {
+  has(byte: number) {
     return ((this.u32array[byte >>> 5] & (highBit32 >>> byte)) !== 0);
   }
 
-  set(byte) {
+  set(byte: number) {
     this.u32array[byte >>> 5] |= highBit32 >>> byte;
   }
 
-  unset(byte) {
+  unset(byte: number) {
     this.u32array[byte >>> 5] &= ~(highBit32 >>> byte);
   }
 
-  next(byte) {
+  next(byte: number) {
     let wordPosition = byte >>> 5;
     const mask = ~0 >>> byte;
     const c = Math.clz32(this.u32array[wordPosition] & mask);
@@ -72,7 +74,7 @@ export class ByteBitset {
     return null;
   }
 
-  prev(byte) {
+  prev(byte: number) {
     let wordPosition = byte >>> 5;
     const mask = (~(~highBit32 >>> byte)) >>> 0;
     const c = ctz32(this.u32array[wordPosition] & mask);
@@ -100,7 +102,7 @@ export class ByteBitset {
     return byte;
   }
 
-  singleIntersect(byte) {
+  singleIntersect(byte: number) {
     if (this.has(byte)) {
       this.unsetAll();
       this.set(byte);
@@ -134,9 +136,9 @@ export class ByteBitset {
     return this;
   }
 
-  setRange(fromByte, toByte) {
-    let fromWordPosition = fromByte >>> 5;
-    let toWordPosition = toByte >>> 5;
+  setRange(fromByte: number, toByte: number) {
+    const fromWordPosition = fromByte >>> 5;
+    const toWordPosition = toByte >>> 5;
     for (
       let wordPosition = 0;
       wordPosition < fromWordPosition;
@@ -178,7 +180,7 @@ export class ByteBitset {
     );
   }
 
-  isEqual(other) {
+  isEqual(other: ByteBitset) {
     return (
       this.u32array[0] === other.u32array[0] &&
       this.u32array[1] === other.u32array[1] &&
@@ -191,7 +193,7 @@ export class ByteBitset {
     );
   }
 
-  isSupersetOf(other) {
+  isSupersetOf(other: ByteBitset) {
     return (
       ((this.u32array[0] & other.u32array[0]) ^ other.u32array[0]) === 0 &&
       ((this.u32array[1] & other.u32array[1]) ^ other.u32array[1]) === 0 &&
@@ -204,7 +206,7 @@ export class ByteBitset {
     );
   }
 
-  isSubsetOf(other) {
+  isSubsetOf(other: ByteBitset) {
     return (
       ((this.u32array[0] & other.u32array[0]) ^ this.u32array[0]) === 0 &&
       ((this.u32array[1] & other.u32array[1]) ^ this.u32array[1]) === 0 &&
@@ -217,7 +219,7 @@ export class ByteBitset {
     );
   }
 
-  setFrom(other) {
+  setFrom(other: ByteBitset) {
     this.u32array[0] = other.u32array[0];
     this.u32array[1] = other.u32array[1];
     this.u32array[2] = other.u32array[2];
@@ -229,7 +231,7 @@ export class ByteBitset {
     return this;
   }
 
-  setIntersection(left, right) {
+  setIntersection(left: ByteBitset, right: ByteBitset) {
     this.u32array[0] = left.u32array[0] & right.u32array[0];
     this.u32array[1] = left.u32array[1] & right.u32array[1];
     this.u32array[2] = left.u32array[2] & right.u32array[2];
@@ -241,7 +243,7 @@ export class ByteBitset {
     return this;
   }
 
-  setUnion(left, right) {
+  setUnion(left: ByteBitset, right: ByteBitset) {
     this.u32array[0] = left.u32array[0] | right.u32array[0];
     this.u32array[1] = left.u32array[1] | right.u32array[1];
     this.u32array[2] = left.u32array[2] | right.u32array[2];
@@ -253,7 +255,7 @@ export class ByteBitset {
     return this;
   }
 
-  setSubtraction(left, right) {
+  setSubtraction(left: ByteBitset, right: ByteBitset) {
     this.u32array[0] = left.u32array[0] & ~right.u32array[0];
     this.u32array[1] = left.u32array[1] & ~right.u32array[1];
     this.u32array[2] = left.u32array[2] & ~right.u32array[2];
@@ -265,7 +267,7 @@ export class ByteBitset {
     return this;
   }
 
-  setDifference(left, right) {
+  setDifference(left: ByteBitset, right: ByteBitset) {
     this.u32array[0] = left.u32array[0] ^ right.u32array[0];
     this.u32array[1] = left.u32array[1] ^ right.u32array[1];
     this.u32array[2] = left.u32array[2] ^ right.u32array[2];
@@ -277,7 +279,7 @@ export class ByteBitset {
     return this;
   }
 
-  setComplement(other) {
+  setComplement(other: ByteBitset) {
     this.u32array[0] = ~other.u32array[0];
     this.u32array[1] = ~other.u32array[1];
     this.u32array[2] = ~other.u32array[2];
@@ -291,12 +293,15 @@ export class ByteBitset {
 }
 
 export class ByteBitsetArray {
-  constructor(length) {
+  length: number;
+  buffer: Uint32Array;
+
+  constructor(length: number) {
     this.length = length;
     this.buffer = new Uint32Array(length * 8);
   }
 
-  get(offset) {
+  get(offset: number) {
     return new ByteBitset(this.buffer.subarray(offset * 8, (offset + 1) * 8));
   }
 }
