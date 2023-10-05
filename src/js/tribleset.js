@@ -1,4 +1,5 @@
 import {
+  Entry,
   emptyIdIdValueTriblePATCH,
   emptyIdValueIdTriblePATCH,
   emptyValueIdIdTriblePATCH,
@@ -81,26 +82,365 @@ class TribleConstraint {
     }
   }
 
-  *expand(variable, binding) {
-    return this.constraint.expand(binding);
+  propose(variable, binding) {
   }
 
-  shrink(variable, value, binding) {
-    return this.constraint.shrink(binding);
+  confirm(variable, binding, values) {
   }
 }
+/*
+        let e_bound = binding.bound.is_set(self.variable_e.index);
+        let a_bound = binding.bound.is_set(self.variable_a.index);
+        let v_bound = binding.bound.is_set(self.variable_v.index);
+
+        let e_var = self.variable_e.index == variable;
+        let a_var = self.variable_a.index == variable;
+        let v_var = self.variable_v.index == variable;
+
+        if let Some(trible) = Trible::new_raw_values(
+            binding.get(self.variable_e.index).unwrap_or([0; 32]),
+            binding.get(self.variable_a.index).unwrap_or([0; 32]),
+            binding.get(self.variable_v.index).unwrap_or([0; 32]),
+        ) {
+            match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+                (false, false, false, true, false, false) => {
+                    self.set.eav.segmented_len(trible.data, E_START)
+                }
+                (false, false, false, false, true, false) => {
+                    self.set.aev.segmented_len(trible.data, A_START)
+                }
+                (false, false, false, false, false, true) => {
+                    self.set.vea.segmented_len(trible.data, V_START)
+                }
+
+                (true, false, false, false, true, false) => {
+                    self.set.eav.segmented_len(trible.data, A_START)
+                }
+                (true, false, false, false, false, true) => {
+                    self.set.eva.segmented_len(trible.data, V_START)
+                }
+
+                (false, true, false, true, false, false) => {
+                    self.set.aev.segmented_len(trible.data, E_START)
+                }
+                (false, true, false, false, false, true) => {
+                    self.set.ave.segmented_len(trible.data, V_START)
+                }
+
+                (false, false, true, true, false, false) => {
+                    self.set.vea.segmented_len(trible.data, E_START)
+                }
+                (false, false, true, false, true, false) => {
+                    self.set.vae.segmented_len(trible.data, A_START)
+                }
+
+                (false, true, true, true, false, false) => {
+                    self.set.ave.segmented_len(trible.data, E_START)
+                }
+                (true, false, true, false, true, false) => {
+                    self.set.eva.segmented_len(trible.data, A_START)
+                }
+                (true, true, false, false, false, true) => {
+                    self.set.eav.segmented_len(trible.data, V_START)
+                }
+                _ => panic!(),
+            }
+        } else {
+            0
+        }
+
+    fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {
+        let e_bound = binding.bound.is_set(self.variable_e.index);
+        let a_bound = binding.bound.is_set(self.variable_a.index);
+        let v_bound = binding.bound.is_set(self.variable_v.index);
+
+        let e_var = self.variable_e.index == variable;
+        let a_var = self.variable_a.index == variable;
+        let v_var = self.variable_v.index == variable;
+
+        if let Some(trible) = Trible::new_raw_values(
+            binding.get(self.variable_e.index).unwrap_or([0; 32]),
+            binding.get(self.variable_a.index).unwrap_or([0; 32]),
+            binding.get(self.variable_v.index).unwrap_or([0; 32]),
+        ) {
+            match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+                (false, false, false, true, false, false) => {
+                    self.set.eav.infixes(trible.data, E_START, E_END, |k| {
+                        Trible::new_raw(k).e_as_value()
+                    })
+                }
+                (false, false, false, false, true, false) => {
+                    self.set.aev.infixes(trible.data, A_START, A_END, |k| {
+                        Trible::new_raw(k).a_as_value()
+                    })
+                }
+                (false, false, false, false, false, true) => {
+                    self.set
+                        .vea
+                        .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
+                }
+
+                (true, false, false, false, true, false) => {
+                    self.set.eav.infixes(trible.data, A_START, A_END, |k| {
+                        Trible::new_raw(k).a_as_value()
+                    })
+                }
+                (true, false, false, false, false, true) => {
+                    self.set
+                        .eva
+                        .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
+                }
+
+                (false, true, false, true, false, false) => {
+                    self.set.aev.infixes(trible.data, E_START, E_END, |k| {
+                        Trible::new_raw(k).e_as_value()
+                    })
+                }
+                (false, true, false, false, false, true) => {
+                    self.set
+                        .ave
+                        .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
+                }
+
+                (false, false, true, true, false, false) => {
+                    self.set.vea.infixes(trible.data, E_START, E_END, |k| {
+                        Trible::new_raw(k).e_as_value()
+                    })
+                }
+                (false, false, true, false, true, false) => {
+                    self.set.vae.infixes(trible.data, A_START, A_END, |k| {
+                        Trible::new_raw(k).a_as_value()
+                    })
+                }
+
+                (false, true, true, true, false, false) => {
+                    self.set.ave.infixes(trible.data, E_START, E_END, |k| {
+                        Trible::new_raw(k).e_as_value()
+                    })
+                }
+                (true, false, true, false, true, false) => {
+                    self.set.eva.infixes(trible.data, A_START, A_END, |k| {
+                        Trible::new_raw(k).a_as_value()
+                    })
+                }
+                (true, true, false, false, false, true) => {
+                    self.set
+                        .eav
+                        .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
+                }
+                _ => panic!(),
+            }
+        } else {
+            vec![]
+        }
+    }
+
+    fn confirm(&self, variable: VariableId, binding: Binding, proposals: &mut Vec<Value>) {
+        let e_bound = binding.bound.is_set(self.variable_e.index);
+        let a_bound = binding.bound.is_set(self.variable_a.index);
+        let v_bound = binding.bound.is_set(self.variable_v.index);
+
+        let e_var = self.variable_e.index == variable;
+        let a_var = self.variable_a.index == variable;
+        let v_var = self.variable_v.index == variable;
+
+        match (e_bound || e_var, a_bound || a_var, v_bound || v_var) {
+            (false, false, false) => panic!(),
+            (true, false, false) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::new_raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.eav.has_prefix(trible.data, E_END)
+                    } else {
+                        false
+                    }
+                });
+            }
+            (false, true, false) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::new_raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.aev.has_prefix(trible.data, A_END)
+                    } else {
+                        false
+                    }
+                });
+            }
+            (false, false, true) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::new_raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.vea.has_prefix(trible.data, V_END)
+                    } else {
+                        false
+                    }
+                });
+            }
+
+            (true, true, false) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::new_raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.eav.has_prefix(trible.data, A_END)
+                    } else {
+                        false
+                    }
+                });
+            }
+            (true, false, true) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::new_raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.eva.has_prefix(trible.data, V_END)
+                    } else {
+                        false
+                    }
+                });
+            }
+
+            (false, true, true) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::new_raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.ave.has_prefix(trible.data, V_END)
+                    } else {
+                        false
+                    }
+                });
+            }
+
+            (true, true, true) => {
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::new_raw_values(
+                        binding.get(self.variable_e.index).unwrap_or(if e_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_a.index).unwrap_or(if a_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                        binding.get(self.variable_v.index).unwrap_or(if v_var {
+                            *value
+                        } else {
+                            [0; 32]
+                        }),
+                    ) {
+                        self.set.eav.has_prefix(trible.data, V_END)
+                    } else {
+                        false
+                    }
+                });
+            }
+        }
+    }
+}
+*/
+
 
 /** A tribleset is an immutably persistent datastructure that stores tribles with set semantics.
  * It supports efficient set operations often take sub-linear time.
  */
 export class TribleSet {
   constructor(
-    EAV = emptyIdIdValueTriblePATCH,
-    EVA = emptyIdValueIdTriblePATCH,
-    AEV = emptyIdIdValueTriblePATCH,
-    AVE = emptyIdValueIdTriblePATCH,
-    VEA = emptyValueIdIdTriblePATCH,
-    VAE = emptyValueIdIdTriblePATCH,
+    EAV = emptyEAVTriblePact,
+    EVA = emptyEVATriblePact,
+    AEV = emptyAEVTriblePact,
+    AVE = emptyAVETriblePact,
+    VEA = emptyVEATriblePact,
+    VAE = emptyVAETriblePact,
   ) {
     this.EAV = EAV;
     this.EVA = EVA;
@@ -123,12 +463,14 @@ export class TribleSet {
     const VAE = this.VAE.batch();
 
     for (const trible of tribles) {
-      EAV.put(scrambleEAV(trible));
-      EVA.put(scrambleEVA(trible));
-      AEV.put(scrambleAEV(trible));
-      AVE.put(scrambleAVE(trible));
-      VEA.put(scrambleVEA(trible));
-      VAE.put(scrambleVAE(trible));
+      const entry = new Entry(trible, undefined);
+
+      EAV.put(entry);
+      EVA.put(entry);
+      AEV.put(entry);
+      AVE.put(entry);
+      VEA.put(entry);
+      VAE.put(entry);
     }
 
     return new TribleSet(
@@ -143,10 +485,10 @@ export class TribleSet {
 
   /**
    * Provides a way to dump all tribles this db in EAV lexicographic order.
-   * @returns an iterator of tribles
+   * @returns an array of tribles
    */
   tribles() {
-    return this.EAV.keys();
+    return this.EAV.infixes((k) => k);
   }
 
   /**
@@ -202,17 +544,21 @@ export class TribleSet {
    * Checks if this tribleset is a subset of the passed tribleset,
    * i.e. if every trible of this set is also contained in the passed set.
    */
+  /*
   isSubsetOf(other) {
     return this.EAV.isSubsetOf(other.indexE);
   }
+  */
 
   /**
    * Checks if this tribleset has an intersection with the passed set,
    * i.e. if there exists a trible that is contained in both sets.
    */
+  /*
   isIntersecting(other) {
     return this.EAV.isIntersecting(other.indexE);
   }
+  */
 
   /**
    * Returns a new tribleset that is the union of this set and the passed set,
@@ -234,6 +580,7 @@ export class TribleSet {
    * with the tribles of the passed set subtracted,
    * i.e. a set that contains any trible that is in this set but not in the passed set.
    */
+  /*
   subtract(other) {
     return new TribleSet(
       this.EAV.subtract(other.EAV),
@@ -244,12 +591,13 @@ export class TribleSet {
       this.VAE.subtract(other.VAE),
     );
   }
-
+  */
   /**
    * Returns a new tribleset that contains the difference of this set and
    * the passed set, i.e. a set that contains any trible that is in one of
    * the sets but not in the other.
    */
+  /*
   difference(other) {
     return new TribleSet(
       this.EAV.difference(other.EAV),
@@ -260,12 +608,13 @@ export class TribleSet {
       this.VAE.difference(other.VAE),
     );
   }
-
+  */
   /**
    * Returns a new tribleset that contains the intersection of this set and
    * the passed set, i.e. a set that contains any trible that is in both of
    * the sets.
    */
+  /*
   intersect(other) {
     return new TribleSet(
       this.EAV.intersect(other.EAV),
@@ -276,4 +625,5 @@ export class TribleSet {
       this.VAE.intersect(other.VAE),
     );
   }
+  */
 }

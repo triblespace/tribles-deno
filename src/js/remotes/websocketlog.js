@@ -58,5 +58,3 @@ export function websocketLog(url) {
 
   return { push, pull, close };
 }
-
-export { websocketLog };
