@@ -27,7 +27,7 @@ export const V = (trible) => trible.subarray(V_START, V_END);
 export const V_UPPER = (trible) => trible.subarray(V_UPPER_START, V_UPPER_END);
 export const V_LOWER = (trible) => trible.subarray(V_LOWER_START, V_LOWER_END);
 
-const TribleSegmentation = (at_depth) => {
+export const TribleSegmentation = (at_depth) => {
   if(at_depth < E_END) return 0;
   if(at_depth < A_END) return 1;
   return 2;
