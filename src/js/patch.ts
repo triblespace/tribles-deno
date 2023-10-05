@@ -49,7 +49,7 @@ function _union<L extends number, Value>(
   rightNode: Node<L, Value>,
   depth: number = 0
 ): Node<L, Value> {
-  if (hash_equal(leftNode.hash(), rightNode.hash()) || depth === keyLength) {
+  if (hash_equal(leftNode.hash(), rightNode.hash())) {
     return leftNode;
   }
   const branchDepth = Math.min(leftNode.branchDepth(keyLength), rightNode.branchDepth(keyLength));
@@ -84,9 +84,6 @@ function _union<L extends number, Value>(
   if (depth === keyLength) return leftNode;
 
   const children: ChildTable<L, Value> = [];
-  let hash = fixedUint8Array(16);
-  let count = 0;
-  let segmentCount = 0;
 
   leftNode.eachChild((child, index) => {
     children[index] = child;
@@ -100,6 +97,10 @@ function _union<L extends number, Value>(
     }
   });
 
+  let hash = fixedUint8Array(16);
+  let count = 0;
+  let segmentCount = 0;
+  
   children.forEach(child => {
     hash = hash_combine(hash, child.hash()) as Hash;
     count += child.count();
@@ -128,8 +129,8 @@ function _subtract<L extends number, Value>(
   rightNode: Node<L, Value>,
   depth: number = 0
 ): Node<L, Value> | undefined {
-  if (hash_equal(leftNode.hash(), rightNode.hash()) || depth === keyLength) {
-    return leftNode;
+  if (hash_equal(leftNode.hash(), rightNode.hash())) {
+    return undefined;
   }
   const branchDepth = Math.min(leftNode.branchDepth(keyLength), rightNode.branchDepth(keyLength));
   for (; depth < branchDepth; depth++) {
@@ -144,9 +145,6 @@ function _subtract<L extends number, Value>(
   if (depth === keyLength) return leftNode;
 
   const children: ChildTable<L, Value> = [];
-  let hash = fixedUint8Array(16);
-  let count = 0;
-  let segmentCount = 0;
 
   leftNode.eachChild((child, index) => {
     children[index] = child;
@@ -172,6 +170,10 @@ function _subtract<L extends number, Value>(
   if(children.length === 1) {
     return leaf;
   }
+
+  let hash = fixedUint8Array(16);
+  let count = 0;
+  let segmentCount = 0;
 
   children.forEach(child => {
     hash = hash_combine(hash, child.hash()) as Hash;
@@ -199,7 +201,7 @@ function _intersect<L extends number, Value>(
   rightNode: Node<L, Value>,
   depth: number = 0
 ): Node<L, Value> | undefined {
-  if (hash_equal(leftNode.hash(), rightNode.hash()) || depth === keyLength) {
+  if (hash_equal(leftNode.hash(), rightNode.hash())) {
     return leftNode;
   }
   const branchDepth = Math.min(leftNode.branchDepth(keyLength), rightNode.branchDepth(keyLength));
@@ -214,15 +216,12 @@ function _intersect<L extends number, Value>(
   
   if (depth === keyLength) return leftNode;
 
-  const children: ChildTable<L, Value> = [];
-  let hash = fixedUint8Array(16);
-  let count = 0;
-  let segmentCount = 0;
-
   const left_children: ChildTable<L, Value> = [];
   leftNode.eachChild((child, index) => {
     left_children[index] = child;
   });
+
+  const children: ChildTable<L, Value> = [];
 
   rightNode.eachChild((child, index) => {
     if(index in left_children) {
@@ -239,6 +238,10 @@ function _intersect<L extends number, Value>(
   if(children.length === 1) {
     return leaf;
   }
+
+  let hash = fixedUint8Array(16);
+  let count = 0;
+  let segmentCount = 0;
 
   children.forEach(child => {
     hash = hash_combine(hash, child.hash()) as Hash;
@@ -257,82 +260,96 @@ function _intersect<L extends number, Value>(
   );
 }
 
-function _difference(
-  leftNode,
-  rightNode,
-  depth = 0,
-  key = new Uint8Array(KEY_LENGTH),
-) {
-  if (hash_equal(leftNode.hash, rightNode.hash) || depth === KEY_LENGTH) {
+function _difference<L extends number, Value>(
+  keyLength: L,
+  order: Ordering<L>,
+  segments: Segmentation<L>,
+  batch: Batch,
+  leftNode: Node<L, Value>,
+  rightNode: Node<L, Value>,
+  depth: number = 0
+): Node<L, Value> | undefined {
+  if (hash_equal(leftNode.hash(), rightNode.hash()) || depth === keyLength) {
     return undefined;
   }
-  const maxDepth = Math.min(leftNode.branchDepth(), rightNode.branchDepth());
-  for (; depth < maxDepth; depth++) {
-    const leftByte = leftNode.peek(depth);
-    if (leftByte !== rightNode.peek(depth)) break;
-    key[depth] = leftByte;
+  const branchDepth = Math.min(leftNode.branchDepth(keyLength), rightNode.branchDepth(keyLength));
+  for (; depth < branchDepth; depth++) {
+    const leftByte = leftNode.peek(order, depth);
+    const rightByte = rightNode.peek(order, depth);
+
+    if (leftByte !== rightByte) {
+      const children: ChildTable<L, Value> = [];
+      children[leftByte] = leftNode;
+      children[rightByte] = rightNode;
+
+      const hash = hash_combine(leftNode.hash(), rightNode.hash()) as Hash;
+      const count = leftNode.count()
+                + rightNode.count();
+      const segmentCount = leftNode.segmentCount(order, segments, depth)
+                       + rightNode.segmentCount(order, segments, depth);
+      const leaf = leftNode.leaf();
+
+      return new Branch(
+        batch,
+        depth,
+        children,
+        leaf,
+        hash,
+        count,
+        segmentCount,
+      )
+    };
   }
-  if (depth === KEY_LENGTH) return undefined;
+  
+  if (depth === keyLength) return undefined;
 
-  const leftChildbits = (new ByteBitset()).setAll();
-  const rightChildbits = (new ByteBitset()).setAll();
-  const intersectChildbits = (new ByteBitset()).unsetAll();
-  const diffChildbits = (new ByteBitset()).unsetAll();
+  const children: ChildTable<L, Value> = [];
 
-  const children = [];
-  let hash = new Uint8Array(16);
+  leftNode.eachChild((child, index) => {
+    children[index] = child;
+  });
+
+  rightNode.eachChild((child, index) => {
+    if(index in children) {
+      const newChild = _difference(keyLength, order, segments, batch, children[index], child, branchDepth);
+      if(newChild == undefined) {
+        delete children[index];
+      } else {
+        children[index] = newChild;
+      }
+    } else {
+      children[index] = child;
+    }
+  });
+
+  if(children.length === 0) {
+    return undefined;
+  }
+
+  const leaf = (children.find(() => true) as Node<L, Value>).leaf();
+
+  if(children.length === 1) {
+    return leaf;
+  }
+
+  let hash = fixedUint8Array(16);
   let count = 0;
   let segmentCount = 0;
 
-  leftNode.propose(depth, leftChildbits);
-  rightNode.propose(depth, rightChildbits);
-
-  intersectChildbits.setIntersection(leftChildbits, rightChildbits);
-  leftChildbits.setSubtraction(leftChildbits, intersectChildbits);
-  rightChildbits.setSubtraction(rightChildbits, intersectChildbits);
-  diffChildbits.setDifference(leftChildbits, rightChildbits);
-
-  for (let index of leftChildbits.entries()) {
-    const child = leftNode.get(depth, index);
-    children[index] = child;
-    hash = hash_combine(hash, child.hash);
+  children.forEach(child => {
+    hash = hash_combine(hash, child.hash()) as Hash;
     count += child.count();
-    segmentCount += child.segmentCount(depth);
-  }
-
-  for (let index of rightChildbits.entries()) {
-    const child = rightNode.get(depth, index);
-    children[index] = child;
-    hash = hash_combine(hash, child.hash);
-    count += child.count();
-    segmentCount += child.segmentCount(depth);
-  }
-
-  for (let index of intersectChildbits.entries()) {
-    const leftChild = leftNode.get(depth, index);
-    const rightChild = rightNode.get(depth, index);
-
-    key[depth] = index;
-    const difference = _difference(leftChild, rightChild, depth + 1);
-    if (difference) {
-      diffChildbits.set(index);
-      children[index] = difference;
-      hash = hash_combine(hash, difference.hash);
-      count += difference.count();
-      segmentCount += difference.segmentCount(depth);
-    }
-  }
-  if (diffChildbits.isEmpty()) return undefined;
+    segmentCount += child.segmentCount(order, segments, depth);
+  });
 
   return new Branch(
-    key.slice(),
+    batch,
     depth,
-    diffChildbits,
     children,
+    leaf,
     hash,
     count,
     segmentCount,
-    {},
   );
 }
 
