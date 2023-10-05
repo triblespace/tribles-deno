@@ -2,7 +2,7 @@ import { Commit } from "../commit.js";
 
 export const PROTOCOL = "tribles/commit";
 
-function websocketLog(url) {
+export function websocketLog(url) {
   const socket = new WebSocket(url, PROTOCOL);
   socket.binaryType = "arraybuffer";
 

@@ -4,7 +4,7 @@ import { constant } from "./constraints/constant.js";
 import { indexed } from "./constraints/indexed.js";
 import { masked } from "./constraints/masked.js";
 import { A, E, equalValue, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.js";
-import { emptyValuePATCH } from "./patch.js";
+import { emptyValuePATCH } from "./patch.ts";
 import { KB } from "./kb.js";
 
 const assert = (test, message) => {

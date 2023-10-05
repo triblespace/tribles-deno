@@ -1,5 +1,3 @@
-import { Head } from "./src/js/head.js";
-//import { WSConnector } from "./src/js/connectors/wsconnector.js";
 import { KB } from "./src/js/kb.js";
 import { find } from "./src/js/query.js";
 import { ranged } from "./src/js/constraints/ranged.js";
@@ -14,6 +12,8 @@ import { UFOID } from "./src/js/types/ufoid.js";
 import { id, NS } from "./src/js/namespace.js";
 import { IDOwner } from "./src/js/owner.js";
 import { validateCommitSize } from "./src/js/commit.js";
+import { websocketLog } from "./src/js/remotes/websocketlog.js";
+import { s3Store } from "./src/js/remotes/s3store.js";
 
 export {
   and,
@@ -21,7 +21,6 @@ export {
   collection,
   constant,
   find,
-  Head,
   id,
   IDOwner,
   indexed,
@@ -33,4 +32,6 @@ export {
   types,
   UFOID,
   validateCommitSize,
+  websocketLog,
+  s3Store
 };

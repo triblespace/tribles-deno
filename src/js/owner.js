@@ -1,4 +1,4 @@
-import { emptyIdPATCH } from "./patch.js";
+import { emptyIdPATCH } from "./patch.ts";
 import { VALUE_SIZE } from "./trible.js";
 
 export class IDOwner {

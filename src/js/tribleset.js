@@ -2,7 +2,7 @@ import {
   emptyIdIdValueTriblePATCH,
   emptyIdValueIdTriblePATCH,
   emptyValueIdIdTriblePATCH,
-} from "./patch.js";
+} from "./patch.ts";
 import {
   scrambleAEV,
   scrambleAVE,

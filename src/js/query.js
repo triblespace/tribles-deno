@@ -1,5 +1,5 @@
 import { ByteBitset, ByteBitsetArray } from "./bitset.js";
-import { emptyValuePATCH } from "./patch.js";
+import { emptyValuePATCH } from "./patch.ts";
 import { constant } from "./constraints/constant.js";
 import { and } from "./constraints/and.js";
 

@@ -1,4 +1,4 @@
-import { emptyValueIdIdTriblePATCH, emptyValuePATCH } from "./patch.js";
+import { emptyValueIdIdTriblePATCH, emptyValuePATCH } from "./patch.ts";
 import { scrambleVAE, V } from "./trible.js";
 import { masked } from "./constraints/masked.js";
 
