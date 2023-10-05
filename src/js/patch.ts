@@ -895,7 +895,6 @@ export class PATCH<L extends number, O extends Ordering<L>, S extends Segmentati
     if (this.child === undefined) {
       return new PATCH(this.keyLength, this.order, this.segments, entry.leaf());
     }
-
     return new PATCH(this.keyLength, this.order, this.segments,
       this.child.put(
       this.keyLength,
@@ -930,8 +929,8 @@ export class PATCH<L extends number, O extends Ordering<L>, S extends Segmentati
     key: FixedUint8Array<L> = new Uint8Array(this.keyLength) as FixedUint8Array<L>,
     start = 0,
     end = this.keyLength,
-  ) {
-    const out = [];
+  ): Out[] {
+    const out: Out[] = [];
     if(this.child !== undefined) {
       this.child.infixes(
         this.order,
