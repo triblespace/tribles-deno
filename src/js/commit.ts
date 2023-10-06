@@ -1,7 +1,7 @@
-import { types } from "./types.ts";
-import { UFOID } from "./types/ufoid.ts";
+import { schemas } from "./schemas.ts";
+import { UFOID } from "./schemas/ufoid.ts";
 import { id } from "./namespace.ts";
-import { TRIBLE_SIZE } from "./trible.ts";
+import { TRIBLE_SIZE, equalValue } from "./trible.ts";
 import { blake3 } from "./wasm.js";
 import { NS } from "./namespace.ts";
 import { FixedUint8Array } from "./util.ts";
@@ -55,13 +55,13 @@ const BLAKE3_VERIFICATION = UFOID.now();
 const verificationMethodId = UFOID.now();
 
 const commitNS = new NS({
-  [id]: { ...types.ufoid },
-  verificationMethod: { id: verificationMethodId, ...types.ufoid },
-  group: { id: commitGroupId, ...types.ufoid },
-  segment: { id: commitSegmentId, ...types.subrange },
-  createdAt: { id: creationStampId, ...types.geostamp },
-  shortMessage: { id: shortMessageId, ...types.shortstring },
-  message: { id: messageId, ...types.longstring },
+  [id]: { ...schemas.ufoid },
+  verificationMethod: { id: verificationMethodId, ...schemas.ufoid },
+  group: { id: commitGroupId, ...schemas.ufoid },
+  segment: { id: commitSegmentId, ...schemas.subrange },
+  createdAt: { id: creationStampId, ...schemas.geostamp },
+  shortMessage: { id: shortMessageId, ...schemas.shortstring },
+  message: { id: messageId, ...schemas.longstring },
   authoredBy: { id: authoredById, isLink: true },
 });
 
@@ -99,7 +99,7 @@ export class Commit {
       splitTribles(payload),
     );
 
-    const metaId = new UFOID(capstone.slice(0, 16));
+    const metaId = new UFOID(capstone.slice(0, 16) as FixedUint8Array<16>);
 
     const { verificationMethod } = commitNS.walk(kb, metaId);
     if (!verificationMethod) {
@@ -122,13 +122,13 @@ export class Commit {
       throw Error("failed to deserialize: verification failed");
     }
 
-    return new Commit(metaId, dataset);
+    return new Commit(dataset, metaId.toId());
   }
 
   serialize() {
     let verifier;
 
-    let { verificationMethod } = commitNS.walk(this.kb, this.metaId);
+    const { verificationMethod } = commitNS.walk(this.kb, this.metaId);
     if (!verificationMethod) {
       throw Error("failed to serialize: no verification method specified");
     }
@@ -163,11 +163,11 @@ const udp_max_commit_size = 1021;
 
 export function validateCommitSize(
   max_trible_count = udp_max_commit_size,
-  middleware = (commit) => [commit],
+  middleware = (commit: Commit): Commit[] => [commit],
 ) {
-  return async function* (commit) {
-    for await (const commit of middleware(commit)) {
-      if (commit.commitKB.tribleset.count() > max_trible_count) {
+  return async function* (commit: Commit) {
+    for await (const c of middleware(commit)) {
+      if (c.kb.tribleset.count() > max_trible_count) {
         throw Error(
           `Commit too large: Commits must not contain more than ${max_trible_count} tribles.`,
         );

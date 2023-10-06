@@ -192,8 +192,8 @@ export class NS {
     const res = find(
       (ctx, { v }, [e, a]) =>
         and(
-          constant(e, eEncodedId),
-          constant(a, aEncodedId),
+          e.is(eEncodedId),
+          a.is(aEncodedId),
           kb.tribleset.patternConstraint([isInverse ? [v, a, e] : [e, a, v]]),
         ),
       (variables, binding) => {
@@ -281,8 +281,8 @@ export class NS {
           const res = find(
             (ctx, {}, [e, a, v]) =>
               and(
-                constant(e, eEncodedId),
-                constant(a, aEncodedId),
+                e.is(eEncodedId),
+                a.is(aEncodedId),
                 kb.tribleset.patternConstraint([
                   isInverse ? [v, a, e] : [e, a, v],
                 ]),
@@ -341,7 +341,7 @@ export class NS {
           const forward = find(
             (ctx, { a }, [e, v]) =>
               and(
-                constant(e, eEncodedId),
+                e.is(eEncodedId),
                 indexed(a, ns.forwardAttributeIndex),
                 masked(
                   kb.tribleset.patternConstraint([[e, a, v]]),
@@ -354,8 +354,6 @@ export class NS {
             },
           );
 
-          debugger;
-
           for (const a of forward) {
             attrs.push(
               ...ns.forwardAttributeIndex.get(a).map((attr) => attr.name),
@@ -365,7 +363,7 @@ export class NS {
           const inverse = find(
             (ctx, { a }, [e, v]) =>
               and(
-                constant(v, eEncodedId),
+                v.is(eEncodedId),
                 indexed(a, ns.inverseAttributeIndex),
                 masked(
                   kb.tribleset.patternConstraint([[e, a, v]]),

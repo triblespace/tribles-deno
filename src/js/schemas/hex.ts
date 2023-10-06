@@ -16,7 +16,7 @@ function hexEncoder(value, b) {
   }
   b.fill(0);
   b.set(bytes.subarray(bytes.length - b.length));
-  return null;
+  return undefined;
 }
 
 function hexDecoder(bytes, blob) {

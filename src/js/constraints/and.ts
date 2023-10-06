@@ -1,50 +1,55 @@
 import { ByteBitset } from "../bitset.ts";
+import { Binding, Variable } from "../query.ts";
+import { Value } from "../trible.ts";
+import { Constraint } from "./constraint.ts";
 
-class IntersectionConstraint {
-  constructor(constraints) {
+class IntersectionConstraint implements Constraint {
+  constraints: Constraint[];
+
+  constructor(constraints: Constraint[]) {
     this.constraints = constraints;
   }
 
-  variables() {
-    let bitset = new ByteBitset();
+  variables(): ByteBitset {
+    const bitset = new ByteBitset();
     for (const constraint of this.constraints) {
       bitset.setUnion(bitset, constraint.variables());
     }
     return bitset;
   }
 
-  estimate(variable, binding) {
+  estimate(variable_index: number, binding: Binding): number {
     let min = Number.MAX_VALUE;
     for (const constraint of this.constraints) {
-      min = Math.min(min, constraint.estimate(variable, binding));
+      min = Math.min(min, constraint.estimate(variable_index, binding));
     }
     return min;
   }
 
-  propose(variable, binding) {
-    const relevant_constraints = this.constraints.filter((c) => c.variables().has(variable));
-    relevant_constraints.sort((a, b) => a.estimate(variable, binding) - b.estimate(variable, binding))
+  propose(variable_index: number, binding: Binding): Value[] {
+    const relevant_constraints = this.constraints.filter((c) => c.variables().has(variable_index));
+    relevant_constraints.sort((a, b) => a.estimate(variable_index, binding) - b.estimate(variable_index, binding))
 
-    const proposal = relevant_constraints[0].propose(variable, binding);
+    const proposal = relevant_constraints[0].propose(variable_index, binding);
     for(let i = 1; i < relevant_constraints.length; i++) {
-      relevant_constraints[i].confirm(variable, binding, proposal);
+      relevant_constraints[i].confirm(variable_index, binding, proposal);
     }
 
     return proposal;
   }
 
-  confirm(variable, binding, values) {
+  confirm(variable_index: number, binding: Binding, values: Value[]): void {
     for (const constraint of this.constraints) {
-      constraint.confirm(variable, values, binding);
+      constraint.confirm(variable_index, binding, values);
     }
   }
 }
 
 /**
  * Create a intersection constraint of the passed constraints.
- * @param {...Constraint} constraints - All the constraints that must hold true.
- * @returns {Constraint} A constraint that has a variable assignment that is only valid if it is a variable asignment of all the passed constraints.
+ * @param constraints - All the constraints that must hold true.
+ * @returns A constraint that has a variable assignment that is only valid if it is a variable asignment of all the passed constraints.
  */
-export function and(...constraints) {
+export function and(...constraints: Constraint[]): Constraint {
   return new IntersectionConstraint(constraints);
 }

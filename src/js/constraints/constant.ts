@@ -1,38 +1,33 @@
-import { equalValue, VALUE_SIZE } from "../trible.ts";
+import { ByteBitset } from "../bitset.ts";
+import { Binding, Variable } from "../query.ts";
+import { equalValue, Value, VALUE_SIZE } from "../trible.ts";
 import { filterInPlace } from "../util.ts";
+import { Constraint } from "./constraint.ts";
 
-class ConstantConstraint {
-  constructor(variable, constant) {
-    this.variable = variable;
+export class ConstantConstraint implements Constraint {
+  variable_index: number;
+  constant: Value;
+
+  constructor(variable_index: number, constant: Value) {
+    this.variable_index = variable_index;
     this.constant = constant;
   }
 
   variables() {
-    let bitset = new ByteBitset();
-    bitset.set(this.variable);
+    const bitset = new ByteBitset();
+    bitset.set(this.variable_index);
     return bitset;
   }
 
-  estimate(variable, binding) {
+  estimate(_variable_index: number, _binding: Binding) {
     return 1;
   }
 
-  propose(_variable, _binding) {
+  propose(_variable_index: number, _binding: Binding): Value[] {
     return [this.constant];
   }
 
-  confirm(_variable, _binding, values) {
+  confirm(_variable_index: number, _binding: Binding, values: Value[]) {
     filterInPlace(values, (value) => equalValue(value, this.constant));
   }
-}
-
-/**
- * Create a constraint for the given variable to the provided constant value.
- * @param {Variable} variable - The constrained variable.
- * @param {Uint32Array} constant - The constant value.
- * @returns {Constraint} The constraint usable with other constraints or `find`.
- */
-export function constant(variable, constant) {
-  if (constant.length !== VALUE_SIZE) throw new Error("Bad constant length.");
-  return new ConstantConstraint(variable.index, constant);
 }

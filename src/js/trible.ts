@@ -1,6 +1,14 @@
+import { FixedUint8Array } from "./util.ts";
+
 export const TRIBLE_SIZE = 64;
-export const VALUE_SIZE = 32;
 export const ID_SIZE = 16;
+export const VALUE_SIZE = 32;
+
+export type Trible = FixedUint8Array<typeof TRIBLE_SIZE>
+export type Id = FixedUint8Array<typeof ID_SIZE>;
+export type Value = FixedUint8Array<typeof VALUE_SIZE>;
+export type Blob = Uint8Array;
+
 
 export const E_SIZE = ID_SIZE;
 export const A_SIZE = ID_SIZE;

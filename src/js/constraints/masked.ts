@@ -1,8 +1,9 @@
 import { ByteBitset } from "../bitset.ts";
+import { Constraint } from "./constraint.ts";
 
 // Can be used like a projection, but one must makes sure that the masked constraint
 // implicitly existentially quantifies the variables masked.
-class MaskedConstraint {
+class MaskedConstraint implements Constraint {
   constructor(constraint, maskedVariables) {
     this.constraint = constraint;
     this.mask = new ByteBitset();

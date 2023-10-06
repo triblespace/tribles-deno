@@ -1,54 +1,47 @@
+import { ByteBitset } from "../bitset.ts";
+import { emptyValuePATCH } from "../patch.ts";
+import { Binding, Variable } from "../query.ts";
+import { Value } from "../trible.ts";
 import { filterInPlace } from "../util.ts";
+import { Constraint } from "./constraint.ts";
 
 // This constraint is used when there is a fixed number of possible values for a variable.
 // As with a collection where items should exist in, or when enumerating attributes from a namespace
 // during a walk.
-class IndexConstraint {
-  constructor(variable, index) {
+class IndexConstraint implements Constraint {
+  variable_index: number;
+  index: typeof emptyValuePATCH;
+
+  constructor(variable_index: number, index: typeof emptyValuePATCH) {
+    this.variable_index = variable_index;
     this.index = index;
-    this.variable = variable;
   }
 
-  variables() {
-    let bitset = new ByteBitset();
-    bitset.set(this.variable);
+  variables(): ByteBitset {
+    const bitset = new ByteBitset();
+    bitset.set(this.variable_index);
     return bitset;
   }
 
-  estimate(_variable, _binding) {
+  estimate(_variable_index: number, _binding: Binding): number {
     return this.index.count();
   }
 
-  propose(_variable, _binding) {
-    [...this.index.keys()];
+  propose(_variable_index: number, _binding: Binding): Value[] {
+    return [...this.index.infixes((key) => key)];
   }
 
-  confirm(_variable, _binding, values) {
+  confirm(_variable_index: number, _binding: Binding, values: Value[]): void {
     filterInPlace(values, (value) => this.index.has(value));
   }
 }
 
 /**
  * Create a constraint for the given variable to the values of the provided index.
- * @param {Variable} variable - The constrained variable.
- * @param {PATCH} index - The constant values.
- * @returns {Constraint} The constraint usable with other constraints or `find`.
+ * @param variable - The constrained variable.
+ * @param index - The constant values.
+ * @returns The constraint usable with other constraints or `find`.
  */
-export function indexed(variable, index) {
-  return new IndexConstraint(variable.index, index);
-}
-
-/**
- * Create a constraint for the given variable to the provided constant values.
- * @param {Variable} variable - The constrained variable.
- * @param {[Uint32Array]} collection - The constant values.
- * @returns {Constraint} The constraint usable with other constraints or `find`.
- */
-export function collection(variable, collection) {
-  const indexBatch = emptyValuePATCH.batch();
-  for (const c of collection) {
-    indexBatch.put(c);
-  }
-  const index = indexBatch.complete();
+export function indexed<T>(variable: Variable<T>, index: typeof emptyValuePATCH): Constraint {
   return new IndexConstraint(variable.index, index);
 }
