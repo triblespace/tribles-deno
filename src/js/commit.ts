@@ -4,7 +4,8 @@ import { id } from "./namespace.ts";
 import { TRIBLE_SIZE } from "./trible.ts";
 import { blake3 } from "./wasm.js";
 import { NS } from "./namespace.ts";
-import { UFOID } from "./types/ufoid.ts";
+import { FixedUint8Array } from "./util.ts";
+import { KB } from "./kb.ts";
 
 //
 // The payload consists of both the data and metadata trible
@@ -50,6 +51,9 @@ const shortMessageId = UFOID.now();
 const messageId = UFOID.now();
 const authoredById = UFOID.now();
 
+const BLAKE3_VERIFICATION = UFOID.now();
+const verificationMethodId = UFOID.now();
+
 const commitNS = new NS({
   [id]: { ...types.ufoid },
   verificationMethod: { id: verificationMethodId, ...types.ufoid },
@@ -61,24 +65,24 @@ const commitNS = new NS({
   authoredBy: { id: authoredById, isLink: true },
 });
 
-const BLAKE3_VERIFICATION = UFOID.now();
-const verificationMethodId = UFOID.now();
-
 const CAPSTONE_SIZE = 64;
 
-function* splitTribles(bytes) {
+function* splitTribles(bytes: Uint8Array) {
   for (let t = 0; t < bytes.length; t += TRIBLE_SIZE) {
     yield bytes.subarray(t, t + TRIBLE_SIZE);
   }
 }
 
 export class Commit {
-  constructor(kb, metaId = UFOID.now()) {
+  metaId: FixedUint8Array<16>;
+  kb: KB;
+
+  constructor(kb: KB, metaId = UFOID.now().toId()) {
     this.metaId = metaId;
     this.kb = kb;
   }
 
-  static deserialize(kb, bytes) {
+  static deserialize(kb: KB, bytes: Uint8Array) {
     if (bytes.length % 64 !== 0) {
       throw Error("failed to deserialize: data size be multiple of 64");
     }
@@ -97,7 +101,7 @@ export class Commit {
 
     const metaId = new UFOID(capstone.slice(0, 16));
 
-    let { verificationMethod } = commitNS.walk(kb, metaId);
+    const { verificationMethod } = commitNS.walk(kb, metaId);
     if (!verificationMethod) {
       throw Error("failed to deserialize: no verification method specified");
     }

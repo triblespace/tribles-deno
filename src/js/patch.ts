@@ -881,6 +881,11 @@ export class PATCH<L extends number, O extends Ordering<L>, S extends Segmentati
     this.segments = segments;
     this.child = child;
   }
+
+  empty(): PATCH<L, O, S, V> {
+    return new PATCH(this.keyLength, this.order, this.segments, undefined);
+  }
+
   count() {
     if (this.child === undefined) {
       return 0;

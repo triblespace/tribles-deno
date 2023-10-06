@@ -10,12 +10,15 @@ const assert = (test, message) => {
 /** A persistent immutable knowledge base that stores tribles and blobs,
     providing a (JSON) tree based interface to access and create the graph within.*/
 export class KB {
+  tribleset: TribleSet;
+  blobcache: BlobCache;
+
   /**
    * Create a knowledge base with the gives tribles and blobs.
-   * @param {TribleSet} tribleset - The tribles stored.
-   * @param {BlobCache} blobcache - The blobs associated with the tribles.
+   * @param tribleset - The tribles stored.
+   * @param blobcache - The blobs associated with the tribles.
    */
-  constructor(tribleset = new TribleSet(), blobcache = new BlobCache()) {
+  constructor(tribleset: TribleSet = new TribleSet(), blobcache: BlobCache = new BlobCache()) {
     this.tribleset = tribleset;
     this.blobcache = blobcache;
   }
@@ -25,7 +28,7 @@ export class KB {
    * @param {Array} pattern - A function/generator returning/yielding a pattern of triples to be matched.
    * @returns {Constraint} - A constraint that can be used in a `find` call.
    */
-  patternConstraint(pattern) {
+  patternConstraint(pattern: [number, number, number][]) {
     for (const [_e, _a, v] of pattern) {
       v.proposeBlobCache(this.blobcache);
     }

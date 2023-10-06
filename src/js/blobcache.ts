@@ -90,7 +90,7 @@ export class BlobCache {
     return new BlobCache(this.onMiss, this.strong.empty(), this.weak.empty());
   }
 
-  union(other) {
+  union(other: BlobCache) {
     return new BlobCache(
       this.onMiss,
       this.strong.union(other.strong),
@@ -98,6 +98,7 @@ export class BlobCache {
     );
   }
 
+  /*
   subtract(other) {
     return new BlobCache(
       this.onMiss,
@@ -121,4 +122,5 @@ export class BlobCache {
       this.weak.union(other.weak),
     );
   }
+  */
 }
