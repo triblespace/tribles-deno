@@ -1,35 +1,43 @@
-import { lessValue, VALUE_SIZE } from "../trible.ts";
-import { filterInPlace } from "../util.ts";
+import { assert } from "https://deno.land/std@0.180.0/_util/asserts.ts";
+import { ByteBitset } from "../bitset.ts";
+import { Binding, Variable } from "../query.ts";
+import { lessValue, Value, VALUE_SIZE } from "../trible.ts";
+import { filterInPlace, fixedUint8Array } from "../util.ts";
+import { Constraint } from "./constraint.ts";
 
-const MIN_KEY = new Uint8Array(VALUE_SIZE).fill(0);
-const MAX_KEY = new Uint8Array(VALUE_SIZE).fill(~0);
+const MIN_KEY = fixedUint8Array(VALUE_SIZE).fill(0);
+const MAX_KEY = fixedUint8Array(VALUE_SIZE).fill(~0);
 
-class RangeConstraint {
-  constructor(variable, lowerBound, upperBound) {
+class RangeConstraint implements Constraint {
+  variable_index: number;
+  lowerBound: Value;
+  upperBound: Value;
+
+  constructor(variable_index: number, lowerBound: Value, upperBound: Value) {
     this.lowerBound = lowerBound;
     this.upperBound = upperBound;
-    this.variable = variable;
+    this.variable_index = variable_index;
   }
 
-  variables() {
-    let bitset = new ByteBitset();
-    bitset.set(this.variable);
+  variables(): ByteBitset {
+    const bitset = new ByteBitset();
+    bitset.set(this.variable_index);
     return bitset;
   }
 
-  estimate(variable, binding) {
+  estimate(_variable_index: number, _binding: Binding): number {
     return Number.MAX_VALUE;
   }
 
-  propose(variable, binding) {
+  propose(_variable_index: number, _binding: Binding): Value[] {
     throw Error("Proposal too large.");
   }
 
-  confirm(variable, binding, values) {
-    filterInPlace(values, (value) => {
+  confirm(_variable_index: number, _binding: Binding, values: Value[]): void {
+    filterInPlace(values, (value) =>
       !lessValue(value, this.lowerBound) &&
-        !lessValue(this.upperBound, value);
-    });
+      !lessValue(this.upperBound, value)
+    );
   }
 }
 
@@ -40,23 +48,22 @@ class RangeConstraint {
  * @param {Object} bounds - TODO
  * @returns {Constraint} TODO
  */
-export function ranged(
-  variable,
-  type,
-  { lower, upper },
+export function ranged<T>(
+  variable: Variable<T>,
+  { lower, upper }: {lower: T, upper: T},
 ) {
-  variable.typed(type);
+  assert(variable.schema);
 
   let encodedLower = MIN_KEY;
   let encodedUpper = MAX_KEY;
 
   if (lower !== undefined) {
-    encodedLower = new Uint8Array(VALUE_SIZE);
-    type.encoder(lower, encodedLower);
+    encodedLower = fixedUint8Array(VALUE_SIZE);
+    variable.schema.encoder(lower, encodedLower);
   }
   if (upper !== undefined) {
-    encodedUpper = new Uint8Array(VALUE_SIZE);
-    type.encoder(upper, encodedUpper);
+    encodedUpper = fixedUint8Array(VALUE_SIZE);
+    variable.schema.encoder(upper, encodedUpper);
   }
   return new RangeConstraint(variable.index, encodedLower, encodedUpper);
 }

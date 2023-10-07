@@ -147,7 +147,7 @@ Deno.test("find lower range", () => {
     ...find(
       (ctx, { name, title }, []) =>
         and(
-          ranged(name, types.shortstring, { lower: "K" }),
+          ranged(name.typed(types.shortstring), { lower: "K" }),
           knightsNS.pattern(ctx, knightskb, [{
             name,
             titles: [title],
@@ -189,7 +189,7 @@ Deno.test("find upper bound", () => {
   const results = [
     ...find((ctx, { name, title }, []) =>
       and(
-        ranged(name, types.shortstring, { upper: "K" }),
+        ranged(name.typed(types.shortstring), { upper: "K" }),
         knightsNS.pattern(ctx, knightskb, [{
           name,
           titles: [title],
