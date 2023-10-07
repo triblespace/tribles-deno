@@ -1,5 +1,5 @@
 import { lessValue, VALUE_SIZE } from "../trible.ts";
-import { filterInPlance } from "../util.ts";
+import { filterInPlace } from "../util.ts";
 
 const MIN_KEY = new Uint8Array(VALUE_SIZE).fill(0);
 const MAX_KEY = new Uint8Array(VALUE_SIZE).fill(~0);
@@ -26,7 +26,7 @@ class RangeConstraint {
   }
 
   confirm(variable, binding, values) {
-    filterInPlance(values, (value) => {
+    filterInPlace(values, (value) => {
       !lessValue(value, this.lowerBound) &&
         !lessValue(this.upperBound, value);
     });
