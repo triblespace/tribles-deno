@@ -3,12 +3,6 @@ import { BlobCache } from "./blobcache.ts";
 import { Variable } from "./query.ts";
 import { Constraint } from "./constraints/constraint.ts";
 
-const assert = (test, message) => {
-  if (!test) {
-    throw Error(message);
-  }
-};
-
 /** A persistent immutable knowledge base that stores tribles and blobs,
     providing a (JSON) tree based interface to access and create the graph within.*/
 export class KB {

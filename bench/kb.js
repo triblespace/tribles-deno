@@ -10,7 +10,7 @@ import {
   KB,
   NS,
   TribleSet,
-  types,
+  schemas,
   UFOID,
 } from "../mod.js";
 
@@ -21,16 +21,16 @@ const eyeColorId = UFOID.now();
 const lovesId = UFOID.now();
 const titlesId = UFOID.now();
 
-const idOwner = new IDOwner(types.ufoid);
+const idOwner = new IDOwner(schemas.ufoid);
 const knightsNS = new NS({
-  [id]: { ...idOwner.type() },
-  name: { id: nameId, ...types.shortstring },
-  lastName: { id: lastNameId, ...types.shortstring },
-  eyeColor: { id: eyeColorId, ...types.shortstring },
-  age: { id: ageId, ...types.shortstring },
+  [id]: { schema: idOwner.type() },
+  name: { id: nameId, schema: schemas.shortstring },
+  lastName: { id: lastNameId, schema: schemas.shortstring },
+  eyeColor: { id: eyeColorId, schema: schemas.shortstring },
+  age: { id: ageId, schema: schemas.shortstring },
   loves: { id: lovesId, isLink: true },
   lovedBy: { id: lovesId, isLink: true, isInverse: true },
-  titles: { id: titlesId, isMany: true, ...types.shortstring },
+  titles: { id: titlesId, isMany: true, schema: schemas.shortstring },
 });
 
 function kbWith(b, size) {

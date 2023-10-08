@@ -1,81 +1,76 @@
 import { find, Variable } from "./query.ts";
 import { and } from "./constraints/and.ts";
-import { constant } from "./constraints/constant.ts";
 import { indexed } from "./constraints/indexed.ts";
 import { masked } from "./constraints/masked.ts";
 import { A, E, equalValue, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.ts";
-import { emptyValuePATCH } from "./patch.ts";
+import { batch, batch, emptyValuePATCH, Entry, naturalOrder, PATCH, singleSegment } from "./patch.ts";
 import { KB } from "./kb.ts";
-
-const assert = (test, message) => {
-  if (!test) {
-    throw Error(message);
-  }
-};
+import { IdSchema, Schema } from "./schemas.ts";
+import { fixedUint8Array } from "./util.ts";
 
 export const id = Symbol("id");
 
-const isPojo = (obj) => {
+// deno-lint-ignore no-explicit-any
+const isPojo = (obj: any): boolean => {
   if (obj === null || typeof obj !== "object") {
     return false;
   }
   return Object.getPrototypeOf(obj) === Object.prototype;
 };
 
-class IDSequence {
-  constructor(factory) {
-    this.factory = factory;
+class IDSequence<T> {
+  schema: IdSchema<T>;
+
+  constructor(schema: IdSchema<T>) {
+    this.schema = schema;
   }
 
   [Symbol.iterator]() {
     return this;
   }
   next() {
-    return { value: this.factory() };
+    return { value: this.schema.factory() };
   }
 }
 
-export class NS {
-  constructor(decl) {
+type AttributeDescription<Id> = {id: Id, schema: Schema<unknown>, isLink?: false, isMany?: boolean, isInverse?: false}
+                          | {id: Id, isLink: true, isMany?: boolean, isInverse?: boolean}
+
+type NSDeclaration<Id> = {[id]: {schema: IdSchema<Id>},
+                          string: AttributeDescription<Id>};
+
+export class NS<Id> {
+  constructor(decl: NSDeclaration<Id>) {
     const attributes = new Map(); // attribute name -> attribute description
-    let forwardAttributeIndex = emptyValuePATCH; // non inverse attribute id -> [attribute description]
+    let forwardAttributeIndex = emptyValuePATCH as PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, AttributeDescription<Id>>; // non inverse attribute id -> [attribute description]
     let inverseAttributeIndex = emptyValuePATCH; // inverse attribute id -> [attribute description],
-    const newUniqueAttributeIndex = emptyValuePATCH.batch();
-    const newUniqueInverseAttributeIndex = emptyValuePATCH.batch();
+    let newUniqueAttributeIndex = emptyValuePATCH;
+    let newUniqueInverseAttributeIndex = emptyValuePATCH;
+
+    const b = batch();
 
     const idDescription = decl[id];
     if (!idDescription) {
       throw Error(`Incomplete namespace: Missing [id] field.`);
     }
-    if (!idDescription.decoder) {
-      throw Error(`Incomplete namespace: Missing [id] decoder.`);
-    }
-    if (!idDescription.encoder) {
-      throw Error(`Incomplete namespace: Missing [id] encoder.`);
-    }
-    if (!idDescription.factory) {
-      throw Error(`Incomplete namespace: Missing [id] factory.`);
+    if (!idDescription.schema) {
+      throw Error(`Incomplete namespace: Missing [id] schema.`);
     }
 
     for (const [attributeName, attributeDescription] of Object.entries(decl)) {
       if (attributeDescription.isInverse && !attributeDescription.isLink) {
         throw Error(
           `Bad options in namespace attribute ${attributeName}:
-                Only links can be inversed.`,
+                Only links can be inverse.`,
         );
       }
-      if (!attributeDescription.isLink && !attributeDescription.decoder) {
+      if (!attributeDescription.isLink && !attributeDescription.schema) {
         throw Error(
-          `Missing decoder in namespace for attribute ${attributeName}.`,
+          `Missing schema in namespace for attribute ${attributeName}.`,
         );
       }
-      if (!attributeDescription.isLink && !attributeDescription.encoder) {
-        throw Error(
-          `Missing encoder in namespace for attribute ${attributeName}.`,
-        );
-      }
-      const encodedId = new Uint8Array(VALUE_SIZE);
-      idDescription.encoder(attributeDescription.id, encodedId);
+      const encodedId = fixedUint8Array(VALUE_SIZE);
+      idDescription.schema.encoder(attributeDescription.id, encodedId);
       const description = {
         ...attributeDescription,
         encodedId,
@@ -83,28 +78,24 @@ export class NS {
       };
       attributes.set(attributeName, description);
       if (description.isInverse) {
-        inverseAttributeIndex = inverseAttributeIndex.put(
-          description.encodedId,
-          [
-            ...(inverseAttributeIndex.get(description.encodedId) || []),
-            description,
-          ],
-        );
+        inverseAttributeIndex = inverseAttributeIndex.put(b,
+          new Entry(description.encodedId, [
+              ...(inverseAttributeIndex.get(description.encodedId) || []),
+              description,
+            ]));
       } else {
-        forwardAttributeIndex = forwardAttributeIndex.put(
-          description.encodedId,
-          [
-            ...(forwardAttributeIndex.get(description.encodedId) || []),
-            description,
-          ],
-        );
+        forwardAttributeIndex = forwardAttributeIndex.put(b,
+          new Entry(description.encodedId,
+            [
+              ...(forwardAttributeIndex.get(description.encodedId) || []),
+              description,
+            ]));
       }
     }
 
     for (const [_, attributeDescription] of attributes) {
       if (attributeDescription.isLink) {
-        attributeDescription.encoder = idDescription.encoder;
-        attributeDescription.decoder = idDescription.decoder;
+        attributeDescription.schema = idDescription.schema;
       }
     }
 
@@ -117,9 +108,9 @@ export class NS {
     ) {
       if (!isMany) {
         if (isInverse) {
-          newUniqueInverseAttributeIndex.put(encodedId);
+          newUniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.put(b, new Entry(encodedId, undefined));
         } else {
-          newUniqueAttributeIndex.put(encodedId);
+          newUniqueAttributeIndex = newUniqueAttributeIndex.put(b, new Entry(encodedId, undefined));
         }
       }
     }
@@ -128,12 +119,12 @@ export class NS {
     this.attributes = attributes;
     this.forwardAttributeIndex = forwardAttributeIndex;
     this.inverseAttributeIndex = inverseAttributeIndex;
-    this.uniqueAttributeIndex = newUniqueAttributeIndex.complete();
-    this.uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex
-      .complete();
+    this.uniqueAttributeIndex = newUniqueAttributeIndex;
+    this.uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex;
   }
 
   validator(middleware = (commit) => [commit]) {
+    // deno-lint-ignore no-this-alias
     const self = this;
     return function* (commit) {
       const unique = find(

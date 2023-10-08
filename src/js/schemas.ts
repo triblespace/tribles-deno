@@ -14,7 +14,10 @@ import { Value, Blob } from "./trible.ts";
 export interface Schema<T> {
   encoder(value: T, buffer: Value): Blob | undefined;
   decoder(bytes: Value, blob: Blob): T;
-  factory?(): T;
+}
+
+export interface IdSchema<T> extends Schema<T> {
+  factory(): T;
 }
 
 export const schemas = {
