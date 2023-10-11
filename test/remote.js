@@ -9,16 +9,12 @@ fc.configureGlobal({
 });
 
 import {
-  and,
-  find,
   id,
   IDOwner,
-  KB,
   NS,
-  ranged,
   types,
   UFOID,
-} from "../mod.js";
+} from "../mod.ts";
 
 const nameId = UFOID.now();
 const lovesId = UFOID.now();
@@ -31,7 +27,7 @@ Deno.test("KB Find", () => {
     name: { id: nameId, ...types.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring, isMany: true },
+    titles: { id: titlesId, ...types.shortstring },
   });
 
   // Add some data.

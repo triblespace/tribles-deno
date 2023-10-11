@@ -9,7 +9,7 @@ fc.configureGlobal({
   interruptAfterTimeLimit: 1000 * 5,
 });
 
-import { types, UFOID } from "../mod.js";
+import { types, UFOID } from "../mod.ts";
 
 Deno.test("decoder->encoder roundtrip", () => {
   const value = fc

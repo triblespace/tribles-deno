@@ -2,7 +2,7 @@ import { find, Variable } from "./query.ts";
 import { and } from "./constraints/and.ts";
 import { indexed } from "./constraints/indexed.ts";
 import { masked } from "./constraints/masked.ts";
-import { A, E, equalValue, TRIBLE_SIZE, V, VALUE_SIZE } from "./trible.ts";
+import { A, E, equalValue, TRIBLE_SIZE, V, Value, VALUE_SIZE } from "./trible.ts";
 import { batch, batch, emptyValuePATCH, Entry, naturalOrder, PATCH, singleSegment } from "./patch.ts";
 import { KB } from "./kb.ts";
 import { IdSchema, Schema } from "./schemas.ts";
@@ -34,7 +34,9 @@ class IDSequence<T> {
 }
 
 type AttributeDescription<Id> = {id: Id, schema: Schema<unknown>, isLink?: false, isMany?: boolean, isInverse?: false}
-                          | {id: Id, isLink: true, isMany?: boolean, isInverse?: boolean}
+                          | {id: Id, isLink: true, isMany?: boolean, isInverse?: boolean};
+
+type CompiledAttributeDescription<Id> = AttributeDescription<Id> & {encodedId: Value, name: string};
 
 type NSDeclaration<Id> = {[id]: {schema: IdSchema<Id>},
                           string: AttributeDescription<Id>};
@@ -42,10 +44,10 @@ type NSDeclaration<Id> = {[id]: {schema: IdSchema<Id>},
 export class NS<Id> {
   constructor(decl: NSDeclaration<Id>) {
     const attributes = new Map(); // attribute name -> attribute description
-    let forwardAttributeIndex = emptyValuePATCH as PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, AttributeDescription<Id>>; // non inverse attribute id -> [attribute description]
-    let inverseAttributeIndex = emptyValuePATCH; // inverse attribute id -> [attribute description],
-    let newUniqueAttributeIndex = emptyValuePATCH;
-    let newUniqueInverseAttributeIndex = emptyValuePATCH;
+    // non inverse attribute id -> [attribute description]
+    let forwardAttributeIndex = emptyValuePATCH as PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, CompiledAttributeDescription<Id> & {isInverse?: false}>;
+    // inverse attribute id -> [attribute description],
+    let inverseAttributeIndex = emptyValuePATCH as PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, CompiledAttributeDescription<Id> & {isInverse?: false}>;
 
     const b = batch();
 
@@ -70,7 +72,7 @@ export class NS<Id> {
         );
       }
       const encodedId = fixedUint8Array(VALUE_SIZE);
-      idDescription.schema.encoder(attributeDescription.id, encodedId);
+      idDescription.schema.encodeValue(attributeDescription.id, encodedId);
       const description = {
         ...attributeDescription,
         encodedId,
@@ -99,284 +101,10 @@ export class NS<Id> {
       }
     }
 
-    for (
-      const {
-        encodedId,
-        isMany,
-        isInverse,
-      } of attributes.values()
-    ) {
-      if (!isMany) {
-        if (isInverse) {
-          newUniqueInverseAttributeIndex = newUniqueInverseAttributeIndex.put(b, new Entry(encodedId, undefined));
-        } else {
-          newUniqueAttributeIndex = newUniqueAttributeIndex.put(b, new Entry(encodedId, undefined));
-        }
-      }
-    }
-
     this.ids = idDescription;
     this.attributes = attributes;
     this.forwardAttributeIndex = forwardAttributeIndex;
     this.inverseAttributeIndex = inverseAttributeIndex;
-    this.uniqueAttributeIndex = newUniqueAttributeIndex;
-    this.uniqueInverseAttributeIndex = newUniqueInverseAttributeIndex;
-  }
-
-  validator(middleware = (commit) => [commit]) {
-    // deno-lint-ignore no-this-alias
-    const self = this;
-    return function* (commit) {
-      const unique = find(
-        (ctx, { v1, v2 }, [e, a]) =>
-          and(
-            indexed(a, self.uniqueAttributeIndex),
-            commit.commitKB.tribleset.patternConstraint([[e, a, v1]]),
-            commit.currentKB.tribleset.patternConstraint([[e, a, v2]]),
-          ),
-        (variables, binding) => {
-          const { v1, v2 } = variables.namedVars();
-          return [binding.get(v1.index), binding.get(v2.index)];
-        },
-      );
-
-      for (const [v1, v2] of unique) {
-        if (!equalValue(v1, v2)) {
-          throw Error(
-            `constraint violation: multiple values for unique attribute`,
-          );
-        }
-      }
-
-      const inverseUnique = find(
-        (ctx, { e1, e2 }, [a, v]) =>
-          and(
-            indexed(a, self.inverseAttributeIndex),
-            commit.commitKB.tribleset.patternConstraint([[e1, a, v]]),
-            commit.currentKB.tribleset.patternConstraint([[e2, a, v]]),
-          ),
-        (variables, binding) => {
-          const { e1, e2 } = variables.namedVars();
-          return [binding.get(e1.index), binding.get(e2.index)];
-        },
-      );
-      for (const [e1, e2] of inverseUnique) {
-        if (!equalValue(e1, e2)) {
-          throw Error(
-            `constraint violation: multiple entities for unique attribute value`,
-          );
-        }
-      }
-      yield* middleware(commit);
-    };
-  }
-
-  lookup(kb, eEncodedId, attributeName) {
-    let {
-      encodedId: aEncodedId,
-      decoder,
-      isLink,
-      isInverse,
-      isMany,
-    } = this.attributes.get(attributeName);
-
-    const res = find(
-      (ctx, { v }, [e, a]) =>
-        and(
-          e.is(eEncodedId),
-          a.is(aEncodedId),
-          kb.tribleset.patternConstraint([isInverse ? [v, a, e] : [e, a, v]]),
-        ),
-      (variables, binding) => {
-        const { v } = variables.namedVars();
-        return binding.get(v.index);
-      },
-    );
-
-    if (!isMany) {
-      const { done, value } = res[Symbol.iterator]().next();
-      if (done) return { found: false };
-      return {
-        found: true,
-        result: isLink
-          ? this.entityProxy(kb, decoder(value.slice()))
-          : decoder(value.slice(), async () => await kb.blobcache.get(value)),
-      };
-    } else {
-      const results = [];
-      for (const value of res) {
-        results.push(
-          isLink
-            ? this.entityProxy(kb, decoder(value.slice()))
-            : decoder(value.slice(), async () => await kb.blobcache.get(value)),
-        );
-      }
-      return {
-        found: true,
-        result: results,
-      };
-    }
-  }
-
-  entityProxy(kb, eId) {
-    const eEncodedId = new Uint8Array(VALUE_SIZE);
-    this.ids.encoder(eId, eEncodedId);
-
-    const ns = this;
-
-    return new Proxy(
-      { [id]: eId },
-      {
-        get: function (o, attributeName) {
-          if (!ns.attributes.has(attributeName)) {
-            return undefined;
-          }
-
-          if (attributeName in o) {
-            return o[attributeName];
-          }
-
-          const { found, result } = ns.lookup(kb, eEncodedId, attributeName);
-          if (found) {
-            Object.defineProperty(o, attributeName, {
-              value: result,
-              writable: false,
-              configurable: false,
-              enumerable: true,
-            });
-            return result;
-          }
-          return undefined;
-        },
-        set: function (_, _attributeName) {
-          throw TypeError(
-            "Error: Entities are not writable, please use 'with' on the walked KB.",
-          );
-        },
-        has: function (o, attributeName) {
-          if (!ns.attributes.has(attributeName)) {
-            return false;
-          }
-
-          const {
-            encodedId: aEncodedId,
-            isInverse,
-            isMany,
-          } = ns.attributes.get(attributeName);
-          if (
-            attributeName in o || isMany
-          ) {
-            return true;
-          }
-
-          const res = find(
-            (ctx, {}, [e, a, v]) =>
-              and(
-                e.is(eEncodedId),
-                a.is(aEncodedId),
-                kb.tribleset.patternConstraint([
-                  isInverse ? [v, a, e] : [e, a, v],
-                ]),
-              ),
-            (variables, binding) => {},
-          );
-
-          const { done } = res[Symbol.iterator]().next();
-          return !done;
-        },
-        deleteProperty: function (_, attr) {
-          throw TypeError(
-            "Error: Entities are not writable, furthermore KBs are append only.",
-          );
-        },
-        setPrototypeOf: function (_) {
-          throw TypeError(
-            "Error: Entities are not writable and can only be POJOs.",
-          );
-        },
-        isExtensible: function (_) {
-          return true;
-        },
-        preventExtensions: function (_) {
-          return false;
-        },
-        defineProperty: function (_, attr) {
-          throw TypeError(
-            "Error: Entities are not writable, please use 'with' on the walked KB.",
-          );
-        },
-        getOwnPropertyDescriptor: function (o, attributeName) {
-          if (!ns.attributes.has(attributeName)) {
-            return undefined;
-          }
-
-          if (attributeName in o) {
-            return Object.getOwnPropertyDescriptor(o, attributeName);
-          }
-
-          const { found, result } = ns.lookup(kb, eEncodedId, attributeName);
-          if (found) {
-            const property = {
-              value: result,
-              writable: false,
-              configurable: false,
-              enumerable: true,
-            };
-            Object.defineProperty(o, attributeName, property);
-            return property;
-          }
-          return undefined;
-        },
-        ownKeys: function (_) {
-          const attrs = [id];
-          const forward = find(
-            (ctx, { a }, [e, v]) =>
-              and(
-                e.is(eEncodedId),
-                indexed(a, ns.forwardAttributeIndex),
-                masked(
-                  kb.tribleset.patternConstraint([[e, a, v]]),
-                  [v],
-                ),
-              ),
-            (variables, binding) => {
-              const { a } = variables.namedVars();
-              return binding.get(a.index);
-            },
-          );
-
-          for (const a of forward) {
-            attrs.push(
-              ...ns.forwardAttributeIndex.get(a).map((attr) => attr.name),
-            );
-          }
-
-          const inverse = find(
-            (ctx, { a }, [e, v]) =>
-              and(
-                v.is(eEncodedId),
-                indexed(a, ns.inverseAttributeIndex),
-                masked(
-                  kb.tribleset.patternConstraint([[e, a, v]]),
-                  [e],
-                ),
-              ),
-            (variables, binding) => {
-              const { a } = variables.namedVars();
-              return binding.get(a.index);
-            },
-          );
-          for (
-            const a of inverse
-          ) {
-            attrs.push(
-              ...ns.inverseAttributeIndex.get(a).map((attr) => attr.name),
-            );
-          }
-          return attrs;
-        },
-      },
-    );
   }
 
   *entityToTriples(
@@ -552,16 +280,5 @@ export class NS<Id> {
     const { pattern, constraints } = this.triplesToPattern(ctx, triples);
 
     return and(...constraints, source.patternConstraint(pattern));
-  }
-
-  /**
-   * Creates proxy object to walk the graph stored in the provided kb,
-   * using this namespace for ids, attributes, and value encoding.
-   * @param {Object} kb - The walked knowledge base.
-   * @param {Object} eId - The id of the entity used as the root of the walk.
-   * @returns {Proxy} - A proxy emulating the graph of the KB.
-   */
-  walk(kb, eId) {
-    return this.entityProxy(kb, eId);
   }
 }

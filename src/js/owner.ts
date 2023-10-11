@@ -1,31 +1,31 @@
-import { emptyIdPATCH } from "./patch.ts";
-import { VALUE_SIZE } from "./trible.ts";
+import { Entry, batch, emptyIdPATCH } from "./patch.ts";
+import { IdSchema } from "./schemas.ts";
+import { ID_SIZE } from "./trible.ts";
+import { fixedUint8Array } from "./util.ts";
 
-export class IDOwner {
-  constructor(type) {
-    this.idType = type;
-    this.ownedIDs = emptyIdPATCH;
-  }
+export class IDOwner<Id> {
+  schema: IdSchema<Id>;
+  ids: typeof emptyIdPATCH;
 
-  type() {
-    return {
-      ...this.idType,
-      factory: this.factory(),
-    };
-  }
+  constructor(schema: IdSchema<Id>) {
+    this.ids = emptyIdPATCH;
 
-  factory() {
-    return () => {
-      const b = new Uint8Array(VALUE_SIZE);
-      const factory = this.idType.factory;
-      const id = factory();
-      this.idType.encoder(id, b);
-      this.ownedIDs.put(b);
+    const factory = () => {
+      const b = fixedUint8Array(ID_SIZE);
+      const id = schema.factory();
+      schema.encodeValue(id, b);
+      this.ids.put(batch(), new Entry(b, undefined));
       return id;
+    }
+    
+    this.schema = {
+      ...schema,
+      factory,
     };
   }
 
   validator(middleware = (commit) => [commit]) {
+    // deno-lint-ignore no-this-alias
     const self = this;
     return function* (commit) {
       //TODO implement 'not' constraint and use that to compute values that

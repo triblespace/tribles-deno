@@ -3,16 +3,14 @@ import {
   runBenchmarks,
 } from "https://deno.land/std@0.180.0/testing/bench.ts";
 import {
-  BlobCache,
   find,
   id,
   IDOwner,
   KB,
   NS,
-  TribleSet,
   schemas,
   UFOID,
-} from "../mod.js";
+} from "../mod.ts";
 
 const nameId = UFOID.now();
 const lastNameId = UFOID.now();

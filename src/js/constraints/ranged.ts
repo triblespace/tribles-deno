@@ -59,11 +59,11 @@ export function ranged<T>(
 
   if (lower !== undefined) {
     encodedLower = fixedUint8Array(VALUE_SIZE);
-    variable.schema.encoder(lower, encodedLower);
+    variable.schema.encodeValue(lower, encodedLower);
   }
   if (upper !== undefined) {
     encodedUpper = fixedUint8Array(VALUE_SIZE);
-    variable.schema.encoder(upper, encodedUpper);
+    variable.schema.encodeValue(upper, encodedUpper);
   }
   return new RangeConstraint(variable.index, encodedLower, encodedUpper);
 }

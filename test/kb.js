@@ -16,22 +16,21 @@ import {
   KB,
   NS,
   ranged,
-  types,
+  schemas,
   UFOID,
-} from "../mod.js";
+} from "../mod.ts";
 
 const nameId = UFOID.now();
 const lovesId = UFOID.now();
 const titlesId = UFOID.now();
 
 Deno.test("KB Find", () => {
-  const idOwner = new IDOwner(types.ufoid);
+  const idOwner = new IDOwner(schemas.ufoid);
   const knightsNS = new NS({
-    [id]: { ...idOwner.type() },
-    name: { id: nameId, ...types.shortstring },
-    loves: { id: lovesId, isLink: true },
-    lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring, isMany: true },
+    [id]: { schema: idOwner.schema() },
+    name: { id: nameId, schema: schemas.shortstring },
+    loves: { id: lovesId, schema: idOwner.schema() },
+    titles: { id: titlesId, schema: schemas.shortstring },
   });
 
   // Add some data.
@@ -89,11 +88,11 @@ Deno.test("KB Find Single", () => {
       arbitraryId,
       arbitraryPerson,
       (nameId, titlesId, person) => {
-        const idOwner = new IDOwner(types.ufoid);
+        const idOwner = new IDOwner(schemas.ufoid);
         const knightsNS = new NS({
           [id]: { ...idOwner.type() },
-          name: { id: nameId, ...types.hex },
-          titles: { id: titlesId, ...types.hex, isMany: true },
+          name: { id: nameId, ...schemas.hex },
+          titles: { id: titlesId, ...schemas.hex },
         });
 
         const knightskb = knightsNS.entities(() => [{
@@ -121,13 +120,13 @@ Deno.test("KB Find Single", () => {
 });
 
 Deno.test("find lower range", () => {
-  const idOwner = new IDOwner(types.ufoid);
+  const idOwner = new IDOwner(schemas.ufoid);
   const knightsNS = new NS({
     [id]: { ...idOwner.type() },
-    name: { id: nameId, ...types.shortstring },
+    name: { id: nameId, ...schemas.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, isMany: true, ...types.shortstring },
+    titles: { id: titlesId, isMany: true, ...schemas.shortstring },
   });
 
   // Add some data.
@@ -147,7 +146,7 @@ Deno.test("find lower range", () => {
     ...find(
       (ctx, { name, title }, []) =>
         and(
-          ranged(name.typed(types.shortstring), { lower: "K" }),
+          ranged(name.typed(schemas.shortstring), { lower: "K" }),
           knightsNS.pattern(ctx, knightskb, [{
             name,
             titles: [title],
@@ -162,13 +161,13 @@ Deno.test("find lower range", () => {
 });
 
 Deno.test("find upper bound", () => {
-  const idOwner = new IDOwner(types.ufoid);
+  const idOwner = new IDOwner(schemas.ufoid);
   const knightsNS = new NS({
     [id]: { ...idOwner.type() },
-    name: { id: nameId, ...types.shortstring },
+    name: { id: nameId, ...schemas.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, isMany: true, ...types.shortstring },
+    titles: { id: titlesId, ...schemas.shortstring },
   });
 
   // Add some data.
@@ -189,7 +188,7 @@ Deno.test("find upper bound", () => {
   const results = [
     ...find((ctx, { name, title }, []) =>
       and(
-        ranged(name.typed(types.shortstring), { upper: "K" }),
+        ranged(name.typed(schemas.shortstring), { upper: "K" }),
         knightsNS.pattern(ctx, knightskb, [{
           name,
           titles: [title],
@@ -204,13 +203,13 @@ Deno.test("find upper bound", () => {
 });
 
 Deno.test("KB Walk", () => {
-  const idOwner = new IDOwner(types.ufoid);
+  const idOwner = new IDOwner(schemas.ufoid);
   const knightsNS = new NS({
     [id]: { ...idOwner.type() },
-    name: { id: nameId, ...types.shortstring },
+    name: { id: nameId, ...schemas.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring },
+    titles: { id: titlesId, ...schemas.shortstring },
   });
 
   // Add some data.
@@ -239,13 +238,13 @@ Deno.test("KB Walk", () => {
 });
 
 Deno.test("KB Walk ownKeys", () => {
-  const idOwner = new IDOwner(types.ufoid);
+  const idOwner = new IDOwner(schemas.ufoid);
   const knightsNS = new NS({
     [id]: { ...idOwner.type() },
-    name: { id: nameId, ...types.shortstring },
+    name: { id: nameId, ...schemas.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring },
+    titles: { id: titlesId, ...schemas.shortstring },
   });
 
   // Add some data.
@@ -277,13 +276,13 @@ Deno.test("KB Walk ownKeys", () => {
 Deno.test("TribleSet PATCH segmentCount positive", () => {
   const size = 3;
 
-  const idOwner = new IDOwner(types.ufoid);
+  const idOwner = new IDOwner(schemas.ufoid);
   const knightsNS = new NS({
     [id]: { ...idOwner.type() },
-    name: { id: nameId, ...types.shortstring },
+    name: { id: nameId, ...schemas.shortstring },
     loves: { id: lovesId, isLink: true },
     lovedBy: { id: lovesId, isLink: true, isInverse: true },
-    titles: { id: titlesId, ...types.shortstring },
+    titles: { id: titlesId, ...schemas.shortstring },
   });
 
   // Add some data.

@@ -178,7 +178,7 @@ export class Variable<T> {
     const index = emptyValuePATCH;
     for (const constant of collection) {
       const value = fixedUint8Array(32);
-      this.schema.encoder(constant, value);
+      this.schema.encodeValue(constant, value);
       index.put(b, new Entry(value, undefined));
     }
     return indexed(this, index);

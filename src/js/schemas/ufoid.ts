@@ -1,4 +1,5 @@
 import { FixedUint8Array, fixedUint8Array } from "../util.ts";
+import { VALUE_SIZE, ID_SIZE } from "../trible.ts";
 
 export class UFOID {
   data: FixedUint8Array<16>;
@@ -20,7 +21,7 @@ export class UFOID {
     return new UFOID(data);
   }
 
-  static fromValue(b: FixedUint8Array<32>): UFOID {
+  static fromValue(b: FixedUint8Array<typeof VALUE_SIZE>): UFOID {
     const a = new Uint32Array(b.buffer, b.byteOffset, 8);
     if (
       a[0] !== 0 ||
@@ -30,10 +31,18 @@ export class UFOID {
     ) {
       throw Error("invalid ufoid: value must be zero padded");
     }
-    if (a[4] === 0 && a[5] === 0 && a[6] === 0 && a[7] !== 0) {
+    if (a[4] === 0 && a[5] === 0 && a[6] === 0 && a[7] === 0) {
       throw Error("invalid ufoid: all zero (NIL) ufoid is not a valid value");
     }
-    return new UFOID(b.slice(16, 32) as FixedUint8Array<16>);
+    return new UFOID(b.slice(16, 32) as FixedUint8Array<typeof ID_SIZE>);
+  }
+
+  static fromId(b: FixedUint8Array<typeof ID_SIZE>): UFOID {
+    const a = new Uint32Array(b.buffer, b.byteOffset, 4);
+    if (a[0] === 0 && a[1] === 0 && a[2] === 0 && a[3] === 0) {
+      throw Error("invalid ufoid: all zero (NIL) ufoid is not a valid value");
+    }
+    return new UFOID(b);
   }
 
   static fromHex(str: string): UFOID {
@@ -54,11 +63,12 @@ export class UFOID {
     return new Uint32Array(this.data.buffer, 0, 4);
   }
 
-  toId(): FixedUint8Array<16> {
-    return this.data.slice() as FixedUint8Array<16>;
+  toId(b: FixedUint8Array<typeof ID_SIZE> = fixedUint8Array(ID_SIZE)): FixedUint8Array<typeof ID_SIZE> {
+    b.set(this.data);
+    return b;
   }
 
-  toValue(b: FixedUint8Array<32> = fixedUint8Array(32)): FixedUint8Array<32> {
+  toValue(b: FixedUint8Array<typeof VALUE_SIZE> = fixedUint8Array(VALUE_SIZE)): FixedUint8Array<typeof VALUE_SIZE> {
     b.subarray(0, 16).fill(0);
     b.subarray(16, 32).set(this.data);
     return b;
@@ -66,13 +76,22 @@ export class UFOID {
 }
 
 // Schema
-function encoder(v: UFOID, b: FixedUint8Array<32>): Uint8Array | undefined {
+function encodeValue(v: UFOID, b: FixedUint8Array<typeof VALUE_SIZE>): Uint8Array | undefined {
   v.toValue(b);
   return undefined;
 }
 
-function decoder(b: FixedUint8Array<32>, _blob: Uint8Array | undefined) {
+function decodeValue(b: FixedUint8Array<typeof VALUE_SIZE>, _blob: Uint8Array | undefined) {
   return UFOID.fromValue(b);
+}
+
+function encodeId(v: UFOID, b: FixedUint8Array<typeof ID_SIZE>): undefined {
+  v.toId(b);
+  return undefined;
+}
+
+function decodeId(b: FixedUint8Array<typeof ID_SIZE>, _blob: undefined) {
+  return UFOID.fromId(b);
 }
 
 function factory(): UFOID {
@@ -80,7 +99,9 @@ function factory(): UFOID {
 }
 
 export const schema = {
-  encoder,
-  decoder,
+  encodeValue,
+  decodeValue,
+  encodeId,
+  decodeId,
   factory,
 };
