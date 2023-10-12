@@ -1,3 +1,5 @@
+import { VALUE_SIZE } from "../trible.ts";
+import { FixedUint8Array } from "../util.ts";
 import {
   bigIntToBytes,
   bytesToBigInt,
@@ -5,7 +7,14 @@ import {
   unspreadBits,
 } from "./util.ts";
 
-function spacetimestampEncoder(v, b) {
+type Spacetimestamp = {
+  t: bigint,
+  x: bigint,
+  y: bigint,
+  z: bigint
+};
+
+function encodeValue(v: Spacetimestamp, b: FixedUint8Array<typeof VALUE_SIZE>): Blob | undefined {
   const { t = 0, x = 0, y = 0, z = 0 } = v;
   if (t > 0xffffffffffffffffn) {
     throw Error(
@@ -30,10 +39,10 @@ function spacetimestampEncoder(v, b) {
   const zyx = (spreadBits(z) << 2n) | (spreadBits(y) << 1n) | spreadBits(x);
   bigIntToBytes(t, b, 0, 8);
   bigIntToBytes(zyx, b, 8, 24);
-  return null;
+  return undefined;
 }
 
-function spacetimestampDecoder(b, blob) {
+function decodeValue(b: FixedUint8Array<typeof VALUE_SIZE>, _blob: Blob | undefined): Spacetimestamp {
   const t = bytesToBigInt(b, 0, 8);
   const zyx = bytesToBigInt(b, 8, 24);
   const z = unspreadBits(zyx >> 2n);
@@ -44,6 +53,6 @@ function spacetimestampDecoder(b, blob) {
 }
 
 export const schema = {
-  encoder: spacetimestampEncoder,
-  decoder: spacetimestampDecoder,
+  encodeValue,
+  decodeValue
 };
