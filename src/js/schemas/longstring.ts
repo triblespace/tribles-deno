@@ -1,16 +1,18 @@
+import { Schema } from "../schemas.ts";
+import { Value, Blob, LazyBlob } from "../trible.ts";
 import { blake3 } from "../wasm.js";
 
-function longstringEncoder(v, b) {
-  const d = new TextEncoder("utf-8").encode(v);
-  blake3(d, b);
+function encodeValue(v: string, b: Value): Blob {
+  const d = new TextEncoder().encode(v);
+  b.set(blake3(d));
   return d;
 }
 
-async function longstringDecoder(b, blob) {
-  return new TextDecoder("utf-8").decode(await blob());
+async function decodeValue(_b: Value, blob: LazyBlob): Promise<string> {
+  return new TextDecoder().decode(await blob());
 }
 
-export const schema = {
-  encoder: longstringEncoder,
-  decoder: longstringDecoder,
+export const schema: Schema<string> = {
+  encodeValue,
+  decodeValue,
 };

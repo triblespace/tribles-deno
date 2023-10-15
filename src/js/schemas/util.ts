@@ -1,13 +1,12 @@
-export const bigIntToBytes = (bn, b, offset, length) => {
-  let n = BigInt(bn);
+export const bigIntToBytes = (n: bigint, b: Uint8Array, offset: number, length: number): Uint8Array => {
   for (let i = offset + length - 1; offset <= i; i--) {
-    b[i] = new Number(n & 0xffn);
+    b[i] = new Number(n & 0xffn) as number;
     n = n >> 8n;
   }
   return b;
 };
 
-export const bytesToBigInt = (b, offset, length) => {
+export const bytesToBigInt = (b: Uint8Array, offset: number, length: number): bigint => {
   let n = 0n;
   const end = offset + length;
   for (let i = offset; i < end; i++) {
@@ -17,7 +16,7 @@ export const bytesToBigInt = (b, offset, length) => {
   return n;
 };
 
-export const spreadBits = (x) => {
+export const spreadBits = (x: bigint): bigint => {
   let X = BigInt(x);
   X = (X | (X << 64n)) &
     0b000000000000000000000000000000000000000000000000000000000000000011111111111111111111111111111111000000000000000000000000000000000000000000000000000000000000000011111111111111111111111111111111n;
@@ -39,7 +38,7 @@ export const spreadBits = (x) => {
   return X;
 };
 
-export const unspreadBits = (x) => {
+export const unspreadBits = (x: bigint): bigint => {
   let X = BigInt(x);
   X = X &
     0b001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001001n;

@@ -3,10 +3,10 @@ import {
   uuidToBytes,
 } from "https://deno.land/std@0.180.0/uuid/_common.ts";
 import { NIL_UUID, v4 } from "https://deno.land/std@0.180.0/uuid/mod.ts";
-import { VALUE_SIZE } from "../trible.ts";
-import { FixedUint8Array } from "../util.ts";
+import { Value, Blob, LazyBlob } from "../trible.ts";
+import { Schema } from "../schemas.ts";
 
-function encodeValue(v: string, b: FixedUint8Array<typeof VALUE_SIZE>): undefined | Blob {
+function encodeValue(v: string, b: Value): Blob | undefined {
   if (!v4.validate(v)) {
     throw Error("Provided value is not an encodable uuid.");
   }
@@ -18,7 +18,7 @@ function encodeValue(v: string, b: FixedUint8Array<typeof VALUE_SIZE>): undefine
   return undefined;
 }
 
-function decodeValue(b: FixedUint8Array<typeof VALUE_SIZE>, _blob: Blob): string {
+function decodeValue(b: Value, _blob: LazyBlob): string {
   const a = new Uint32Array(b.buffer, b.byteOffset, 8);
   if (
     a[0] !== 0 ||
@@ -31,7 +31,7 @@ function decodeValue(b: FixedUint8Array<typeof VALUE_SIZE>, _blob: Blob): string
   return bytesToUuid(b.subarray(b.length - 16));
 }
 
-export const schema = {
+export const schema: Schema<string> = {
   encodeValue,
   decodeValue,
 };

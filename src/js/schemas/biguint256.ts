@@ -1,6 +1,8 @@
+import { Schema } from "../schemas.ts";
+import { LazyBlob, Value, Blob } from "../trible.ts";
 import { bigIntToBytes, bytesToBigInt } from "./util.ts";
 
-function biguint256Encoder(v, b) {
+function encodeValue(v: bigint, b: Value): Blob | undefined {
   if (
     v >= (1n << 256n) ||
     v < 0n
@@ -8,14 +10,14 @@ function biguint256Encoder(v, b) {
     throw Error("Error BigInt not in valid range: 0 <= v <= 2^256-1.");
   }
   bigIntToBytes(v, b, 0, 32);
-  return null;
+  return undefined;
 }
 
-function biguint256Decoder(b, blob) {
+function decodeValue(b: Value, _blob: LazyBlob): bigint  {
   return bytesToBigInt(b, 0, 32);
 }
 
-export const schema = {
-  encoder: biguint256Encoder,
-  decoder: biguint256Decoder,
+export const schema: Schema<bigint> = {
+  encodeValue,
+  decodeValue,
 };

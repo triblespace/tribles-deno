@@ -1,5 +1,5 @@
-import { VALUE_SIZE } from "../trible.ts";
-import { FixedUint8Array } from "../util.ts";
+import { Schema } from "../schemas.ts";
+import { Value, Blob, LazyBlob } from "../trible.ts";
 import {
   bigIntToBytes,
   bytesToBigInt,
@@ -14,7 +14,7 @@ type Spacetimestamp = {
   z: bigint
 };
 
-function encodeValue(v: Spacetimestamp, b: FixedUint8Array<typeof VALUE_SIZE>): Blob | undefined {
+function encodeValue(v: Spacetimestamp, b: Value): Blob | undefined {
   const { t = 0, x = 0, y = 0, z = 0 } = v;
   if (t > 0xffffffffffffffffn) {
     throw Error(
@@ -42,7 +42,7 @@ function encodeValue(v: Spacetimestamp, b: FixedUint8Array<typeof VALUE_SIZE>): 
   return undefined;
 }
 
-function decodeValue(b: FixedUint8Array<typeof VALUE_SIZE>, _blob: Blob | undefined): Spacetimestamp {
+function decodeValue(b: Value, _blob: LazyBlob): Spacetimestamp {
   const t = bytesToBigInt(b, 0, 8);
   const zyx = bytesToBigInt(b, 8, 24);
   const z = unspreadBits(zyx >> 2n);
@@ -52,7 +52,7 @@ function decodeValue(b: FixedUint8Array<typeof VALUE_SIZE>, _blob: Blob | undefi
   return { t, x, y, z };
 }
 
-export const schema = {
+export const schema: Schema<Spacetimestamp> = {
   encodeValue,
   decodeValue
 };

@@ -1,7 +1,7 @@
 // See: https://docs.rs/ultraviolet/latest/ultraviolet/transform/struct.Similarity3.html
 
-import { VALUE_SIZE } from "../trible.ts";
-import { FixedUint8Array } from "../util.ts";
+import { Schema } from "../schemas.ts";
+import { Value, Blob, LazyBlob } from "../trible.ts";
 
 type Similarty3d32 = {
   translation: { x: number, y: number, z: number },
@@ -10,7 +10,7 @@ type Similarty3d32 = {
   scale: number,
 }
 
-function encodeValue(v: Similarty3d32, b: FixedUint8Array<typeof VALUE_SIZE>): Blob | undefined {
+function encodeValue(v: Similarty3d32, b: Value): Blob | undefined {
   const view = new DataView(b.buffer, b.byteOffset, b.byteLength);
   view.setFloat32(0, v.translation.x);
   view.setFloat32(4, v.translation.y);
@@ -24,7 +24,7 @@ function encodeValue(v: Similarty3d32, b: FixedUint8Array<typeof VALUE_SIZE>): B
   return undefined;
 }
 
-function decodeValue(b: FixedUint8Array<typeof VALUE_SIZE>, _blob: Blob | undefined): Similarty3d32 {
+function decodeValue(b: Value, _blob: LazyBlob): Similarty3d32 {
   const view = new DataView(b.buffer, b.byteOffset, b.byteLength);
   const x = view.getFloat32(0);
   const y = view.getFloat32(4);
@@ -42,7 +42,7 @@ function decodeValue(b: FixedUint8Array<typeof VALUE_SIZE>, _blob: Blob | undefi
   };
 }
 
-export const schema = {
+export const schema: Schema<Similarty3d32> = {
   encodeValue,
   decodeValue,
 };

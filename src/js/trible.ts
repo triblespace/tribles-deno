@@ -7,7 +7,9 @@ export const VALUE_SIZE = 32;
 export type Trible = FixedUint8Array<typeof TRIBLE_SIZE>
 export type Id = FixedUint8Array<typeof ID_SIZE>;
 export type Value = FixedUint8Array<typeof VALUE_SIZE>;
+
 export type Blob = Uint8Array;
+export type LazyBlob = () => Promise<Blob>;
 
 
 export const E_SIZE = ID_SIZE;

@@ -9,16 +9,16 @@ import { schema as bigint256_schema } from "./schemas/bigint256.ts";
 import { schema as hex_schema } from "./schemas/hex.ts";
 import { schema as rgba_schema } from "./schemas/rgba.ts";
 import { schema as geostamp_schema } from "./schemas/geostamp.ts";
-import { Id, Value, Blob } from "./trible.ts";
+import { Id, Value, Blob, LazyBlob } from "./trible.ts";
 
 export interface Schema<T> {
   encodeValue(value: T, buffer: Value): Blob | undefined;
-  decodeValue(bytes: Value, blob: Blob): T;
+  decodeValue(bytes: Value, blob: LazyBlob): T | Promise<T>;
 }
 
 export interface IdSchema<T> extends Schema<T> {
-  encodeId(value: T, buffer: Id): Blob | undefined;
-  decodeId(bytes: Value, blob: Blob): T;
+  encodeId(value: T, buffer: Id): undefined;
+  decodeId(buffer: Id): T;
   factory(): T;
 }
 

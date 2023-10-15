@@ -1,13 +1,18 @@
-function rgbaEncoder({ r = 0, g = 0, b = 0, a = 1 }, buff) {
+import { Schema } from "../schemas.ts";
+import { Value, Blob, LazyBlob } from "../trible.ts";
+
+type RGBA = {r: number, g: number, b: number, a: number};
+
+function encodeValue({ r = 0, g = 0, b = 0, a = 1 }, buff: Value): Blob | undefined {
   const view = new DataView(buff.buffer, buff.byteOffset, buff.byteLength);
   view.setFloat64(0, a);
   view.setFloat64(8, r);
   view.setFloat64(16, g);
   view.setFloat64(24, b);
-  return null;
+  return undefined;
 }
 
-function rgbaDecoder(buff, blob) {
+function decodeValue(buff: Value, _blob: LazyBlob): RGBA {
   const view = new DataView(buff.buffer, buff.byteOffset, buff.byteLength);
   const a = view.getFloat64(0);
   const r = view.getFloat64(8);
@@ -17,7 +22,7 @@ function rgbaDecoder(buff, blob) {
   return { r, g, b, a };
 }
 
-export const schema = {
-  encoder: rgbaEncoder,
-  decoder: rgbaDecoder,
+export const schema: Schema<RGBA> = {
+  encodeValue,
+  decodeValue,
 };

@@ -1,5 +1,6 @@
 import { FixedUint8Array, fixedUint8Array } from "../util.ts";
-import { VALUE_SIZE, ID_SIZE } from "../trible.ts";
+import { VALUE_SIZE, ID_SIZE, Id, Value, Blob, LazyBlob } from "../trible.ts";
+import { IdSchema } from "../schemas.ts";
 
 export class UFOID {
   data: FixedUint8Array<16>;
@@ -21,7 +22,7 @@ export class UFOID {
     return new UFOID(data);
   }
 
-  static fromValue(b: FixedUint8Array<typeof VALUE_SIZE>): UFOID {
+  static fromValue(b: Value): UFOID {
     const a = new Uint32Array(b.buffer, b.byteOffset, 8);
     if (
       a[0] !== 0 ||
@@ -34,10 +35,10 @@ export class UFOID {
     if (a[4] === 0 && a[5] === 0 && a[6] === 0 && a[7] === 0) {
       throw Error("invalid ufoid: all zero (NIL) ufoid is not a valid value");
     }
-    return new UFOID(b.slice(16, 32) as FixedUint8Array<typeof ID_SIZE>);
+    return new UFOID(b.slice(16, 32) as Id);
   }
 
-  static fromId(b: FixedUint8Array<typeof ID_SIZE>): UFOID {
+  static fromId(b: Id): UFOID {
     const a = new Uint32Array(b.buffer, b.byteOffset, 4);
     if (a[0] === 0 && a[1] === 0 && a[2] === 0 && a[3] === 0) {
       throw Error("invalid ufoid: all zero (NIL) ufoid is not a valid value");
@@ -63,12 +64,12 @@ export class UFOID {
     return new Uint32Array(this.data.buffer, 0, 4);
   }
 
-  toId(b: FixedUint8Array<typeof ID_SIZE> = fixedUint8Array(ID_SIZE)): FixedUint8Array<typeof ID_SIZE> {
+  toId(b: Id = fixedUint8Array(ID_SIZE)): Id {
     b.set(this.data);
     return b;
   }
 
-  toValue(b: FixedUint8Array<typeof VALUE_SIZE> = fixedUint8Array(VALUE_SIZE)): FixedUint8Array<typeof VALUE_SIZE> {
+  toValue(b: Value = fixedUint8Array(VALUE_SIZE)): Value {
     b.subarray(0, 16).fill(0);
     b.subarray(16, 32).set(this.data);
     return b;
@@ -76,21 +77,20 @@ export class UFOID {
 }
 
 // Schema
-function encodeValue(v: UFOID, b: FixedUint8Array<typeof VALUE_SIZE>): Uint8Array | undefined {
+function encodeValue(v: UFOID, b: Value): Blob | undefined {
   v.toValue(b);
   return undefined;
 }
 
-function decodeValue(b: FixedUint8Array<typeof VALUE_SIZE>, _blob: Uint8Array | undefined) {
+function decodeValue(b: Value, _blob: LazyBlob) {
   return UFOID.fromValue(b);
 }
 
-function encodeId(v: UFOID, b: FixedUint8Array<typeof ID_SIZE>): undefined {
+function encodeId(v: UFOID, b: Id): undefined {
   v.toId(b);
-  return undefined;
 }
 
-function decodeId(b: FixedUint8Array<typeof ID_SIZE>, _blob: undefined) {
+function decodeId(b: Id): UFOID {
   return UFOID.fromId(b);
 }
 
@@ -98,7 +98,7 @@ function factory(): UFOID {
   return UFOID.now();
 }
 
-export const schema = {
+export const schema: IdSchema<UFOID> = {
   encodeValue,
   decodeValue,
   encodeId,
