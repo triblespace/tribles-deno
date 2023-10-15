@@ -15,7 +15,7 @@ type Spacetimestamp = {
 };
 
 function encodeValue(v: Spacetimestamp, b: Value): Blob | undefined {
-  const { t = 0, x = 0, y = 0, z = 0 } = v;
+  const { t = 0n, x = 0n, y = 0n, z = 0n } = v;
   if (t > 0xffffffffffffffffn) {
     throw Error(
       "Error encoding spacetimestamp: Not in valid range: 0 <= t <= 2^64-1.",
