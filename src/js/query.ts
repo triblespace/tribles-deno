@@ -316,7 +316,8 @@ type QueryFn = (ctx: VariableContext, namedVars: { [name: string]: Variable<unkn
  * @param postprocessing - A function that maps over the query results and coverts them to usable values.
  * @returns Enumerates possible variable assignments satisfying the input query.
  */
-export function find(queryfn: QueryFn, postprocessing: PostProcessing<unknown> = decodeWithBlobcache): Query<unknown> {
+// deno-lint-ignore no-explicit-any
+export function find(queryfn: QueryFn, postprocessing: PostProcessing<any> = decodeWithBlobcache): Query<any> {
   const ctx = new VariableContext();
   const queryConstraint = queryfn(ctx, ctx.namedVars(), ctx.anonVars());
   return new Query(ctx, queryConstraint, postprocessing);

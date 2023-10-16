@@ -6,6 +6,7 @@ import { blake3 } from "./wasm.js";
 import { NS } from "./namespace.ts";
 import { FixedUint8Array } from "./util.ts";
 import { KB } from "./kb.ts";
+import { find } from "./query.ts";
 
 //
 // The payload consists of both the data and metadata trible
@@ -55,13 +56,13 @@ const BLAKE3_VERIFICATION = UFOID.now();
 const verificationMethodId = UFOID.now();
 
 const commitNS = new NS({
-  [id]: { ...schemas.ufoid },
-  verificationMethod: { id: verificationMethodId, ...schemas.ufoid },
-  group: { id: commitGroupId, ...schemas.ufoid },
-  segment: { id: commitSegmentId, ...schemas.subrange },
-  createdAt: { id: creationStampId, ...schemas.geostamp },
-  shortMessage: { id: shortMessageId, ...schemas.shortstring },
-  message: { id: messageId, ...schemas.longstring },
+  [id]: schemas.ufoid,
+  verificationMethod: { id: verificationMethodId, schema: schemas.ufoid },
+  group: { id: commitGroupId, schema: schemas.ufoid },
+  segment: { id: commitSegmentId, schema: schemas.subrange },
+  createdAt: { id: creationStampId, schema: schemas.geostamp },
+  shortMessage: { id: shortMessageId, schema: schemas.shortstring },
+  message: { id: messageId, schema: schemas.longstring },
   authoredBy: { id: authoredById, isLink: true },
 });
 
@@ -101,7 +102,10 @@ export class Commit {
 
     const metaId = new UFOID(capstone.slice(0, 16) as FixedUint8Array<16>);
 
-    const { verificationMethod } = commitNS.walk(kb, metaId);
+    const [{ verificationMethod }] = find((ctx, {verificationMethod}) =>
+      commitNS.pattern(ctx, kb,
+        {[id]: metaId,
+        verificationMethod}));
     if (!verificationMethod) {
       throw Error("failed to deserialize: no verification method specified");
     }

@@ -1,4 +1,4 @@
-import { find, Variable } from "./query.ts";
+import { find, Variable, VariableContext } from "./query.ts";
 import { and } from "./constraints/and.ts";
 import { indexed } from "./constraints/indexed.ts";
 import { masked } from "./constraints/masked.ts";
@@ -6,7 +6,7 @@ import { A, E, equalValue, TRIBLE_SIZE, V, Value, VALUE_SIZE } from "./trible.ts
 import { batch, batch, emptyValuePATCH, Entry, naturalOrder, PATCH, singleSegment } from "./patch.ts";
 import { KB } from "./kb.ts";
 import { IdSchema, Schema } from "./schemas.ts";
-import { fixedUint8Array } from "./util.ts";
+import { assert, fixedUint8Array } from "./util.ts";
 
 export const id = Symbol("id");
 
@@ -33,91 +33,86 @@ class IDSequence<T> {
   }
 }
 
-type AttributeDescription<Id> = {id: Id, schema: Schema<unknown>, isLink?: false, isMany?: boolean, isInverse?: false}
-                          | {id: Id, isLink: true, isMany?: boolean, isInverse?: boolean};
+type IfEquals<T, U, Y=unknown, N=never> =
+  (<G>() => G extends T ? 1 : 2) extends
+  (<G>() => G extends U ? 1 : 2) ? Y : N;
 
-type CompiledAttributeDescription<Id> = AttributeDescription<Id> & {encodedId: Value, name: string};
+type AttributeDescription<Id, T> = {id: Id, schema: Schema<T>};
 
-type NSDeclaration<Id> = {[id]: {schema: IdSchema<Id>},
-                          string: AttributeDescription<Id>};
+type CompiledAttributeDescription<Id, T> = AttributeDescription<Id, T> & {encodedId: Value, name: string, isLink: boolean};
 
-export class NS<Id> {
-  constructor(decl: NSDeclaration<Id>) {
-    const attributes = new Map(); // attribute name -> attribute description
-    // non inverse attribute id -> [attribute description]
-    let forwardAttributeIndex = emptyValuePATCH as PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, CompiledAttributeDescription<Id> & {isInverse?: false}>;
-    // inverse attribute id -> [attribute description],
-    let inverseAttributeIndex = emptyValuePATCH as PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, CompiledAttributeDescription<Id> & {isInverse?: false}>;
+// deno-lint-ignore no-explicit-any
+type NSDeclaration<Id> = {[index: string]: AttributeDescription<Id, any>};
+
+// deno-lint-ignore no-explicit-any
+type SchemaT<S extends Schema<any>> = S extends Schema<infer T> ? T : unknown;
+
+// deno-lint-ignore no-explicit-any
+type AttrByName<Id> = {[index: string]: CompiledAttributeDescription<Id, any>};
+
+type Triple<Id, Decl extends NSDeclaration<Id>> =
+  {[Name in keyof Decl]: [Id | Variable<Id>, Name, Variable<SchemaT<Decl[Name]["schema"]>> | SchemaT<Decl[Name]["schema"]>]}[keyof Decl];
+
+type EntityDescription<Id, Decl extends NSDeclaration<Id>> = 
+  {[id]?: Id} &
+  {
+    [Name in keyof Decl]+?: IfEquals<SchemaT<Decl[Name]["schema"]>,
+      Id,SchemaT<Decl[Name]["schema"]>,
+      EntityDescription<Id, Decl>>;
+  };
+
+export class NS<Id, Decl extends NSDeclaration<Id>> {
+  idSchema: IdSchema<Id>;
+  byName: AttrByName<Id>;
+  // deno-lint-ignore no-explicit-any
+  byId: PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, CompiledAttributeDescription<Id, any>[]>; 
+  constructor(idSchema: IdSchema<Id>, decl: Decl) {
+    // attribute name -> attribute description
+    // deno-lint-ignore no-explicit-any
+    const byName: {[index: string]: CompiledAttributeDescription<Id, any>} = {};
+    // attribute id -> [attribute description]
+    // deno-lint-ignore no-explicit-any
+    let byId = emptyValuePATCH as PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, CompiledAttributeDescription<Id, any>[]>;
 
     const b = batch();
 
-    const idDescription = decl[id];
-    if (!idDescription) {
-      throw Error(`Incomplete namespace: Missing [id] field.`);
-    }
-    if (!idDescription.schema) {
-      throw Error(`Incomplete namespace: Missing [id] schema.`);
-    }
-
     for (const [attributeName, attributeDescription] of Object.entries(decl)) {
-      if (attributeDescription.isInverse && !attributeDescription.isLink) {
-        throw Error(
-          `Bad options in namespace attribute ${attributeName}:
-                Only links can be inverse.`,
-        );
-      }
-      if (!attributeDescription.isLink && !attributeDescription.schema) {
+      if (!attributeDescription.schema) {
         throw Error(
           `Missing schema in namespace for attribute ${attributeName}.`,
         );
       }
       const encodedId = fixedUint8Array(VALUE_SIZE);
-      idDescription.schema.encodeValue(attributeDescription.id, encodedId);
+      idSchema.encodeValue(attributeDescription.id, encodedId);
       const description = {
         ...attributeDescription,
         encodedId,
         name: attributeName,
+        isLink: idSchema === attributeDescription.schema
       };
-      attributes.set(attributeName, description);
-      if (description.isInverse) {
-        inverseAttributeIndex = inverseAttributeIndex.put(b,
-          new Entry(description.encodedId, [
-              ...(inverseAttributeIndex.get(description.encodedId) || []),
-              description,
-            ]));
-      } else {
-        forwardAttributeIndex = forwardAttributeIndex.put(b,
-          new Entry(description.encodedId,
-            [
-              ...(forwardAttributeIndex.get(description.encodedId) || []),
-              description,
-            ]));
-      }
+      byName[attributeName] = description;
+      const byIdAttributes = byId.get(description.encodedId) || [];
+      byIdAttributes.push(description);
+      byId = byId.put(b, new Entry(description.encodedId, byIdAttributes));
     }
 
-    for (const [_, attributeDescription] of attributes) {
-      if (attributeDescription.isLink) {
-        attributeDescription.schema = idDescription.schema;
-      }
-    }
-
-    this.ids = idDescription;
-    this.attributes = attributes;
-    this.forwardAttributeIndex = forwardAttributeIndex;
-    this.inverseAttributeIndex = inverseAttributeIndex;
+    this.idSchema = idSchema;
+    this.byName = byName;
+    this.byId = byId;
   }
 
   *entityToTriples(
-    unknowns,
-    parentId,
-    parentAttributeName,
-    entity,
+    out: Triple<Id, Decl>[],
+    unknowns: Iterator<Id | Variable<Id>>,
+    parent: Id | Variable<Id> | undefined,
+    parentAttributeName: string | undefined,
+    entityDescription: EntityDescription<Id, Decl>,
   ) {
-    const entityId = entity[id] || unknowns.next().value;
-    if (parentId !== null) {
-      yield [parentId, parentAttributeName, entityId];
+    const entity = entityDescription[id] || unknowns.next().value;
+    if (parent !== undefined) {
+      yield [parent, parentAttributeName, entity];
     }
-    for (const [attributeName, value] of Object.entries(entity)) {
+    for (const [attributeName, value] of Object.entries(entityDescription)) {
       const attributeDescription = this.attributes.get(attributeName);
       assert(
         attributeDescription,
@@ -127,42 +122,40 @@ export class NS<Id> {
         for (const v of value) {
           if (attributeDescription.isLink && isPojo(v)) {
             yield* this.entityToTriples(
+              out,
               unknowns,
-              entityId,
+              entity,
               attributeName,
               v,
             );
           } else {
-            if (attributeDescription.isInverse) {
-              yield [v, attributeName, entityId];
-            } else {
-              yield [entityId, attributeName, v];
-            }
+            yield [entity, attributeName, v];
           }
         }
       } else {
         if (attributeDescription.isLink && isPojo(value)) {
           yield* this.entityToTriples(
+            out,
             unknowns,
-            entityId,
+            entity,
             attributeName,
             value,
           );
         } else {
-          if (attributeDescription.isInverse) {
-            yield [value, attributeName, entityId];
-          } else {
-            yield [entityId, attributeName, value];
-          }
+          yield [entity, attributeName, value];
         }
       }
     }
   }
 
-  *entitiesToTriples(unknowns, entities) {
+  entitiesToTriples(unknowns: Iterator<Id, Variable<Id>>, entities: EntityDescription<Id, Decl>[]): Triple<Id, Decl>[] {
+    const triples: Triple<Id, Decl>[] = [];
+
     for (const entity of entities) {
-      yield* this.entityToTriples(unknowns, null, null, entity);
+      this.entityToTriples(triples, unknowns, undefined, undefined, entity);
     }
+
+    return triples;
   }
 
   triplesToTribles(triples) {
@@ -196,7 +189,7 @@ export class NS<Id> {
     return { tribles, blobs };
   }
 
-  triplesToPattern(ctx, triples) {
+  triplesToPattern(ctx, triples): [Variable<unknown>, Variable<unknown>, Variable<unknown>][] {
     const { encoder: idEncoder } = this.ids;
     const pattern = [];
     const constraints = [];
@@ -272,7 +265,8 @@ export class NS<Id> {
     return new KB(newTribleSet, newBlobCache);
   }
 
-  pattern(ctx, source, entities) {
+  // deno-lint-ignore no-explicit-any
+  pattern(ctx: VariableContext, source: KB, entities: any) {
     const triples = this.entitiesToTriples(
       ctx.anonVars(),
       entities,
