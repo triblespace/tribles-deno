@@ -146,7 +146,8 @@ export class Variable<T> {
   /**
    * Associates this variable with a type, e.g. a decoder and encoder.
    */
-  typed(schema: Schema<T>) {
+  // deno-lint-ignore no-explicit-any
+  typed(schema: Schema<any>): Variable<T> {
     this.schema = schema;
     return this;
   }
@@ -245,7 +246,7 @@ export class VariableContext {
     return new Proxy(
       {},
       {
-        get: (_, name) => {
+        get: (_, name: string) => {
           return this.namedVar(name);
         },
       },

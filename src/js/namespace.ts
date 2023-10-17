@@ -1,12 +1,10 @@
-import { find, Variable, VariableContext } from "./query.ts";
+import { Variable, VariableContext } from "./query.ts";
 import { and } from "./constraints/and.ts";
-import { indexed } from "./constraints/indexed.ts";
-import { masked } from "./constraints/masked.ts";
-import { A, E, equalValue, TRIBLE_SIZE, V, Value, VALUE_SIZE } from "./trible.ts";
-import { batch, batch, emptyValuePATCH, Entry, naturalOrder, PATCH, singleSegment } from "./patch.ts";
+import { A, E, Trible, TRIBLE_SIZE, V, Value, Blob, VALUE_SIZE } from "./trible.ts";
 import { KB } from "./kb.ts";
 import { IdSchema, Schema } from "./schemas.ts";
-import { assert, fixedUint8Array } from "./util.ts";
+import { fixedUint8Array } from "./util.ts";
+import { Constraint } from "./constraints/constraint.ts";
 
 export const id = Symbol("id");
 
@@ -33,148 +31,71 @@ class IDSequence<T> {
   }
 }
 
-type IfEquals<T, U, Y=unknown, N=never> =
-  (<G>() => G extends T ? 1 : 2) extends
-  (<G>() => G extends U ? 1 : 2) ? Y : N;
-
 type AttributeDescription<Id, T> = {id: Id, schema: Schema<T>};
-
-type CompiledAttributeDescription<Id, T> = AttributeDescription<Id, T> & {encodedId: Value, name: string, isLink: boolean};
 
 // deno-lint-ignore no-explicit-any
 type NSDeclaration<Id> = {[index: string]: AttributeDescription<Id, any>};
 
 // deno-lint-ignore no-explicit-any
-type SchemaT<S extends Schema<any>> = S extends Schema<infer T> ? T : unknown;
+type SchemaT<S extends Schema<any>> = S extends Schema<infer T> ? T : never;
 
-// deno-lint-ignore no-explicit-any
-type AttrByName<Id> = {[index: string]: CompiledAttributeDescription<Id, any>};
+type VariableOrValue<Vars extends false | true, T> = Vars extends true ? Variable<T> | T : T;
 
-type Triple<Id, Decl extends NSDeclaration<Id>> =
-  {[Name in keyof Decl]: [Id | Variable<Id>, Name, Variable<SchemaT<Decl[Name]["schema"]>> | SchemaT<Decl[Name]["schema"]>]}[keyof Decl];
+type Unknowns<Vars, Id> = Iterator<Vars extends true? Variable<Id> : Id>;
 
-type EntityDescription<Id, Decl extends NSDeclaration<Id>> = 
-  {[id]?: Id} &
-  {
-    [Name in keyof Decl]+?: IfEquals<SchemaT<Decl[Name]["schema"]>,
-      Id,SchemaT<Decl[Name]["schema"]>,
-      EntityDescription<Id, Decl>>;
-  };
+type Triple<Vars extends boolean, Id, Decl extends NSDeclaration<Id>> =
+  {[Name in keyof Decl]: [VariableOrValue<Vars, Id>, Name & string, VariableOrValue<Vars, SchemaT<Decl[Name]["schema"]>>]}[keyof Decl];
+
+type EntityDescription<Vars extends boolean, Id, Decl extends NSDeclaration<Id>> = 
+  {[id]?: Id} & {[Name in keyof Decl]+?: VariableOrValue<Vars, SchemaT<Decl[Name]["schema"]>>};
 
 export class NS<Id, Decl extends NSDeclaration<Id>> {
-  idSchema: IdSchema<Id>;
-  byName: AttrByName<Id>;
-  // deno-lint-ignore no-explicit-any
-  byId: PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, CompiledAttributeDescription<Id, any>[]>; 
-  constructor(idSchema: IdSchema<Id>, decl: Decl) {
-    // attribute name -> attribute description
-    // deno-lint-ignore no-explicit-any
-    const byName: {[index: string]: CompiledAttributeDescription<Id, any>} = {};
-    // attribute id -> [attribute description]
-    // deno-lint-ignore no-explicit-any
-    let byId = emptyValuePATCH as PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, CompiledAttributeDescription<Id, any>[]>;
-
-    const b = batch();
-
-    for (const [attributeName, attributeDescription] of Object.entries(decl)) {
-      if (!attributeDescription.schema) {
-        throw Error(
-          `Missing schema in namespace for attribute ${attributeName}.`,
-        );
-      }
-      const encodedId = fixedUint8Array(VALUE_SIZE);
-      idSchema.encodeValue(attributeDescription.id, encodedId);
-      const description = {
-        ...attributeDescription,
-        encodedId,
-        name: attributeName,
-        isLink: idSchema === attributeDescription.schema
-      };
-      byName[attributeName] = description;
-      const byIdAttributes = byId.get(description.encodedId) || [];
-      byIdAttributes.push(description);
-      byId = byId.put(b, new Entry(description.encodedId, byIdAttributes));
-    }
-
-    this.idSchema = idSchema;
-    this.byName = byName;
-    this.byId = byId;
+  id: IdSchema<Id>;
+  attributes: Decl;
+  constructor(id: IdSchema<Id>, attributes: Decl) {
+    this.id = id;
+    this.attributes = attributes;
   }
 
-  *entityToTriples(
-    out: Triple<Id, Decl>[],
-    unknowns: Iterator<Id | Variable<Id>>,
-    parent: Id | Variable<Id> | undefined,
-    parentAttributeName: string | undefined,
-    entityDescription: EntityDescription<Id, Decl>,
+  entityToTriples<Vars extends boolean>(
+    out: Triple<Vars, Id, Decl>[],
+    unknowns: Unknowns<Vars, Id>,
+    entityDescription: EntityDescription<Vars, Id, Decl>,
   ) {
-    const entity = entityDescription[id] || unknowns.next().value;
-    if (parent !== undefined) {
-      yield [parent, parentAttributeName, entity];
-    }
-    for (const [attributeName, value] of Object.entries(entityDescription)) {
-      const attributeDescription = this.attributes.get(attributeName);
-      assert(
-        attributeDescription,
-        `No attribute named '${attributeName}' in namespace.`,
-      );
-      if (attributeDescription.isMany) {
-        for (const v of value) {
-          if (attributeDescription.isLink && isPojo(v)) {
-            yield* this.entityToTriples(
-              out,
-              unknowns,
-              entity,
-              attributeName,
-              v,
-            );
-          } else {
-            yield [entity, attributeName, v];
-          }
-        }
-      } else {
-        if (attributeDescription.isLink && isPojo(value)) {
-          yield* this.entityToTriples(
-            out,
-            unknowns,
-            entity,
-            attributeName,
-            value,
-          );
-        } else {
-          yield [entity, attributeName, value];
-        }
+    const entity: VariableOrValue<Vars, Id> = entityDescription[id] || unknowns.next().value;
+    for (const entry of Object.entries(entityDescription)) {
+      const attributeName: keyof Decl & string = entry[0];
+      const value = entry[1];
+      if(value !== undefined) {
+        const triple: Triple<Vars, Id, Decl> = [entity, attributeName, value];
+        out.push(triple);
       }
     }
   }
 
-  entitiesToTriples(unknowns: Iterator<Id, Variable<Id>>, entities: EntityDescription<Id, Decl>[]): Triple<Id, Decl>[] {
-    const triples: Triple<Id, Decl>[] = [];
+  entitiesToTriples<Vars extends boolean>(unknowns: Unknowns<Vars, Id>, entities: EntityDescription<Vars, Id, Decl>[]): Triple<Vars, Id, Decl>[] {
+    const triples: Triple<Vars, Id, Decl>[] = [];
 
     for (const entity of entities) {
-      this.entityToTriples(triples, unknowns, undefined, undefined, entity);
+      this.entityToTriples(triples, unknowns, entity);
     }
 
     return triples;
   }
 
-  triplesToTribles(triples) {
+  triplesToTribles(triples: Triple<false, Id, Decl>[]): {tribles: Trible[], blobs: [Trible, Blob][]} {
     const tribles = [];
-    const blobs = [];
-    const { encoder: idEncoder } = this.ids;
+    const blobs:[Trible, Blob][]  = [];
     for (const [e, a, v] of triples) {
-      const attributeDescription = this.attributes.get(a);
+      const attributeDescription = this.attributes[a];
 
-      const trible = new Uint8Array(TRIBLE_SIZE);
-      const eb = new Uint8Array(VALUE_SIZE);
-      idEncoder(e, eb);
-      E(trible).set(eb.subarray(16, 32));
-      A(trible).set(attributeDescription.encodedId.subarray(16, 32));
-      const encodedValue = V(trible);
+      const trible = fixedUint8Array(TRIBLE_SIZE);
+      this.id.encodeId(e, E(trible));
+      this.id.encodeId(attributeDescription.id, A(trible));
+      
       let blob;
-      const encoder = attributeDescription.encoder;
       try {
-        blob = encoder(v, encodedValue);
+        blob = attributeDescription.schema.encodeValue(v, V(trible));
       } catch (err) {
         throw Error(
           `Couldn't encode '${v}' as value for attribute '${a}':\n${err}`,
@@ -189,40 +110,44 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
     return { tribles, blobs };
   }
 
-  triplesToPattern(ctx, triples): [Variable<unknown>, Variable<unknown>, Variable<unknown>][] {
-    const { encoder: idEncoder } = this.ids;
+  triplesToPattern(ctx: VariableContext, triples: Triple<true, Id, Decl>[]): 
+  {pattern: [Variable<Id>, Variable<Id>, Variable<any>][],
+   constraints: Constraint} {
     const pattern = [];
     const constraints = [];
     for (const [e, a, v] of triples) {
-      const attributeDescription = this.attributes.get(a);
-      let eVar;
-      let aVar;
-      let vVar;
+      const attributeDescription = this.attributes[a];
 
       // Entity
+      let eVar;
       if (e instanceof Variable) {
-        eVar = e.typed(this.ids);
+        eVar = e.typed(this.id);
       } else {
-        const eb = new Uint8Array(VALUE_SIZE);
-        idEncoder(e, eb);
-        eVar = ctx.constantVar(eb);
+        const eb = fixedUint8Array(VALUE_SIZE);
+        this.id.encodeValue(e, eb);
+        eVar = ctx.anonVar().typed(this.id);
+        constraints.push(eVar.is(eb));
       }
 
       // Attribute
-      aVar = ctx.constantVar(attributeDescription.encodedId);
+      const ab = fixedUint8Array(VALUE_SIZE);
+      this.id.encodeValue(attributeDescription.id, ab);
+      const aVar = ctx.anonVar().typed(this.id);
+      constraints.push(aVar.is(ab));
 
       // Value
+      let vVar;
       if (v instanceof Variable) {
-        vVar = v.typed(attributeDescription);
+        vVar = v.typed(attributeDescription.schema);
       } else {
-        const encoder = attributeDescription.encoder;
-        const vb = new Uint8Array(VALUE_SIZE);
+        const vb = fixedUint8Array(VALUE_SIZE);
         try {
-          encoder(v, vb);
+          attributeDescription.schema.encodeValue(v, vb);
         } catch (error) {
           throw Error(`Error encoding value: ${error.message}`);
         }
-        vVar = ctx.constantVar(vb);
+        vVar = ctx.anonVar();
+        constraints.push(vVar.is(vb));
       }
       pattern.push([eVar, aVar, vVar]);
     }
