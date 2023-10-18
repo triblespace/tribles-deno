@@ -41,7 +41,7 @@ type SchemaT<S extends Schema<any>> = S extends Schema<infer T> ? T : never;
 
 type VariableOrValue<Vars extends false | true, T> = Vars extends true ? Variable<T> | T : T;
 
-type Unknowns<Vars, Id> = Iterator<Vars extends true? Id | Variable<Id> : Id>;
+type Unknowns<Vars, T> = Iterator<Vars extends true? T | Variable<T> : T>;
 
 type Triple<Vars extends boolean, Id, Decl extends NSDeclaration<Id>> =
   {[Name in keyof Decl]: [VariableOrValue<Vars, Id>, Name & string, VariableOrValue<Vars, SchemaT<Decl[Name]["schema"]>>]}[keyof Decl];
@@ -59,7 +59,7 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
 
   entityToTriples<Vars extends boolean>(
     out: Triple<Vars, Id, Decl>[],
-    unknowns: Unknowns<Vars, Id>,
+    unknowns: Unknowns<Vars, unknown>,
     entityDescription: EntityDescription<Vars, Id, Decl>,
   ) {
     const entity: VariableOrValue<Vars, Id> = entityDescription[id] || unknowns.next().value;
@@ -73,7 +73,7 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
     }
   }
 
-  entitiesToTriples<Vars extends boolean>(unknowns: Unknowns<Vars, Id>, entities: EntityDescription<Vars, Id, Decl>[]): Triple<Vars, Id, Decl>[] {
+  entitiesToTriples<Vars extends boolean>(unknowns: Unknowns<Vars, unknown>, entities: EntityDescription<Vars, Id, Decl>[]): Triple<Vars, Id, Decl>[] {
     const triples: Triple<Vars, Id, Decl>[] = [];
 
     for (const entity of entities) {
@@ -193,7 +193,7 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
     return new KB(newTribleSet, newBlobCache);
   }
 
-  pattern(ctx: VariableContext, source: KB, entities: (unknowns: Iterator<Variable<unknown>>) => EntityDescription<true, Id, Decl>[]) {
+  pattern(ctx: VariableContext, source: KB, entities: EntityDescription<true, Id, Decl>[]) {
     const triples = this.entitiesToTriples(
       ctx.anonVars(),
       entities,

@@ -24,7 +24,7 @@ export class KB {
    * @param pattern - A function/generator returning/yielding a pattern of triples to be matched.
    * @returns - A constraint that can be used in a `find` call.
    */
-  patternConstraint(pattern: [Variable<unknown>, Variable<unknown>, Variable<unknown>][]): Constraint {
+  patternConstraint<Id, Decl>(pattern: (readonly [Variable<Id>, Variable<Id>, Variable<unknown>])[]): Constraint {
     for (const [_e, _a, v] of pattern) {
       v.proposeBlobCache(this.blobcache);
     }
