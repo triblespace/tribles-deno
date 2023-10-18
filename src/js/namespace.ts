@@ -16,7 +16,7 @@ const isPojo = (obj: any): boolean => {
   return Object.getPrototypeOf(obj) === Object.prototype;
 };
 
-class IDSequence<T> {
+class IDSequence<T> implements Iterator<T> {
   schema: IdSchema<T>;
 
   constructor(schema: IdSchema<T>) {
@@ -41,7 +41,7 @@ type SchemaT<S extends Schema<any>> = S extends Schema<infer T> ? T : never;
 
 type VariableOrValue<Vars extends false | true, T> = Vars extends true ? Variable<T> | T : T;
 
-type Unknowns<Vars, Id> = Iterator<Vars extends true? Variable<Id> : Id>;
+type Unknowns<Vars, Id> = Iterator<Vars extends true? Id | Variable<Id> : Id>;
 
 type Triple<Vars extends boolean, Id, Decl extends NSDeclaration<Id>> =
   {[Name in keyof Decl]: [VariableOrValue<Vars, Id>, Name & string, VariableOrValue<Vars, SchemaT<Decl[Name]["schema"]>>]}[keyof Decl];
@@ -50,10 +50,10 @@ type EntityDescription<Vars extends boolean, Id, Decl extends NSDeclaration<Id>>
   {[id]?: Id} & {[Name in keyof Decl]+?: VariableOrValue<Vars, SchemaT<Decl[Name]["schema"]>>};
 
 export class NS<Id, Decl extends NSDeclaration<Id>> {
-  id: IdSchema<Id>;
+  ids: IdSchema<Id>;
   attributes: Decl;
   constructor(id: IdSchema<Id>, attributes: Decl) {
-    this.id = id;
+    this.ids = id;
     this.attributes = attributes;
   }
 
@@ -90,8 +90,8 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
       const attributeDescription = this.attributes[a];
 
       const trible = fixedUint8Array(TRIBLE_SIZE);
-      this.id.encodeId(e, E(trible));
-      this.id.encodeId(attributeDescription.id, A(trible));
+      this.ids.encodeId(e, E(trible));
+      this.ids.encodeId(attributeDescription.id, A(trible));
       
       let blob;
       try {
@@ -110,33 +110,35 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
     return { tribles, blobs };
   }
 
-  triplesToPattern(ctx: VariableContext, triples: Triple<true, Id, Decl>[]): 
-  {pattern: [Variable<Id>, Variable<Id>, Variable<any>][],
-   constraints: Constraint} {
+  triplesToPattern(ctx: VariableContext, triples: readonly Triple<true, Id, Decl>[]): 
+  {pattern: (readonly [Variable<Id>, Variable<Id>, Variable<SchemaT<Decl[keyof Decl]["schema"]>>])[],
+   constraints: Constraint[]} {
     const pattern = [];
     const constraints = [];
     for (const [e, a, v] of triples) {
       const attributeDescription = this.attributes[a];
 
       // Entity
-      let eVar;
+      let eVar: Variable<Id>;
       if (e instanceof Variable) {
-        eVar = e.typed(this.id);
+        eVar = e.typed(this.ids);
       } else {
         const eb = fixedUint8Array(VALUE_SIZE);
-        this.id.encodeValue(e, eb);
-        eVar = ctx.anonVar().typed(this.id);
+        this.ids.encodeValue(e, eb);
+        eVar = ctx.anonVar();
+        eVar.typed(this.ids);
         constraints.push(eVar.is(eb));
       }
 
       // Attribute
       const ab = fixedUint8Array(VALUE_SIZE);
-      this.id.encodeValue(attributeDescription.id, ab);
-      const aVar = ctx.anonVar().typed(this.id);
+      this.ids.encodeValue(attributeDescription.id, ab);
+      const aVar: Variable<Id> = ctx.anonVar();
+      aVar.typed(this.ids);
       constraints.push(aVar.is(ab));
 
       // Value
-      let vVar;
+      let vVar: Variable<SchemaT<(typeof this.attributes[typeof a])["schema"]>>;
       if (v instanceof Variable) {
         vVar = v.typed(attributeDescription.schema);
       } else {
@@ -147,9 +149,10 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
           throw Error(`Error encoding value: ${error.message}`);
         }
         vVar = ctx.anonVar();
+        vVar.typed(this.attributes[a]["schema"]);
         constraints.push(vVar.is(vb));
       }
-      pattern.push([eVar, aVar, vVar]);
+      pattern.push([eVar, aVar, vVar] as const);
     }
 
     return { pattern, constraints };
@@ -173,11 +176,11 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
 
   /**
    * Converts the provided entities into tribles and blobs.
-   * @param {entityFunction | entityGenerator} entities - A function/generator returning/yielding entities.
-   * @returns {KB} A new KB with the entities.
+   * @param entities - A function/generator returning/yielding entities.
+   * @returns A new KB with the entities.
    */
-  entities(entities, kb = new KB()) {
-    const ids = new IDSequence(this.ids.factory);
+  entities(entities: (unknowns: Iterator<Id>) => EntityDescription<false, Id, Decl>[], kb: KB = new KB()): KB{
+    const ids = new IDSequence(this.ids);
     const createdEntities = entities(ids);
     const triples = this.entitiesToTriples(
       ids,
@@ -190,8 +193,7 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
     return new KB(newTribleSet, newBlobCache);
   }
 
-  // deno-lint-ignore no-explicit-any
-  pattern(ctx: VariableContext, source: KB, entities: any) {
+  pattern(ctx: VariableContext, source: KB, entities: (unknowns: Iterator<Variable<unknown>>) => EntityDescription<true, Id, Decl>[]) {
     const triples = this.entitiesToTriples(
       ctx.anonVars(),
       entities,

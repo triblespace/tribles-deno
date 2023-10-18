@@ -146,8 +146,7 @@ export class Variable<T> {
   /**
    * Associates this variable with a type, e.g. a decoder and encoder.
    */
-  // deno-lint-ignore no-explicit-any
-  typed(schema: Schema<any>): Variable<T> {
+  typed(schema: Schema<T>): Variable<T> {
     this.schema = schema;
     return this;
   }
@@ -209,8 +208,8 @@ export class VariableContext {
   }
 
   namedVar<T>(name: string): Variable<T> {
-    let variable = this.namedVariables.get(name);
-    if (variable) {
+    let variable: Variable<T> | undefined= this.namedVariables.get(name);
+    if (variable !== undefined) {
       return variable;
     }
     variable = new Variable(this, this.nextVariableIndex, name);
@@ -220,11 +219,8 @@ export class VariableContext {
     return variable;
   }
 
-  anonVar() {
-    const variable = new Variable(
-      this,
-      this.nextVariableIndex,
-    );
+  anonVar<T>(): Variable<T> {
+    const variable: Variable<T> = new Variable(this, this.nextVariableIndex);
     this.unnamedVariables.push(variable);
     this.variables.push(variable);
     this.nextVariableIndex++;
