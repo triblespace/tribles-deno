@@ -6,15 +6,7 @@ import { IdSchema, Schema } from "./schemas.ts";
 import { fixedUint8Array } from "./util.ts";
 import { Constraint } from "./constraints/constraint.ts";
 
-export const id = Symbol("id");
-
-// deno-lint-ignore no-explicit-any
-const isPojo = (obj: any): boolean => {
-  if (obj === null || typeof obj !== "object") {
-    return false;
-  }
-  return Object.getPrototypeOf(obj) === Object.prototype;
-};
+export const id: unique symbol = Symbol("id");
 
 class IDSequence<T> implements Iterator<T> {
   schema: IdSchema<T>;
@@ -41,7 +33,7 @@ type SchemaT<S extends Schema<any>> = S extends Schema<infer T> ? T : never;
 
 type VariableOrValue<Vars extends false | true, T> = Vars extends true ? Variable<T> | T : T;
 
-type Unknowns<Vars, T> = Iterator<Vars extends true? T | Variable<T> : T>;
+type Unknowns<Vars, T> = Iterable<Vars extends true? T | Variable<T> : T>;
 
 type Triple<Vars extends boolean, Id, Decl extends NSDeclaration<Id>> =
   {[Name in keyof Decl]: [VariableOrValue<Vars, Id>, Name & string, VariableOrValue<Vars, SchemaT<Decl[Name]["schema"]>>]}[keyof Decl];

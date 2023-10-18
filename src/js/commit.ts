@@ -55,16 +55,15 @@ const authoredById = UFOID.now();
 const BLAKE3_VERIFICATION = UFOID.now();
 const verificationMethodId = UFOID.now();
 
-const commitNS = new NS({
-  [id]: schemas.ufoid,
+const commitNS = new NS(schemas.ufoid, {
   verificationMethod: { id: verificationMethodId, schema: schemas.ufoid },
   group: { id: commitGroupId, schema: schemas.ufoid },
   segment: { id: commitSegmentId, schema: schemas.subrange },
   createdAt: { id: creationStampId, schema: schemas.geostamp },
   shortMessage: { id: shortMessageId, schema: schemas.shortstring },
   message: { id: messageId, schema: schemas.longstring },
-  authoredBy: { id: authoredById, isLink: true },
-});
+  authoredBy: { id: authoredById, schema: schemas.ufoid},
+} as const);
 
 const CAPSTONE_SIZE = 64;
 
@@ -104,8 +103,8 @@ export class Commit {
 
     const [{ verificationMethod }] = find((ctx, {verificationMethod}) =>
       commitNS.pattern(ctx, kb,
-        {[id]: metaId,
-        verificationMethod}));
+        [{[id]: metaId,
+          verificationMethod: verificationMethod}]));
     if (!verificationMethod) {
       throw Error("failed to deserialize: no verification method specified");
     }

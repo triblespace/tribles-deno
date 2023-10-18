@@ -16,8 +16,8 @@ export const UPPER_END = 16;
 export const LOWER_START = 16;
 export const LOWER_END = 32;
 
-export const UPPER = (value) => value.subarray(UPPER_START, UPPER_END);
-export const LOWER = (value) => value.subarray(LOWER_START, LOWER_END);
+export const UPPER = (value: Value) => value.subarray(UPPER_START, UPPER_END);
+export const LOWER = (value: Value) => value.subarray(LOWER_START, LOWER_END);
 
 /**
  * Assigns values to variables.
@@ -48,67 +48,6 @@ export class Binding {
 
   copy(): Binding {
     return new Binding(this.length, this.buffer.slice());
-  }
-}
-
-type PostProcessing<R> = (ctx: VariableContext, binding: Binding) => R;
-
-/**
- * A query represents the process of finding variable asignment
- * that satisfy the provided constraints.
- * A postprocessing function takes the raw binding of `UintArray(32)` values
- * and turns them into usable javascript types.
- */
-export class Query<R> {
-  ctx: VariableContext;
-  constraint: Constraint;
-  postprocessing: PostProcessing<R>;
-  variables: ByteBitset;
-
-  constructor(
-    ctx: VariableContext,
-    constraint: Constraint,
-    postprocessing: PostProcessing<R>,
-  ) {
-    this.ctx = ctx;
-    this.constraint = constraint;
-    this.postprocessing = postprocessing;
-
-    this.variables = constraint.variables();
-  }
-
-  *[Symbol.iterator]() {
-    for (const binding of this.bindAll(new Binding(this.variables.count()))) {
-      yield this.postprocessing(this.ctx, binding);
-    }
-  }
-
-  *bindAll(binding: Binding) {
-    const boundVariables = binding.bound();
-    let nextVariable;
-    let nextVariableCosts = Number.MAX_VALUE;
-
-    const unboundVariables = new ByteBitset().setSubtraction(
-      this.variables,
-      boundVariables,
-    );
-
-    for (const variable of unboundVariables.entries()) {
-      const costs = this.constraint.estimate(variable, binding);
-      if (costs <= nextVariableCosts) {
-        nextVariable = variable;
-        nextVariableCosts = costs;
-      }
-      if (nextVariableCosts <= 1) break;
-    }
-
-    if (nextVariable === undefined) {
-      yield binding;
-    } else {
-      for (const value of this.constraint.propose(nextVariable, binding)) {
-        yield* this.bindAll(binding.copy().set(nextVariable, value));
-      }
-    }
   }
 }
 
@@ -185,45 +124,37 @@ export class Variable<T> {
   }
 }
 
+// deno-lint-ignore no-explicit-any
+type NamedVars = { [name: string]: Variable<any>; };
+
 /**
  * Represents a collection of Variables used together, e.g. in a query.
  * Can be used to generate named an unnamed variables.
  */
 export class VariableContext {
-  nextVariableIndex: number;
   // deno-lint-ignore no-explicit-any
   variables: Variable<any>[];
-  // deno-lint-ignore no-explicit-any
-  unnamedVariables: Variable<any>[];
-  // deno-lint-ignore no-explicit-any
-  namedVariables: Map<string, Variable<any>> = new Map();
-  constantVariables: typeof emptyValuePATCH;
+  namedVariables: NamedVars = {};
 
   constructor() {
-    this.nextVariableIndex = 0;
     this.variables = [];
-    this.unnamedVariables = [];
-    this.namedVariables = new Map();
-    this.constantVariables = emptyValuePATCH;
+    this.namedVariables = {};
   }
 
   namedVar<T>(name: string): Variable<T> {
-    let variable: Variable<T> | undefined= this.namedVariables.get(name);
+    let variable: Variable<T> | undefined = this.namedVariables[name];
     if (variable !== undefined) {
       return variable;
     }
-    variable = new Variable(this, this.nextVariableIndex, name);
-    this.namedVariables.set(name, variable);
+    variable = new Variable(this, this.variables.length, name);
+    this.namedVariables[name] = variable;
     this.variables.push(variable);
-    this.nextVariableIndex++;
     return variable;
   }
 
   anonVar<T>(): Variable<T> {
-    const variable: Variable<T> = new Variable(this, this.nextVariableIndex);
-    this.unnamedVariables.push(variable);
+    const variable: Variable<T> = new Variable(this, this.variables.length);
     this.variables.push(variable);
-    this.nextVariableIndex++;
     return variable;
   }
 
@@ -238,7 +169,7 @@ export class VariableContext {
    * const {named1, named2} = context.namedVars();
    * ```
    */
-  namedVars() {
+  namedVars(): NamedVars {
     return new Proxy(
       {},
       {
@@ -259,10 +190,13 @@ export class VariableContext {
    * const [anon1, anon2] = context.anonVars();
    * ```
    */
-  anonVars() {
+  // deno-lint-ignore no-explicit-any
+  anonVars(): Iterable<Variable<any>> {
     // deno-lint-ignore no-this-alias
     const self = this;
-    return {
+    // deno-lint-ignore no-explicit-any
+    const iter: Iterable<Variable<any>> & Iterator<Variable<any>> =
+    {
       [Symbol.iterator]() {
         return this;
       },
@@ -270,34 +204,93 @@ export class VariableContext {
         return { value: self.anonVar() };
       },
     };
+
+    return iter;
   }
 }
 
+// deno-lint-ignore no-explicit-any
+type VariableT<V extends Variable<any>> = V extends Variable<infer T> ? T : never;
+type Results<V extends NamedVars> = {[K in keyof V]: VariableT<V[K]>};
+
 /**
- * Decodes the passed bindings based on the types associated with the passed variables.
- * Uses the blobcache proposed to individual variables when their type has associated blobs.
+ * A query represents the process of finding variable asignment
+ * that satisfy the provided constraints.
  */
-export function decodeWithBlobcache(vars, binding) {
-  const result = {};
-  for (
-    const {
-      index,
-      decoder,
-      name,
-      blobcache,
-    } of vars.namedVariables.values()
+export class Query<V extends NamedVars> {
+  ctx: VariableContext;
+  constraint: Constraint;
+  variables: ByteBitset;
+
+  constructor(
+    ctx: VariableContext,
+    constraint: Constraint,
   ) {
-    const encoded = binding.get(index);
-    const decoded = decoder(
-      encoded,
-      // Note that there is a potential attack vector here, if we ever want to do query level access control.
-      // An attacker could change the encoder to manipulate the encoded array and request a different blob.
-      // This would be solved by freezing the Array, but since it's typed and the spec designers unimaginative...
-      async () => await blobcache.get(encoded.slice()),
-    );
-    result[name] = decoded;
+    this.ctx = ctx;
+    this.constraint = constraint;
+
+    this.variables = constraint.variables();
   }
-  return result;
+
+  *bindAll(binding: Binding): Iterable<Binding> {
+    const boundVariables = binding.bound();
+    let nextVariable;
+    let nextVariableCosts = Number.MAX_VALUE;
+
+    const unboundVariables = new ByteBitset().setSubtraction(
+      this.variables,
+      boundVariables,
+    );
+
+    for (const variable of unboundVariables.entries()) {
+      const costs = this.constraint.estimate(variable, binding);
+      if (costs <= nextVariableCosts) {
+        nextVariable = variable;
+        nextVariableCosts = costs;
+      }
+      if (nextVariableCosts <= 1) break;
+    }
+
+    if (nextVariable === undefined) {
+      yield binding; //TODO we should probably copy here instead.
+    } else {
+      for (const value of this.constraint.propose(nextVariable, binding)) {
+        yield* this.bindAll(binding.copy().set(nextVariable, value));
+      }
+    }
+  }
+
+  *[Symbol.iterator](): Iterator<Results<V>> {
+    for (const binding of this.bindAll(new Binding(this.variables.count()))) {
+      const result: {[K in keyof V]?: VariableT<V[K]>}  = {};
+      for (
+        const entry of Object.entries(this.ctx.namedVariables as V)
+      ) {
+        const name: keyof V = entry[0];
+        const {
+          index,
+          schema,
+          blobcache,
+        } = entry[1];
+        if(schema === undefined) {
+          throw Error("untyped Variable in query");
+        }
+        if(blobcache === undefined) {
+          throw Error("missing blobcache for Variable in query");
+        }
+        const encoded = binding.get(index);
+        const decoded = schema.decodeValue(
+          encoded,
+          // Note that there is a potential attack vector here, if we ever want to do query level access control.
+          // An attacker could change the encoder to manipulate the encoded array and request a different blob.
+          // This would be solved by freezing the Array, but since it's typed and the spec designers unimaginative...
+          async () => await blobcache.get(encoded),
+        );
+        result[name] = decoded;
+      }
+      yield result as Results<V>;
+    }
+  }
 }
 
 /**
@@ -305,7 +298,7 @@ export function decodeWithBlobcache(vars, binding) {
  * returns a constraint builder that can be used to enumerate query results
  * with a call to find.
  */
-type QueryFn = (ctx: VariableContext, namedVars: { [name: string]: Variable<unknown>; }, anonVars: Iterable<Variable<unknown>>) => Constraint;
+type QueryFn<V extends NamedVars> = (ctx: VariableContext, namedVars: V, anonVars: Iterable<Variable<unknown>>) => Constraint;
 
 /**
  * Create an iterable query object from the provided constraint function.
@@ -313,9 +306,8 @@ type QueryFn = (ctx: VariableContext, namedVars: { [name: string]: Variable<unkn
  * @param postprocessing - A function that maps over the query results and coverts them to usable values.
  * @returns Enumerates possible variable assignments satisfying the input query.
  */
-// deno-lint-ignore no-explicit-any
-export function find(queryfn: QueryFn, postprocessing: PostProcessing<any> = decodeWithBlobcache): Query<any> {
+export function find<V extends NamedVars>(queryfn: QueryFn<V>): Query<V> {
   const ctx = new VariableContext();
-  const queryConstraint = queryfn(ctx, ctx.namedVars(), ctx.anonVars());
-  return new Query(ctx, queryConstraint, postprocessing);
+  const queryConstraint = queryfn(ctx, ctx.namedVars() as V, ctx.anonVars());
+  return new Query<V>(ctx, queryConstraint);
 }

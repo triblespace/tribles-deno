@@ -1,6 +1,5 @@
 import { Entry, PATCH, naturalOrder, singleSegment, batch } from "./patch.ts";
-import { V, VAEOrder, TRIBLE_SIZE, TribleSegmentation, VALUE_SIZE } from "./trible.ts";
-import { masked } from "./constraints/masked.ts";
+import { V, VAEOrder, TRIBLE_SIZE, TribleSegmentation, VALUE_SIZE, Value, Blob } from "./trible.ts";
 import { FixedUint8Array, fixedUint8Array } from "./util.ts";
 
 /** A blobcache is an immutably persistent datastructure that stores blobs associated
@@ -65,7 +64,7 @@ export class BlobCache {
    * @param key - The 32 bytes identifying the blob.
    * @return The retrieved blob data.
    */
-  async get(key: FixedUint8Array<typeof VALUE_SIZE>) {
+  async get(key: Value): Promise<Blob> {
     let blob = this.weak.get(key)?.deref();
 
     if (blob === undefined) {
