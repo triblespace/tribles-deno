@@ -1,6 +1,6 @@
 import { ByteBitset } from "../bitset.ts";
 import { Binding, Variable } from "../query.ts";
-import { tribleFromValues } from "../trible.ts";
+import { A_START, E_START, V_START, tribleFromValues } from "../trible.ts";
 import { TribleSet } from "../tribleset.ts";
 import { fixedUint8Array } from "../util.ts";
 import { Constraint } from "./constraint.ts";
@@ -39,98 +39,63 @@ class TribleConstraint implements Constraint {
     }
   
     estimate(variable_index: number, binding: Binding) {
-      const bound = binding.bound();
-      const e = bound.has(this.eVar.index);
-      const a = bound.has(this.aVar.index);
-      const v = bound.has(this.vVar.index);
-  
-      if (e && a && v) {
-        throw Error("estimate for fulfilled constraint");
-      }
+        const bound = binding.bound();
+        const e_ = bound.has(this.eVar.index);
+        const a_ = bound.has(this.aVar.index);
+        const v_ = bound.has(this.vVar.index);
 
-      const $e = this.eVar.index === variable_index;
-      const $a = this.aVar.index === variable_index;
-      const $v = this.vVar.index === variable_index;
-  
-      const trible = tribleFromValues(
+        if (e_ && a_ && v_) {
+            throw Error("estimate for fulfilled constraint");
+        }
+
+        const $e = this.eVar.index === variable_index;
+        const $a = this.aVar.index === variable_index;
+        const $v = this.vVar.index === variable_index;
+
+        const trible = tribleFromValues(
                         binding.get(this.eVar.index),
                         binding.get(this.aVar.index),
                         binding.get(this.vVar.index));
-      if(trible === undefined) return 0;
+        if(trible === undefined) return 0;
 
-      if (e && a && !v && $v) {
-        return eav.estimate(binding.get(this.eVar.index), binding.get(this.aVar.index));
-      }
-  
-      if (e && !a && v) {
-        //return eva;
-      }
-      if (e && !a && !v) {
-        //return eav;
-      }
-  
-      if (!e && a && v) {
-        //return ave;
-      }
-      if (!e && a && !v) {
-        //return aev;
-      }
-      if (!e && !a && v) {
-        //return vea;
-      }
-  
-      if (!e && !a && !v) {
-        //return eav;
-      }
+        if(!e_ && !a_ && !v_ && $e && !$a && !$v) {
+            return this.set.EAV.prefixSegmentCount(trible, E_START);
+        }
+        if(!e_ && !a_ && !v_ && !$e && $a && !$v) {
+            return this.set.AEV.prefixSegmentCount(trible, A_START);
+        }
+        if(!e_ && !a_ && !v_ && !$e && !$a && $v) {
+            return this.set.VEA.prefixSegmentCount(trible, V_START);
+        }
+        if(e_ && !a_ && !v_ && !$e && $a && !$v) {
+            return this.set.EAV.prefixSegmentCount(trible, A_START);
+        }
+        if(e_ && !a_ && !v_ && !$e && !$a && $v) {
+            return this.set.EVA.prefixSegmentCount(trible, V_START);
+        }
+        if(!e_ && a_ && !v_ && $e && !$a && !$v) {
+            return this.set.AEV.prefixSegmentCount(trible, E_START);
+        }
+        if(!e_ && a_ && !v_ && !$e && !$a && $v) {
+            return this.set.AVE.prefixSegmentCount(trible, V_START);
+        }
+        if(!e_ && !a_ && v_ && $e && !$a && !$v) {
+            return this.set.VEA.prefixSegmentCount(trible, E_START);
+        }
+        if(!e_ && !a_ && v_ && !$e && $a && !$v) {
+            return this.set.VAE.prefixSegmentCount(trible, A_START);
+        }
+        if(!e_ && a_ && v_ && $e && !$a && !$v) {
+            return this.set.AVE.prefixSegmentCount(trible, E_START);
+        }
+        if(e_ && !a_ && v_ && !$e && $a && !$v) {
+            return this.set.EVA.prefixSegmentCount(trible, A_START);
+        }
+        if(e_ && a_ && !v_ && !$e && !$a && $v) {
+            return this.set.EAV.prefixSegmentCount(trible, V_START);
+        }
+        throw Error("invalid state");
     }
-
-    /*
-    fn estimate(&self, variable: VariableId, binding: Binding) -> usize {
-            match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-                (false, false, false, true, false, false) => {
-                    self.set.eav.segmented_len(trible.data, E_START)
-                }
-                (false, false, false, false, true, false) => {
-                    self.set.aev.segmented_len(trible.data, A_START)
-                }
-                (false, false, false, false, false, true) => {
-                    self.set.vea.segmented_len(trible.data, V_START)
-                }
-
-                (true, false, false, false, true, false) => {
-                    self.set.eav.segmented_len(trible.data, A_START)
-                }
-                (true, false, false, false, false, true) => {
-                    self.set.eva.segmented_len(trible.data, V_START)
-                }
-
-                (false, true, false, true, false, false) => {
-                    self.set.aev.segmented_len(trible.data, E_START)
-                }
-                (false, true, false, false, false, true) => {
-                    self.set.ave.segmented_len(trible.data, V_START)
-                }
-
-                (false, false, true, true, false, false) => {
-                    self.set.vea.segmented_len(trible.data, E_START)
-                }
-                (false, false, true, false, true, false) => {
-                    self.set.vae.segmented_len(trible.data, A_START)
-                }
-
-                (false, true, true, true, false, false) => {
-                    self.set.ave.segmented_len(trible.data, E_START)
-                }
-                (true, false, true, false, true, false) => {
-                    self.set.eva.segmented_len(trible.data, A_START)
-                }
-                (true, true, false, false, false, true) => {
-                    self.set.eav.segmented_len(trible.data, V_START)
-                }
-                _ => panic!(),
-            }
-    }
-    */
   
     propose(variable, binding) {
     }
@@ -138,67 +103,7 @@ class TribleConstraint implements Constraint {
     confirm(variable, binding, values) {
     }
   }
-  /*
-          let e_bound = binding.bound.is_set(self.variable_e.index);
-          let a_bound = binding.bound.is_set(self.variable_a.index);
-          let v_bound = binding.bound.is_set(self.variable_v.index);
-  
-          let e_var = self.variable_e.index == variable;
-          let a_var = self.variable_a.index == variable;
-          let v_var = self.variable_v.index == variable;
-  
-          if let Some(trible) = Trible::new_raw_values(
-              binding.get(self.variable_e.index).unwrap_or([0; 32]),
-              binding.get(self.variable_a.index).unwrap_or([0; 32]),
-              binding.get(self.variable_v.index).unwrap_or([0; 32]),
-          ) {
-              match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-                  (false, false, false, true, false, false) => {
-                      self.set.eav.segmented_len(trible.data, E_START)
-                  }
-                  (false, false, false, false, true, false) => {
-                      self.set.aev.segmented_len(trible.data, A_START)
-                  }
-                  (false, false, false, false, false, true) => {
-                      self.set.vea.segmented_len(trible.data, V_START)
-                  }
-  
-                  (true, false, false, false, true, false) => {
-                      self.set.eav.segmented_len(trible.data, A_START)
-                  }
-                  (true, false, false, false, false, true) => {
-                      self.set.eva.segmented_len(trible.data, V_START)
-                  }
-  
-                  (false, true, false, true, false, false) => {
-                      self.set.aev.segmented_len(trible.data, E_START)
-                  }
-                  (false, true, false, false, false, true) => {
-                      self.set.ave.segmented_len(trible.data, V_START)
-                  }
-  
-                  (false, false, true, true, false, false) => {
-                      self.set.vea.segmented_len(trible.data, E_START)
-                  }
-                  (false, false, true, false, true, false) => {
-                      self.set.vae.segmented_len(trible.data, A_START)
-                  }
-  
-                  (false, true, true, true, false, false) => {
-                      self.set.ave.segmented_len(trible.data, E_START)
-                  }
-                  (true, false, true, false, true, false) => {
-                      self.set.eva.segmented_len(trible.data, A_START)
-                  }
-                  (true, true, false, false, false, true) => {
-                      self.set.eav.segmented_len(trible.data, V_START)
-                  }
-                  _ => panic!(),
-              }
-          } else {
-              0
-          }
-  
+  /*  
       fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {
           let e_bound = binding.bound.is_set(self.variable_e.index);
           let a_bound = binding.bound.is_set(self.variable_a.index);
