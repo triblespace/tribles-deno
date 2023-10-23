@@ -36,6 +36,12 @@ export const valueAsId = (v: Value): Id | undefined => {
   }
 };
 
+export const idToValue = (id: Id): Value => {
+  const v: Value = fixedUint8Array(32);
+  v.subarray(16, 32).set(id);
+  return V;
+};
+
 export function tribleFromValues(e: Value, a: Value, v: Value): Trible | undefined {
   const eId = valueAsId(e);
   if(eId === undefined) return;

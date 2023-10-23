@@ -1,6 +1,6 @@
 import { ByteBitset } from "../bitset.ts";
 import { Binding, Variable } from "../query.ts";
-import { A_START, E_START, V_START, tribleFromValues } from "../trible.ts";
+import { A, A_END, A_START, E, E_END, E_START, V, V_END, V_START, idToValue, tribleFromValues } from "../trible.ts";
 import { TribleSet } from "../tribleset.ts";
 import { fixedUint8Array } from "../util.ts";
 import { Constraint } from "./constraint.ts";
@@ -98,6 +98,70 @@ class TribleConstraint implements Constraint {
     }
   
     propose(variable, binding) {
+        const bound = binding.bound();
+        const e_ = bound.has(this.eVar.index);
+        const a_ = bound.has(this.aVar.index);
+        const v_ = bound.has(this.vVar.index);
+
+        if (e_ && a_ && v_) {
+            throw Error("estimate for fulfilled constraint");
+        }
+
+        const $e = this.eVar.index === variable_index;
+        const $a = this.aVar.index === variable_index;
+        const $v = this.vVar.index === variable_index;
+
+        const trible = tribleFromValues(
+                        binding.get(this.eVar.index),
+                        binding.get(this.aVar.index),
+                        binding.get(this.vVar.index));
+        if(trible === undefined) return 0;
+
+        if(!e_ && !a_ && !v_ && $e && !$a && !$v) {
+            return this.set.EAV.infixes(
+                (key) => idToValue(E(key)),
+                trible, E_START, E_END);
+        }
+        if(!e_ && !a_ && !v_ && !$e && $a && !$v) {
+            return this.set.AEV.infixes(
+                (key) => idToValue(A(key)),
+                trible, A_START, A_END);
+        }
+        if(!e_ && !a_ && !v_ && !$e && !$a && $v) {
+            return this.set.VEA.infixes(
+                (key) => V(key),
+                trible, V_START, V_END);
+        }
+        if(e_ && !a_ && !v_ && !$e && $a && !$v) {
+            return this.set.EAV.infixes(
+                (key) => idToValue(A(key)),
+                trible, A_START, A_END);
+        }
+        if(e_ && !a_ && !v_ && !$e && !$a && $v) {
+            return this.set.EVA.prefixSegmentCount(trible, V_START);
+        }
+        if(!e_ && a_ && !v_ && $e && !$a && !$v) {
+            return this.set.AEV.prefixSegmentCount(trible, E_START);
+        }
+        if(!e_ && a_ && !v_ && !$e && !$a && $v) {
+            return this.set.AVE.prefixSegmentCount(trible, V_START);
+        }
+        if(!e_ && !a_ && v_ && $e && !$a && !$v) {
+            return this.set.VEA.prefixSegmentCount(trible, E_START);
+        }
+        if(!e_ && !a_ && v_ && !$e && $a && !$v) {
+            return this.set.VAE.prefixSegmentCount(trible, A_START);
+        }
+        if(!e_ && a_ && v_ && $e && !$a && !$v) {
+            return this.set.AVE.prefixSegmentCount(trible, E_START);
+        }
+        if(e_ && !a_ && v_ && !$e && $a && !$v) {
+            return this.set.EVA.prefixSegmentCount(trible, A_START);
+        }
+        if(e_ && a_ && !v_ && !$e && !$a && $v) {
+            return this.set.EAV.prefixSegmentCount(trible, V_START);
+        }
+        throw Error("invalid state");
     }
   
     confirm(variable, binding, values) {
