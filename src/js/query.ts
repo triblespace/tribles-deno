@@ -1,11 +1,10 @@
-import { ByteBitset, ByteBitsetArray } from "./bitset.ts";
+import { ByteBitset } from "./bitset.ts";
 import { Entry, batch, emptyValuePATCH } from "./patch.ts";
-import { ConstantConstraint, constant } from "./constraints/constant.ts";
-import { and } from "./constraints/and.ts";
+import { ConstantConstraint } from "./constraints/constant.ts";
 import { BlobCache } from "../../mod.ts";
 import { Schema } from "./schemas.ts";
 import { Value } from "./trible.ts";
-import { FixedUint8Array, fixedUint8Array } from "./util.ts";
+import { fixedUint8Array } from "./util.ts";
 import { Constraint } from "./constraints/constraint.ts";
 import { indexed } from "./constraints/indexed.ts";
 import { assert } from "https://deno.land/std@0.180.0/_util/asserts.ts";
@@ -191,7 +190,7 @@ export class VariableContext {
    * ```
    */
   // deno-lint-ignore no-explicit-any
-  anonVars(): Iterable<Variable<any>> {
+  anonVars(): Iterable<Variable<any>> & Iterator<Variable<any>> {
     // deno-lint-ignore no-this-alias
     const self = this;
     // deno-lint-ignore no-explicit-any

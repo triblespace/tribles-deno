@@ -31,89 +31,89 @@ export const V_UPPER_END = 48;
 export const V_LOWER_START = 48;
 export const V_LOWER_END = 64;
 
-export const E = (trible) => trible.subarray(E_START, E_END);
-export const A = (trible) => trible.subarray(A_START, A_END);
-export const V = (trible) => trible.subarray(V_START, V_END);
-export const V_UPPER = (trible) => trible.subarray(V_UPPER_START, V_UPPER_END);
-export const V_LOWER = (trible) => trible.subarray(V_LOWER_START, V_LOWER_END);
+export const E = (trible: Trible) => trible.subarray(E_START, E_END);
+export const A = (trible: Trible) => trible.subarray(A_START, A_END);
+export const V = (trible: Trible) => trible.subarray(V_START, V_END);
+export const V_UPPER = (trible: Trible) => trible.subarray(V_UPPER_START, V_UPPER_END);
+export const V_LOWER = (trible: Trible) => trible.subarray(V_LOWER_START, V_LOWER_END);
 
-export const TribleSegmentation = (at_depth) => {
+export const TribleSegmentation = (at_depth: number) => {
   if(at_depth < E_END) return 0;
   if(at_depth < A_END) return 1;
   return 2;
 }
 
 export const EAVOrder = {
-  keyToTree: (at_depth) => at_depth,
-  treeToKey: (at_depth) => at_depth,
+  keyToTree: (at_depth: number) => at_depth,
+  treeToKey: (at_depth: number) => at_depth,
 };
 export const EVAOrder = {
-  keyToTree: (at_depth) => {
+  keyToTree: (at_depth: number) => {
     if (at_depth < 16) return at_depth;
     if (at_depth < 32) return at_depth + 32;
     return at_depth - 16;
   },
-  treeToKey: (at_depth) => {
+  treeToKey: (at_depth: number) => {
     if (at_depth < 16) return at_depth;
     if (at_depth < 48) return at_depth + 16;
     return at_depth - 32;
   },
 };
 export const AEVOrder = {
-  keyToTree: (at_depth) => {
+  keyToTree: (at_depth: number) => {
     if (at_depth < 16) return at_depth + 16;
     if (at_depth < 32) return at_depth - 16;
     return at_depth;
   },
-  treeToKey: (at_depth) => {
+  treeToKey: (at_depth: number) => {
     if (at_depth < 16) return at_depth + 16;
     if (at_depth < 32) return at_depth - 16;
     return at_depth;
   },
 };
 export const AVEOrder = {
-  keyToTree: (at_depth) => {
+  keyToTree: (at_depth: number) => {
     if (at_depth < 16) return at_depth + 48;
     if (at_depth < 32) return at_depth - 16;
     return at_depth - 16;
   },
-  treeToKey: (at_depth) => {
+  treeToKey: (at_depth: number) => {
     if (at_depth < 16) return at_depth + 16;
     if (at_depth < 48) return at_depth + 16;
     return at_depth - 48;
   },
 };
 export const VEAOrder = {
-  keyToTree: (at_depth) => {
+  keyToTree: (at_depth: number) => {
     if (at_depth < 16) return at_depth + 32;
     if (at_depth < 32) return at_depth + 32;
     return at_depth - 32;
   },
-  treeToKey: (at_depth) => {
+  treeToKey: (at_depth: number) => {
     if (at_depth < 32) return at_depth + 32;
     if (at_depth < 48) return at_depth - 32;
     return at_depth - 32;
   },
 };
 export const VAEOrder = {
-  keyToTree: (at_depth) => {
+  keyToTree: (at_depth: number) => {
     if (at_depth < 16) return at_depth + 48;
     if (at_depth < 32) return at_depth + 16;
     return at_depth - 32;
   },
-  treeToKey: (at_depth) => {
+  treeToKey: (at_depth: number) => {
     if (at_depth < 32) return at_depth + 32;
     if (at_depth < 48) return at_depth - 16;
     return at_depth - 48;
   },
 };
 
-export const zero = (v) => {
+export const zero = (v: Value) => {
   const view = new Uint32Array(v.buffer, v.byteOffset, 4);
   return view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0;
 };
 
-export const equalId = (idA, idB) => {
+export const equalId = (idA: Id, idB: Id) => {
   const viewA = new Uint32Array(idA.buffer, idA.byteOffset, 4);
   const viewB = new Uint32Array(idB.buffer, idB.byteOffset, 4);
   return (
@@ -124,7 +124,7 @@ export const equalId = (idA, idB) => {
   );
 };
 
-export const equal = (tribleA, tribleB) => {
+export const equal = (tribleA: Trible, tribleB: Trible) => {
   const viewA = new Uint32Array(tribleA.buffer, tribleA.byteOffset, 16);
   const viewB = new Uint32Array(tribleB.buffer, tribleB.byteOffset, 16);
   for (let i = 0; i < 16; i++) {
@@ -133,7 +133,7 @@ export const equal = (tribleA, tribleB) => {
   return true;
 };
 
-export const equalValue = (valueA, valueB) => {
+export const equalValue = (valueA: Trible, valueB: Trible) => {
   const viewA = new Uint32Array(valueA.buffer, valueA.byteOffset, 8);
   const viewB = new Uint32Array(valueB.buffer, valueB.byteOffset, 8);
   for (let i = 0; i < 8; i++) {
@@ -142,7 +142,7 @@ export const equalValue = (valueA, valueB) => {
   return true;
 };
 
-export const lessValue = (valueA, valueB) => {
+export const lessValue = (valueA: Value, valueB: Value) => {
   for (let i = 0; i < 32; i++) {
     if (valueA[i] < valueB[i]) {
       return true;

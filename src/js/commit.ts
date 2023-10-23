@@ -6,7 +6,7 @@ import { blake3 } from "./wasm.js";
 import { NS } from "./namespace.ts";
 import { FixedUint8Array } from "./util.ts";
 import { KB } from "./kb.ts";
-import { find } from "./query.ts";
+import { Variable, find } from "./query.ts";
 
 //
 // The payload consists of both the data and metadata trible
@@ -52,7 +52,7 @@ const shortMessageId = UFOID.now();
 const messageId = UFOID.now();
 const authoredById = UFOID.now();
 
-const BLAKE3_VERIFICATION = UFOID.now();
+const BLAKE3_VERIFICATION = UFOID.now().toHex();
 const verificationMethodId = UFOID.now();
 
 const commitNS = new NS(schemas.ufoid, {
@@ -74,15 +74,15 @@ function* splitTribles(bytes: Uint8Array) {
 }
 
 export class Commit {
-  metaId: FixedUint8Array<16>;
+  metaId: UFOID;
   kb: KB;
 
-  constructor(kb: KB, metaId = UFOID.now().toId()) {
+  constructor(kb: KB, metaId = UFOID.now()) {
     this.metaId = metaId;
     this.kb = kb;
   }
 
-  static deserialize(kb: KB, bytes: Uint8Array) {
+  static deserialize(bytes: Uint8Array) {
     if (bytes.length % 64 !== 0) {
       throw Error("failed to deserialize: data size be multiple of 64");
     }
@@ -94,14 +94,14 @@ export class Commit {
       throw Error("failed to deserialize: missing capstone marker");
     }
 
-    const dataset = kb.empty();
-    dataset.tribleset = dataset.tribleset.with(
+    const kb = new KB();
+    kb.tribleset = kb.tribleset.with(
       splitTribles(payload),
     );
 
     const metaId = new UFOID(capstone.slice(0, 16) as FixedUint8Array<16>);
 
-    const [{ verificationMethod }] = find((ctx, {verificationMethod}) =>
+    const [{ verificationMethod }] = find((ctx, {verificationMethod}:{verificationMethod:Variable<UFOID>}) =>
       commitNS.pattern(ctx, kb,
         [{[id]: metaId,
           verificationMethod: verificationMethod}]));
@@ -110,7 +110,7 @@ export class Commit {
     }
 
     let verifier;
-    if (verificationMethod.to_hex() === BLAKE3_VERIFICATION) {
+    if (verificationMethod.toHex() === BLAKE3_VERIFICATION) {
       verifier = blake3;
     } else {
       throw Error("failed to deserialize: unsupported verification method");
@@ -125,17 +125,20 @@ export class Commit {
       throw Error("failed to deserialize: verification failed");
     }
 
-    return new Commit(dataset, metaId.toId());
+    return new Commit(kb, metaId);
   }
 
   serialize() {
     let verifier;
 
-    const { verificationMethod } = commitNS.walk(this.kb, this.metaId);
+    const [{ verificationMethod }] = find((ctx, {verificationMethod}:{verificationMethod:Variable<UFOID>}) =>
+    commitNS.pattern(ctx, this.kb,
+      [{[id]: this.metaId,
+        verificationMethod: verificationMethod}]));
     if (!verificationMethod) {
       throw Error("failed to serialize: no verification method specified");
     }
-    if (verificationMethod.to_hex() === BLAKE3_VERIFICATION) {
+    if (verificationMethod.toHex() === BLAKE3_VERIFICATION) {
       verifier = blake3;
     } else {
       throw Error("failed to serialize: unsupported verification method");
@@ -144,7 +147,7 @@ export class Commit {
     const tribles_count = this.kb.tribleset.count();
     const tribles = this.kb.tribleset.tribles();
 
-    let buffer = new Uint8Array((tribles_count * TRIBLE_SIZE) + CAPSTONE_SIZE);
+    const buffer = new Uint8Array((tribles_count * TRIBLE_SIZE) + CAPSTONE_SIZE);
 
     let offset = 0;
     for (const trible of tribles) {
@@ -152,7 +155,7 @@ export class Commit {
       offset += TRIBLE_SIZE;
     }
 
-    buffer.subarray(offset, offset + 16).set(this.metaId);
+    buffer.subarray(offset, offset + 16).set(this.metaId.toId());
 
     buffer.subarray(offset + 32, offset + 64).set(
       verifier(buffer.subarray(0, offset + 16)),
@@ -162,22 +165,17 @@ export class Commit {
   }
 }
 
-const udp_max_commit_size = 1021;
+const udp_max_commit_size = 65535;
 
 export function validateCommitSize(
-  max_trible_count = udp_max_commit_size,
-  middleware = (commit: Commit): Commit[] => [commit],
-) {
-  return async function* (commit: Commit) {
-    for await (const c of middleware(commit)) {
-      if (c.kb.tribleset.count() > max_trible_count) {
-        throw Error(
-          `Commit too large: Commits must not contain more than ${max_trible_count} tribles.`,
-        );
-      }
-      yield commit;
-    }
-  };
+  max_bytes = udp_max_commit_size,
+  commit: Commit) {
+  if ((commit.kb.tribleset.count() * TRIBLE_SIZE + CAPSTONE_SIZE) > max_bytes) {
+    throw Error(
+      `Commit too large: Commit must not be larger than ${max_bytes} bytes.`,
+    );
+  }
+  return commit;
 }
 
 // TODO:

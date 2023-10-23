@@ -1,3 +1,4 @@
+import { Commit } from "./commit.ts";
 import { Entry, batch, emptyIdPATCH } from "./patch.ts";
 import { IdSchema } from "./schemas.ts";
 import { ID_SIZE } from "./trible.ts";
@@ -13,7 +14,7 @@ export class IDOwner<Id> {
     const factory = () => {
       const b = fixedUint8Array(ID_SIZE);
       const id = schema.factory();
-      schema.encodeValue(id, b);
+      schema.encodeId(id, b);
       this.ids.put(batch(), new Entry(b, undefined));
       return id;
     }
@@ -24,13 +25,9 @@ export class IDOwner<Id> {
     };
   }
 
-  validator(middleware = (commit) => [commit]) {
-    // deno-lint-ignore no-this-alias
-    const self = this;
-    return function* (commit) {
-      //TODO implement 'not' constraint and use that to compute values that
-      //are in the commit but not in the onwedIDs.
-      yield* middleware(commit);
-    };
+  validate(_commit: Commit) {
+    //TODO implement 'not' constraint and use that to compute values that
+    //are in the commit but not in the onwedIDs.
+    throw Error("TODO");
   }
 }

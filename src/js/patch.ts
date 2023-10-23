@@ -895,7 +895,7 @@ export class PATCH<L extends number, O extends Ordering<L>, S extends Segmentati
 
   put(batch: Batch, entry: Entry<L, V>): PATCH<L, O, S, V> {
     if (this.child === undefined) {
-      return new PATCH(this.keyLength, this.order, this.segments, entry.leaf());
+      return new PATCH<L, O, S, V>(this.keyLength, this.order, this.segments, entry.leaf());
     }
     return new PATCH(this.keyLength, this.order, this.segments,
       this.child.put(

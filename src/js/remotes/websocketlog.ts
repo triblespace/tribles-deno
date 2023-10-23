@@ -2,59 +2,58 @@ import { Commit } from "../commit.ts";
 
 export const PROTOCOL = "tribles/commit";
 
-export function websocketLog(url) {
+export function websocketLog(url: string): {
+  push(commit: Commit): void,
+  pull(): Promise<Commit>,
+  close(): void
+} {
   const socket = new WebSocket(url, PROTOCOL);
   socket.binaryType = "arraybuffer";
 
-  const commitQueue = [];
-  const awaitsQueue = [];
+  const commitQueue: Promise<Commit>[] = [];
+  const awaitsQueue: {resolve: (commit: Commit) => void,
+                      reject: (error: Error) => void}[] = [];
 
   socket.addEventListener("message", (e) => {
-    let commit, error, success;
+    let commit = undefined, error;
     try {
       const data = new Uint8Array(e.data);
       commit = Commit.deserialize(data);
-      success = true;
     } catch (e) {
       error = e;
-      success = false;
     }
 
-    let promise;
-    if (promise = awaitsQueue.shift()) {
-      if (success) {
-        promise.resolve(commit);
+    const promise = awaitsQueue.shift();
+    if (promise === undefined) {
+      if (commit === undefined) {
+        commitQueue.push(Promise.reject(error));
       } else {
-        promise.reject(error);
+        commitQueue.push(Promise.resolve(commit));
       }
     } else {
-      if (success) {
-        commitQueue.push(Promise.resolve(commit));
+      if (commit === undefined) {
+        promise.reject(error);
       } else {
-        commitQueue.push(Promise.reject(error));
+        promise.resolve(commit);
       }
     }
   });
 
-  const push = async (commit) => {
-    const data = commit.serialize();
-    socket.send(data);
-  };
-
-  const pull = async () => {
-    let commit;
-    if (commit = commitQueue.shift()) {
+  return {
+    push(commit: Commit) {
+      const data = commit.serialize();
+      socket.send(data);
+    },
+    pull() {
+      const commit = commitQueue.shift();
+      if (commit === undefined) {
+        return new Promise((resolve, reject) =>
+        awaitsQueue.push({ resolve, reject }));
+      }
       return commit;
-    } else {
-      return new Promise((resolve, reject) =>
-        awaitsQueue.push({ resolve, reject })
-      );
+    },
+    close() {
+      socket.close();
     }
   };
-
-  const close = () => {
-    socket.close();
-  };
-
-  return { push, pull, close };
 }

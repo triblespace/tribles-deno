@@ -33,7 +33,7 @@ type SchemaT<S extends Schema<any>> = S extends Schema<infer T> ? T : never;
 
 type VariableOrValue<Vars extends false | true, T> = Vars extends true ? Variable<T> | T : T;
 
-type Unknowns<Vars, T> = Iterable<Vars extends true? T | Variable<T> : T>;
+type Unknowns<Vars, T> = Iterator<Vars extends true? T | Variable<T> : T>;
 
 type Triple<Vars extends boolean, Id, Decl extends NSDeclaration<Id>> =
   {[Name in keyof Decl]: [VariableOrValue<Vars, Id>, Name & string, VariableOrValue<Vars, SchemaT<Decl[Name]["schema"]>>]}[keyof Decl];
