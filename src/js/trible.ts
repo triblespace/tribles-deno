@@ -1,4 +1,5 @@
-import { FixedUint8Array } from "./util.ts";
+import { func } from "https://cdn.skypack.dev/fast-check";
+import { FixedUint8Array, fixedUint8Array } from "./util.ts";
 
 export const TRIBLE_SIZE = 64;
 export const ID_SIZE = 16;
@@ -10,7 +11,6 @@ export type Value = FixedUint8Array<typeof VALUE_SIZE>;
 
 export type Blob = Uint8Array;
 export type LazyBlob = () => Promise<Blob>;
-
 
 export const E_SIZE = ID_SIZE;
 export const A_SIZE = ID_SIZE;
@@ -25,17 +25,30 @@ export const A_END = E_SIZE + A_SIZE;
 export const V_START = E_SIZE + A_SIZE;
 export const V_END = E_SIZE + A_SIZE + V_SIZE;
 
-export const V_UPPER_START = 32;
-export const V_UPPER_END = 48;
+export const E = (trible: Trible): Id => trible.subarray(E_START, E_END) as Id;
+export const A = (trible: Trible): Id => trible.subarray(A_START, A_END) as Id;
+export const V = (trible: Trible): Value => trible.subarray(V_START, V_END) as Value;
 
-export const V_LOWER_START = 48;
-export const V_LOWER_END = 64;
+export const valueAsId = (v: Value): Id | undefined => {
+  const view = new Uint32Array(v.buffer, v.byteOffset + 16, 4);
+  if(view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0) {
+    return v.subarray(16, 32) as Id;
+  }
+};
 
-export const E = (trible: Trible) => trible.subarray(E_START, E_END);
-export const A = (trible: Trible) => trible.subarray(A_START, A_END);
-export const V = (trible: Trible) => trible.subarray(V_START, V_END);
-export const V_UPPER = (trible: Trible) => trible.subarray(V_UPPER_START, V_UPPER_END);
-export const V_LOWER = (trible: Trible) => trible.subarray(V_LOWER_START, V_LOWER_END);
+export function tribleFromValues(e: Value, a: Value, v: Value): Trible | undefined {
+  const eId = valueAsId(e);
+  if(eId === undefined) return;
+  const aId = valueAsId(a);
+  if(aId === undefined) return;
+
+  const trible: Trible = fixedUint8Array(TRIBLE_SIZE);
+  E(trible).set(eId);
+  A(trible).set(aId);
+  V(trible).set(v);
+
+  return trible;
+}
 
 export const TribleSegmentation = (at_depth: number) => {
   if(at_depth < E_END) return 0;
@@ -108,11 +121,6 @@ export const VAEOrder = {
   },
 };
 
-export const zero = (v: Value) => {
-  const view = new Uint32Array(v.buffer, v.byteOffset, 4);
-  return view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0;
-};
-
 export const equalId = (idA: Id, idB: Id) => {
   const viewA = new Uint32Array(idA.buffer, idA.byteOffset, 4);
   const viewB = new Uint32Array(idB.buffer, idB.byteOffset, 4);
@@ -133,7 +141,7 @@ export const equal = (tribleA: Trible, tribleB: Trible) => {
   return true;
 };
 
-export const equalValue = (valueA: Trible, valueB: Trible) => {
+export const equalValue = (valueA: Value, valueB: Value) => {
   const viewA = new Uint32Array(valueA.buffer, valueA.byteOffset, 8);
   const viewB = new Uint32Array(valueB.buffer, valueB.byteOffset, 8);
   for (let i = 0; i < 8; i++) {

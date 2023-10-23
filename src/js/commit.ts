@@ -1,7 +1,7 @@
 import { schemas } from "./schemas.ts";
 import { UFOID } from "./schemas/ufoid.ts";
 import { id } from "./namespace.ts";
-import { TRIBLE_SIZE, equalValue } from "./trible.ts";
+import { TRIBLE_SIZE, Value, equalValue } from "./trible.ts";
 import { blake3 } from "./wasm.js";
 import { NS } from "./namespace.ts";
 import { FixedUint8Array } from "./util.ts";
@@ -109,17 +109,17 @@ export class Commit {
       throw Error("failed to deserialize: no verification method specified");
     }
 
-    let verifier;
+    let verifier: ((payload: Uint8Array) => Value) | undefined;
     if (verificationMethod.toHex() === BLAKE3_VERIFICATION) {
-      verifier = blake3;
+      verifier = blake3 as (payload: Uint8Array) => Value;
     } else {
       throw Error("failed to deserialize: unsupported verification method");
     }
 
     if (
       !equalValue(
-        capstone.subarray(32, 64),
-        verifier(bytes.subarray(bytes.length - 48)),
+        capstone.subarray(32, 64) as Value,
+        verifier(bytes.subarray(0, bytes.length - 48)),
       )
     ) {
       throw Error("failed to deserialize: verification failed");

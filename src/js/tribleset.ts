@@ -9,13 +9,20 @@ import {
 } from "./patch.ts";
 import { and } from "./constraints/and.ts";
 import { ByteBitset } from "./bitset.ts";
+import { Binding, Variable } from "./query.ts";
 
 /**
  * A constraint limits the passed variables e, a and v to values with
  * a corresponding eav trible existing in the passed tribleset.
  */
 class TribleConstraint {
-  constructor(tribleSet, e, a, v) {
+  set: TribleSet;
+
+  eVar: Variable<unknown>;
+  aVar: Variable<unknown>;
+  vVar: Variable<unknown>;
+
+  constructor(tribleSet: TribleSet, e: Variable<unknown>, a: Variable<unknown>, v: Variable<unknown>) {
     if (e === a || e === v || a == v) {
       throw new Error(
         "Triple variables must be uniqe. Use explicit equality when inner constraints are required.",
@@ -30,22 +37,22 @@ class TribleConstraint {
   }
 
   variables() {
-    let bitset = new ByteBitset();
-    bitset.set(this.eVar);
-    bitset.set(this.aVar);
-    bitset.set(this.vVar);
+    const bitset = new ByteBitset();
+    bitset.set(this.eVar.index);
+    bitset.set(this.aVar.index);
+    bitset.set(this.vVar.index);
     return bitset;
   }
 
-  estimate(variable, binding) {
-    let bound = binding.bound();
-    const e = bound.has(this.eVar);
-    const a = bound.has(this.aVar);
-    const v = bound.has(this.vVar);
+  estimate(variable_index: number, binding: Binding) {
+    const bound = binding.bound();
+    const e = bound.has(this.eVar.index);
+    const a = bound.has(this.aVar.index);
+    const v = bound.has(this.vVar.index);
 
-    const $e = this.eVar === variable;
-    const $a = this.aVar === variable;
-    const $v = this.vVar === variable;
+    const $e = this.eVar.index === variable_index;
+    const $a = this.aVar.index === variable_index;
+    const $v = this.vVar.index === variable_index;
 
     if (e && a && v) {
       throw Error("estimate for fulfilled constraint");

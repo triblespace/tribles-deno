@@ -2,6 +2,9 @@ import { Entry, PATCH, naturalOrder, singleSegment, batch } from "./patch.ts";
 import { V, VAEOrder, TRIBLE_SIZE, TribleSegmentation, VALUE_SIZE, Value, Blob } from "./trible.ts";
 import { FixedUint8Array, fixedUint8Array } from "./util.ts";
 
+// TODO I think we can split this into a strongly referencing core type
+// and a caching wrapper type.
+
 /** A blobcache is an immutably persistent datastructure that stores blobs associated
  * with the value hashes stored in the tribles of a tribleset.
  * Blobs are either strongly or weakly referenced. Strong blobs are not yet

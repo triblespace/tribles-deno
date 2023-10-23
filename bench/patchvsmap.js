@@ -3,7 +3,7 @@ import {
   runBenchmarks,
 } from "https://deno.land/std@0.180.0/testing/bench.ts";
 import { emptyValuePATCH } from "../src/js/patch.js";
-import { A, E, TRIBLE_SIZE, V_LOWER, V_UPPER } from "../src/js/trible.js";
+import { A, E, V,TRIBLE_SIZE} from "../src/js/trible.js";
 import { UFOID } from "../mod.ts";
 
 function generate_sample(size, sharing_prob = 0.1) {
@@ -11,16 +11,13 @@ function generate_sample(size, sharing_prob = 0.1) {
   const trible = new Uint8Array(TRIBLE_SIZE);
   for (let i = 0; i < size; i++) {
     if (sharing_prob < Math.random()) {
-      E(trible).set(UFOID.now().subarray(16, 32));
+      E(trible).set(UFOID.now().toId());
     }
     if (sharing_prob < Math.random()) {
-      A(trible).set(UFOID.now().subarray(16, 32));
+      A(trible).set(UFOID.now().toId());
     }
     if (sharing_prob < Math.random()) {
-      V_UPPER(trible).set(UFOID.now().subarray(16, 32));
-    }
-    if (sharing_prob < Math.random()) {
-      V_LOWER(trible).set(UFOID.now().subarray(16, 32));
+      V(trible).set(UFOID.now().toId());
     }
     tribles.push(Uint8Array.from(trible));
   }
