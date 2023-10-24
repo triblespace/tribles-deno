@@ -138,28 +138,44 @@ class TribleConstraint implements Constraint {
                 trible, A_START, A_END);
         }
         if(e_ && !a_ && !v_ && !$e && !$a && $v) {
-            return this.set.EVA.prefixSegmentCount(trible, V_START);
+            return this.set.EVA.infixes(
+                (key) => V(key),
+                trible, V_START, V_START);
         }
         if(!e_ && a_ && !v_ && $e && !$a && !$v) {
-            return this.set.AEV.prefixSegmentCount(trible, E_START);
+            return this.set.AEV.infixes(
+                (key) => idToValue(E(key)),
+                trible, E_START, E_END);
         }
         if(!e_ && a_ && !v_ && !$e && !$a && $v) {
-            return this.set.AVE.prefixSegmentCount(trible, V_START);
+            return this.set.AVE.infixes(
+                (key) => V(key),
+                trible, V_START, V_END);
         }
         if(!e_ && !a_ && v_ && $e && !$a && !$v) {
-            return this.set.VEA.prefixSegmentCount(trible, E_START);
+            return this.set.VEA.infixes(
+                (key) => idToValue(E(key)),
+                trible, E_START, E_END);
         }
         if(!e_ && !a_ && v_ && !$e && $a && !$v) {
-            return this.set.VAE.prefixSegmentCount(trible, A_START);
+            return this.set.VAE.infixes(
+                (key) => idToValue(A(key)),
+                trible, A_START, A_END);
         }
         if(!e_ && a_ && v_ && $e && !$a && !$v) {
-            return this.set.AVE.prefixSegmentCount(trible, E_START);
+            return this.set.AVE.infixes(
+                (key) => idToValue(E(key)),
+                trible, E_START, E_END);
         }
         if(e_ && !a_ && v_ && !$e && $a && !$v) {
-            return this.set.EVA.prefixSegmentCount(trible, A_START);
+            return this.set.EVA.infixes(
+                (key) => idToValue(A(key)),
+                trible, A_START, A_END);
         }
         if(e_ && a_ && !v_ && !$e && !$a && $v) {
-            return this.set.EAV.prefixSegmentCount(trible, V_START);
+            return this.set.EAV.infixes(
+                (key) => V(key),
+                trible, V_START, V_END);
         }
         throw Error("invalid state");
     }
