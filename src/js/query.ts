@@ -34,13 +34,15 @@ export class Binding {
     return new ByteBitset(new Uint32Array(this.buffer.buffer, 0, 8));
   }
 
-  get<T>(variable_index: number): Value {
-    return this.buffer.subarray(32 + variable_index * 32, 32 + (variable_index + 1) * 32) as Value;
+  get<T>(variable_index: number): Value | undefined {
+    if (this.bound().has(variable_index)) {
+      return this.buffer.subarray(32 + variable_index * 32, 32 + (variable_index + 1) * 32) as Value;
+    }
   }
 
   set<T>(variable_index: number, value: Value) {
     const copy = this.copy();
-    copy.get(variable_index).set(value);
+    this.buffer.subarray(32 + variable_index * 32, 32 + (variable_index + 1) * 32).set(value);
     copy.bound().set(variable_index);
     return copy;
   }

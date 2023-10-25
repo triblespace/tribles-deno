@@ -1,8 +1,8 @@
 import { ByteBitset } from "../bitset.ts";
 import { Binding, Variable } from "../query.ts";
-import { A, A_END, A_START, E, E_END, E_START, V, V_END, V_START, idToValue, tribleFromValues } from "../trible.ts";
+import { A, A_END, A_START, E, E_END, E_START, V, V_END, V_START, Value, idToValue, tribleFromValues, zeroValue } from "../trible.ts";
 import { TribleSet } from "../tribleset.ts";
-import { fixedUint8Array } from "../util.ts";
+import { filterInPlace, fixedUint8Array } from "../util.ts";
 import { Constraint } from "./constraint.ts";
 
 /**
@@ -53,9 +53,9 @@ class TribleConstraint implements Constraint {
         const $v = this.vVar.index === variable_index;
 
         const trible = tribleFromValues(
-                        binding.get(this.eVar.index),
-                        binding.get(this.aVar.index),
-                        binding.get(this.vVar.index));
+                        binding.get(this.eVar.index) ?? zeroValue,
+                        binding.get(this.aVar.index) ?? zeroValue,
+                        binding.get(this.vVar.index) ?? zeroValue);
         if(trible === undefined) return 0;
 
         if(!e_ && !a_ && !v_ && $e && !$a && !$v) {
@@ -97,25 +97,20 @@ class TribleConstraint implements Constraint {
         throw Error("invalid state");
     }
   
-    propose(variable, binding) {
-        const bound = binding.bound();
-        const e_ = bound.has(this.eVar.index);
-        const a_ = bound.has(this.aVar.index);
-        const v_ = bound.has(this.vVar.index);
-
-        if (e_ && a_ && v_) {
-            throw Error("estimate for fulfilled constraint");
-        }
+    propose(variable_index: number, binding: Binding): Value[] {
+        const e_ = binding.get(this.eVar.index);
+        const a_ = binding.get(this.aVar.index);
+        const v_ = binding.get(this.vVar.index);
 
         const $e = this.eVar.index === variable_index;
         const $a = this.aVar.index === variable_index;
         const $v = this.vVar.index === variable_index;
 
         const trible = tribleFromValues(
-                        binding.get(this.eVar.index),
-                        binding.get(this.aVar.index),
-                        binding.get(this.vVar.index));
-        if(trible === undefined) return 0;
+                        e_ ?? zeroValue,
+                        a_ ?? zeroValue,
+                        v_ ?? zeroValue);
+        if(trible === undefined) return [];
 
         if(!e_ && !a_ && !v_ && $e && !$a && !$v) {
             return this.set.EAV.infixes(
@@ -180,286 +175,222 @@ class TribleConstraint implements Constraint {
         throw Error("invalid state");
     }
   
-    confirm(variable, binding, values) {
+    confirm(variable_index: number, binding: Binding, proposals: Value[]): void {
+        const e_ = binding.get(this.eVar.index);
+        const a_ = binding.get(this.aVar.index);
+        const v_ = binding.get(this.vVar.index);
+
+        const $e = this.eVar.index === variable_index;
+        const $a = this.aVar.index === variable_index;
+        const $v = this.vVar.index === variable_index;
+
+        if(!e_ && !a_ && !v_ && $e && !$a && !$v) {
+            filterInPlace(proposals, (value) => {
+                const trible = tribleFromValues(value, zeroValue, zeroValue);
+                if(trible === undefined) return false;
+                return this.set.EAV.hasPrefix(trible, E_END)
+            });
+            return;
+        }
+        if(!e_ && !a_ && !v_ && !$e && $a && !$v) {
+            filterInPlace(proposals, (value) => {
+                const trible = tribleFromValues(zeroValue, value, zeroValue);
+                if(trible === undefined) return false;
+                return this.set.AEV.hasPrefix(trible, A_END)
+            });
+            return;
+        }
+        if(!e_ && !a_ && !v_ && !$e && !$a && $v) {
+            filterInPlace(proposals, (value) => {
+                const trible = tribleFromValues(zeroValue, zeroValue, value);
+                if(trible === undefined) return false;
+                return this.set.VEA.hasPrefix(trible, V_END)
+            });
+            return;
+        }
+        if(e_ && !a_ && !v_ && !$e && $a && !$v) {
+            filterInPlace(proposals, (value) => {
+                const trible = tribleFromValues(e_, value, zeroValue);
+                if(trible === undefined) return false;
+                return this.set.EAV.hasPrefix(trible, A_END)
+            });
+            return;
+        }
+        if(e_ && !a_ && !v_ && !$e && !$a && $v) {
+            filterInPlace(proposals, (value) => {
+                const trible = tribleFromValues(e_, zeroValue, value);
+                if(trible === undefined) return false;
+                return this.set.EVA.hasPrefix(trible, V_END)
+            });
+            return;
+        }
+        if(!e_ && a_ && !v_ && $e && !$a && !$v) {
+            filterInPlace(proposals, (value) => {
+                const trible = tribleFromValues(value, a_, zeroValue);
+                if(trible === undefined) return false;
+                return this.set.AEV.hasPrefix(trible, E_END)
+            });
+            return;
+        }
+        if(!e_ && a_ && !v_ && !$e && !$a && $v) {
+            filterInPlace(proposals, (value) => {
+                const trible = tribleFromValues(zeroValue, a_, value);
+                if(trible === undefined) return false;
+                return this.set.AVE.hasPrefix(trible, V_END)
+            });
+            return;
+        }
+        if(!e_ && !a_ && v_ && $e && !$a && !$v) {
+            filterInPlace(proposals, (value) => {
+                const trible = tribleFromValues(value, zeroValue, v_);
+                if(trible === undefined) return false;
+                return this.set.VEA.hasPrefix(trible, E_END)
+            });
+            return;
+        }
+        if(!e_ && !a_ && v_ && !$e && $a && !$v) {
+            filterInPlace(proposals, (value) => {
+                const trible = tribleFromValues(zeroValue, value, v_);
+                if(trible === undefined) return false;
+                return this.set.VAE.hasPrefix(trible, A_END)
+            });
+            return;
+        }
+        if(!e_ && a_ && v_ && $e && !$a && !$v) {
+            filterInPlace(proposals, (value) => {
+                const trible = tribleFromValues(value, a_, v_);
+                if(trible === undefined) return false;
+                return this.set.AVE.hasPrefix(trible, E_END)
+            });
+            return;
+        }
+        if(e_ && !a_ && v_ && !$e && $a && !$v) {
+            filterInPlace(proposals, (value) => {
+                const trible = tribleFromValues(e_, value, v_);
+                if(trible === undefined) return false;
+                return this.set.EVA.hasPrefix(trible, A_END)
+            });
+            return;
+        }
+        if(e_ && a_ && !v_ && !$e && !$a && $v) {
+            filterInPlace(proposals, (value) => {
+                const trible = tribleFromValues(e_, a_, value);
+                if(trible === undefined) return false;
+                return this.set.EAV.hasPrefix(trible, V_END)
+            });
+            return;
+        }
+        throw Error("invalid state");
     }
   }
   /*  
-      fn propose(&self, variable: VariableId, binding: Binding) -> Vec<Value> {
-          let e_bound = binding.bound.is_set(self.variable_e.index);
-          let a_bound = binding.bound.is_set(self.variable_a.index);
-          let v_bound = binding.bound.is_set(self.variable_v.index);
-  
-          let e_var = self.variable_e.index == variable;
-          let a_var = self.variable_a.index == variable;
-          let v_var = self.variable_v.index == variable;
-  
-          if let Some(trible) = Trible::new_raw_values(
-              binding.get(self.variable_e.index).unwrap_or([0; 32]),
-              binding.get(self.variable_a.index).unwrap_or([0; 32]),
-              binding.get(self.variable_v.index).unwrap_or([0; 32]),
-          ) {
-              match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
-                  (false, false, false, true, false, false) => {
-                      self.set.eav.infixes(trible.data, E_START, E_END, |k| {
-                          Trible::new_raw(k).e_as_value()
-                      })
-                  }
-                  (false, false, false, false, true, false) => {
-                      self.set.aev.infixes(trible.data, A_START, A_END, |k| {
-                          Trible::new_raw(k).a_as_value()
-                      })
-                  }
-                  (false, false, false, false, false, true) => {
-                      self.set
-                          .vea
-                          .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
-                  }
-  
-                  (true, false, false, false, true, false) => {
-                      self.set.eav.infixes(trible.data, A_START, A_END, |k| {
-                          Trible::new_raw(k).a_as_value()
-                      })
-                  }
-                  (true, false, false, false, false, true) => {
-                      self.set
-                          .eva
-                          .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
-                  }
-  
-                  (false, true, false, true, false, false) => {
-                      self.set.aev.infixes(trible.data, E_START, E_END, |k| {
-                          Trible::new_raw(k).e_as_value()
-                      })
-                  }
-                  (false, true, false, false, false, true) => {
-                      self.set
-                          .ave
-                          .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
-                  }
-  
-                  (false, false, true, true, false, false) => {
-                      self.set.vea.infixes(trible.data, E_START, E_END, |k| {
-                          Trible::new_raw(k).e_as_value()
-                      })
-                  }
-                  (false, false, true, false, true, false) => {
-                      self.set.vae.infixes(trible.data, A_START, A_END, |k| {
-                          Trible::new_raw(k).a_as_value()
-                      })
-                  }
-  
-                  (false, true, true, true, false, false) => {
-                      self.set.ave.infixes(trible.data, E_START, E_END, |k| {
-                          Trible::new_raw(k).e_as_value()
-                      })
-                  }
-                  (true, false, true, false, true, false) => {
-                      self.set.eva.infixes(trible.data, A_START, A_END, |k| {
-                          Trible::new_raw(k).a_as_value()
-                      })
-                  }
-                  (true, true, false, false, false, true) => {
-                      self.set
-                          .eav
-                          .infixes(trible.data, V_START, V_END, |k| Trible::new_raw(k).v())
-                  }
-                  _ => panic!(),
-              }
-          } else {
-              vec![]
-          }
-      }
-  
-      fn confirm(&self, variable: VariableId, binding: Binding, proposals: &mut Vec<Value>) {
-          let e_bound = binding.bound.is_set(self.variable_e.index);
-          let a_bound = binding.bound.is_set(self.variable_a.index);
-          let v_bound = binding.bound.is_set(self.variable_v.index);
-  
-          let e_var = self.variable_e.index == variable;
-          let a_var = self.variable_a.index == variable;
-          let v_var = self.variable_v.index == variable;
-  
-          match (e_bound || e_var, a_bound || a_var, v_bound || v_var) {
-              (false, false, false) => panic!(),
-              (true, false, false) => {
-                  proposals.retain(|value| {
-                      if let Some(trible) = Trible::new_raw_values(
-                          binding.get(self.variable_e.index).unwrap_or(if e_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_a.index).unwrap_or(if a_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_v.index).unwrap_or(if v_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                      ) {
-                          self.set.eav.has_prefix(trible.data, E_END)
-                      } else {
-                          false
-                      }
-                  });
-              }
-              (false, true, false) => {
-                  proposals.retain(|value| {
-                      if let Some(trible) = Trible::new_raw_values(
-                          binding.get(self.variable_e.index).unwrap_or(if e_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_a.index).unwrap_or(if a_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_v.index).unwrap_or(if v_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                      ) {
-                          self.set.aev.has_prefix(trible.data, A_END)
-                      } else {
-                          false
-                      }
-                  });
-              }
-              (false, false, true) => {
-                  proposals.retain(|value| {
-                      if let Some(trible) = Trible::new_raw_values(
-                          binding.get(self.variable_e.index).unwrap_or(if e_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_a.index).unwrap_or(if a_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_v.index).unwrap_or(if v_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                      ) {
-                          self.set.vea.has_prefix(trible.data, V_END)
-                      } else {
-                          false
-                      }
-                  });
-              }
-  
-              (true, true, false) => {
-                  proposals.retain(|value| {
-                      if let Some(trible) = Trible::new_raw_values(
-                          binding.get(self.variable_e.index).unwrap_or(if e_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_a.index).unwrap_or(if a_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_v.index).unwrap_or(if v_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                      ) {
-                          self.set.eav.has_prefix(trible.data, A_END)
-                      } else {
-                          false
-                      }
-                  });
-              }
-              (true, false, true) => {
-                  proposals.retain(|value| {
-                      if let Some(trible) = Trible::new_raw_values(
-                          binding.get(self.variable_e.index).unwrap_or(if e_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_a.index).unwrap_or(if a_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_v.index).unwrap_or(if v_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                      ) {
-                          self.set.eva.has_prefix(trible.data, V_END)
-                      } else {
-                          false
-                      }
-                  });
-              }
-  
-              (false, true, true) => {
-                  proposals.retain(|value| {
-                      if let Some(trible) = Trible::new_raw_values(
-                          binding.get(self.variable_e.index).unwrap_or(if e_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_a.index).unwrap_or(if a_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_v.index).unwrap_or(if v_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                      ) {
-                          self.set.ave.has_prefix(trible.data, V_END)
-                      } else {
-                          false
-                      }
-                  });
-              }
-  
-              (true, true, true) => {
-                  proposals.retain(|value| {
-                      if let Some(trible) = Trible::new_raw_values(
-                          binding.get(self.variable_e.index).unwrap_or(if e_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_a.index).unwrap_or(if a_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                          binding.get(self.variable_v.index).unwrap_or(if v_var {
-                              *value
-                          } else {
-                              [0; 32]
-                          }),
-                      ) {
-                          self.set.eav.has_prefix(trible.data, V_END)
-                      } else {
-                          false
-                      }
-                  });
-              }
-          }
-      }
-  }
+    fn confirm(&self, variable: VariableId, binding: Binding, proposals: &mut Vec<Value>) {
+        let e_var = self.variable_e.index == variable;
+        let a_var = self.variable_a.index == variable;
+        let v_var = self.variable_v.index == variable;
+
+        let e_bound = binding.get(self.variable_e.index);
+        let a_bound = binding.get(self.variable_a.index);
+        let v_bound = binding.get(self.variable_v.index);
+        
+        match (e_bound, a_bound, v_bound, e_var, a_var, v_var) {
+            (None, None, None, true, false, false) =>
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::new_raw_values(*value, [0; 32],[0; 32]) {
+                        self.set.eav.has_prefix(trible.data, E_END)
+                    } else {
+                        false
+                    }
+                }),
+            (None, None, None, false, true, false) =>
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::new_raw_values([0; 32], *value, [0; 32]) {
+                        self.set.aev.has_prefix(trible.data, A_END)
+                    } else {
+                        false
+                    }
+                }),
+            (None, None, None, false, false, true) =>
+                proposals.retain(|value| {
+                    if let Some(trible) = Trible::new_raw_values([0; 32], [0; 32], *value) {
+                        self.set.vea.has_prefix(trible.data, V_END)
+                    } else {
+                        false
+                    }
+                }),
+
+            (Some(e), None, None, false, true, false) =>
+            proposals.retain(|value| {
+                if let Some(trible) = Trible::new_raw_values(e, *value, [0; 32]) {
+                    self.set.eav.has_prefix(trible.data, A_END)
+                } else {
+                    false
+                }
+            }),
+            (Some(e), None, None, false, false, true) =>
+            proposals.retain(|value| {
+                if let Some(trible) = Trible::new_raw_values(e, [0; 32], *value) {
+                    self.set.eva.has_prefix(trible.data, V_END)
+                } else {
+                    false
+                }
+            }),
+            (None, Some(a), None, true, false, false) =>
+            proposals.retain(|value| {
+                if let Some(trible) = Trible::new_raw_values([0; 32], a, *value) {
+                    self.set.aev.has_prefix(trible.data, E_END)
+                } else {
+                    false
+                }
+            }),
+            (None, Some(a), None, false, false, true) =>
+            proposals.retain(|value| {
+                if let Some(trible) = Trible::new_raw_values([0; 32], a, *value) {
+                    self.set.ave.has_prefix(trible.data, V_END)
+                } else {
+                    false
+                }
+            }),
+            (None, None, Some(v), true, false, false) =>
+            proposals.retain(|value| {
+                if let Some(trible) = Trible::new_raw_values(*value, [0; 32], v) {
+                    self.set.vea.has_prefix(trible.data, E_END)
+                } else {
+                    false
+                }
+            }),
+            (None, None, Some(v), false, true, false) =>
+            proposals.retain(|value| {
+                if let Some(trible) = Trible::new_raw_values([0; 32], *value, v) {
+                    self.set.vae.has_prefix(trible.data, A_END)
+                } else {
+                    false
+                }
+            }),
+            (None, Some(a), Some(v), true, false, false) =>
+            proposals.retain(|value: &[u8; 32]| {
+                if let Some(trible) = Trible::new_raw_values(*value, a, v) {
+                    self.set.ave.has_prefix(trible.data, E_END)
+                } else {
+                    false
+                }
+            }),
+            (Some(e), None, Some(v), false, true, false) =>
+            proposals.retain(|value: &[u8; 32]| {
+                if let Some(trible) = Trible::new_raw_values(e, *value, v) {
+                    self.set.eva.has_prefix(trible.data, A_END)
+                } else {
+                    false
+                }
+            }),
+            (Some(e), Some(a), None, false, false, true) =>
+            proposals.retain(|value: &[u8; 32]| {
+                if let Some(trible) = Trible::new_raw_values(e, a, *value) {
+                    self.set.eav.has_prefix(trible.data, V_END)
+                } else {
+                    false
+                }
+            }),
+            _ => panic!("invalid trible constraint state"),
+        }
   */

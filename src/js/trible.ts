@@ -25,6 +25,8 @@ export const A_END = E_SIZE + A_SIZE;
 export const V_START = E_SIZE + A_SIZE;
 export const V_END = E_SIZE + A_SIZE + V_SIZE;
 
+export const zeroValue = fixedUint8Array(VALUE_SIZE);
+
 export const E = (trible: Trible): Id => trible.subarray(E_START, E_END) as Id;
 export const A = (trible: Trible): Id => trible.subarray(A_START, A_END) as Id;
 export const V = (trible: Trible): Value => trible.subarray(V_START, V_END) as Value;
@@ -39,7 +41,7 @@ export const valueAsId = (v: Value): Id | undefined => {
 export const idToValue = (id: Id): Value => {
   const v: Value = fixedUint8Array(32);
   v.subarray(16, 32).set(id);
-  return V;
+  return v;
 };
 
 export function tribleFromValues(e: Value, a: Value, v: Value): Trible | undefined {
