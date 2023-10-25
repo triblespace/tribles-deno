@@ -280,6 +280,10 @@ export class Query<V extends NamedVars> {
           throw Error("missing blobcache for Variable in query");
         }
         const encoded = binding.get(index);
+        if(encoded === undefined) {
+          throw Error("variable not bound after evaluation");
+        }
+
         const decoded = schema.decodeValue(
           encoded,
           // Note that there is a potential attack vector here, if we ever want to do query level access control.

@@ -2,14 +2,14 @@ import { ByteBitset } from "../bitset.ts";
 import { Binding, Variable } from "../query.ts";
 import { A, A_END, A_START, E, E_END, E_START, V, V_END, V_START, Value, idToValue, tribleFromValues, zeroValue } from "../trible.ts";
 import { TribleSet } from "../tribleset.ts";
-import { filterInPlace, fixedUint8Array } from "../util.ts";
+import { filterInPlace } from "../util.ts";
 import { Constraint } from "./constraint.ts";
 
 /**
  * A constraint limits the passed variables e, a and v to values with
  * a corresponding eav trible existing in the passed tribleset.
  */
-class TribleConstraint implements Constraint {
+export class TribleConstraint implements Constraint {
     set: TribleSet;
   
     eVar: Variable<unknown>;

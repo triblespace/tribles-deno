@@ -5,9 +5,11 @@ import {
   emptyAEVTriblePATCH,
   emptyAVETriblePATCH,
   emptyVEATriblePATCH,
-  emptyVAETriblePATCH
+  emptyVAETriblePATCH,
+  batch
 } from "./patch.ts";
 import { and } from "./constraints/and.ts";
+import { Trible } from "./trible.ts";
 
 /** A tribleset is an immutably persistent datastructure that stores tribles with set semantics.
  * It supports efficient set operations often take sub-linear time.
@@ -40,32 +42,34 @@ export class TribleSet {
    * Returns a new tribleset containting both the tribles of this set
    * and the tribles passed in.
    */
-  with(tribles) {
-    const EAV = this.EAV.batch();
-    const EVA = this.EVA.batch();
-    const AEV = this.AEV.batch();
-    const AVE = this.AVE.batch();
-    const VEA = this.VEA.batch();
-    const VAE = this.VAE.batch();
+  with(tribles: Iterable<Trible>) {
+    const b = batch();
+
+    const EAV = this.EAV;
+    const EVA = this.EVA;
+    const AEV = this.AEV;
+    const AVE = this.AVE;
+    const VEA = this.VEA;
+    const VAE = this.VAE;
 
     for (const trible of tribles) {
-      const entry = new Entry(trible, undefined);
+      const entry: Entry<64, undefined> = new Entry(trible, undefined);
 
-      EAV.put(entry);
-      EVA.put(entry);
-      AEV.put(entry);
-      AVE.put(entry);
-      VEA.put(entry);
-      VAE.put(entry);
+      EAV.put(b, entry);
+      EVA.put(b, entry);
+      AEV.put(b, entry);
+      AVE.put(b, entry);
+      VEA.put(b, entry);
+      VAE.put(b, entry);
     }
 
     return new TribleSet(
-      EAV.complete(),
-      EVA.complete(),
-      AEV.complete(),
-      AVE.complete(),
-      VEA.complete(),
-      VAE.complete(),
+      EAV,
+      EVA,
+      AEV,
+      AVE,
+      VEA,
+      VAE,
     );
   }
 
