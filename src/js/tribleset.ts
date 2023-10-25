@@ -10,6 +10,9 @@ import {
 } from "./patch.ts";
 import { and } from "./constraints/and.ts";
 import { Trible } from "./trible.ts";
+import { Variable } from "./query.ts";
+import { TribleConstraint } from "./constraints/trible.ts";
+import { Constraint } from "./constraints/constraint.ts";
 
 /** A tribleset is an immutably persistent datastructure that stores tribles with set semantics.
  * It supports efficient set operations often take sub-linear time.
@@ -85,8 +88,8 @@ export class TribleSet {
    * Returns a single trible constraint ensuring that there exists a corresponding
    * eav trible in this set for the passed e, a and v variables.
    */
-  tripleConstraint([e, a, v]) {
-    return new TribleConstraint(this, e.index, a.index, v.index);
+  tripleConstraint(e: Variable<unknown>, a: Variable<unknown>, v: Variable<unknown>) {
+    return new TribleConstraint(this, e, a, v);
   }
 
   /**
@@ -95,10 +98,10 @@ export class TribleSet {
    * This is equivalent to performing an `and`/conjunction over multiple tripleConstraint
    * calls, but allows for a potentially more efficient execution (see commits).
    */
-  patternConstraint(triples) {
+  patternConstraint(triples: (readonly [Variable<unknown>, Variable<unknown>, Variable<unknown>])[]): Constraint {
     return and(
       ...triples.map(([e, a, v]) =>
-        new TribleConstraint(this, e.index, a.index, v.index)
+        new TribleConstraint(this, e, a, v)
       ),
     );
   }
@@ -127,7 +130,7 @@ export class TribleSet {
   /**
    * Compares two triblesets and returns wether they are equal.
    */
-  isEqual(other) {
+  isEqual(other: TribleSet): boolean {
     return this.EAV.isEqual(other.EAV);
   }
   /**
@@ -154,7 +157,7 @@ export class TribleSet {
    * Returns a new tribleset that is the union of this set and the passed set,
    * i.e. a set that contains any trible that is in either of the input sets.
    */
-  union(other) {
+  union(other: TribleSet): TribleSet {
     return new TribleSet(
       this.EAV.union(other.EAV),
       this.EVA.union(other.EVA),

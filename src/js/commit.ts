@@ -1,7 +1,7 @@
 import { schemas } from "./schemas.ts";
 import { UFOID } from "./schemas/ufoid.ts";
 import { id } from "./namespace.ts";
-import { TRIBLE_SIZE, Value, equalValue } from "./trible.ts";
+import { TRIBLE_SIZE, Trible, Value, equalValue } from "./trible.ts";
 import { blake3 } from "./wasm.js";
 import { NS } from "./namespace.ts";
 import { FixedUint8Array } from "./util.ts";
@@ -69,7 +69,7 @@ const CAPSTONE_SIZE = 64;
 
 function* splitTribles(bytes: Uint8Array) {
   for (let t = 0; t < bytes.length; t += TRIBLE_SIZE) {
-    yield bytes.subarray(t, t + TRIBLE_SIZE);
+    yield bytes.subarray(t, t + TRIBLE_SIZE) as Trible;
   }
 }
 
