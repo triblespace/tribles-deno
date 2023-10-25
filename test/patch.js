@@ -357,7 +357,9 @@ Deno.test("set union", () => {
         emptyValuePATCH,
       );
       const patchUnion = patchA.union(patchB);
-      const patchUnionSet = new Set([...patchUnion.keys()].map((v) => encode(v)));
+      const patchUnionSet = new Set(
+        [...patchUnion.keys()].map((v) => encode(v)),
+      );
 
       assertEquals(patchUnion.count(), jsUnion.size);
       assertEquals(patchUnionSet, jsUnion);

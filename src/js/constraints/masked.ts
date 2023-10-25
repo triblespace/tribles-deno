@@ -43,6 +43,9 @@ class MaskedConstraint implements Constraint {
  * @param constraint - TODO
  * @param variable - TODO
  */
-export function masked(constraint: Constraint, maskedVariables: Variable<unknown>[]) {
+export function masked(
+  constraint: Constraint,
+  maskedVariables: Variable<unknown>[],
+) {
   return new MaskedConstraint(constraint, maskedVariables);
 }

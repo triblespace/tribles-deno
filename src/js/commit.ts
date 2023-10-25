@@ -1,12 +1,12 @@
 import { schemas } from "./schemas.ts";
 import { UFOID } from "./schemas/ufoid.ts";
 import { id } from "./namespace.ts";
-import { TRIBLE_SIZE, Trible, Value, equalValue } from "./trible.ts";
+import { equalValue, Trible, TRIBLE_SIZE, Value } from "./trible.ts";
 import { blake3 } from "./wasm.js";
 import { NS } from "./namespace.ts";
 import { FixedUint8Array } from "./util.ts";
 import { KB } from "./kb.ts";
-import { Variable, find } from "./query.ts";
+import { find, Variable } from "./query.ts";
 
 //
 // The payload consists of both the data and metadata trible
@@ -55,15 +55,18 @@ const authoredById = UFOID.now();
 const BLAKE3_VERIFICATION = UFOID.now().toHex();
 const verificationMethodId = UFOID.now();
 
-const commitNS = new NS(schemas.ufoid, {
-  verificationMethod: { id: verificationMethodId, schema: schemas.ufoid },
-  group: { id: commitGroupId, schema: schemas.ufoid },
-  segment: { id: commitSegmentId, schema: schemas.subrange },
-  createdAt: { id: creationStampId, schema: schemas.geostamp },
-  shortMessage: { id: shortMessageId, schema: schemas.shortstring },
-  message: { id: messageId, schema: schemas.longstring },
-  authoredBy: { id: authoredById, schema: schemas.ufoid},
-} as const);
+const commitNS = new NS(
+  schemas.ufoid,
+  {
+    verificationMethod: { id: verificationMethodId, schema: schemas.ufoid },
+    group: { id: commitGroupId, schema: schemas.ufoid },
+    segment: { id: commitSegmentId, schema: schemas.subrange },
+    createdAt: { id: creationStampId, schema: schemas.geostamp },
+    shortMessage: { id: shortMessageId, schema: schemas.shortstring },
+    message: { id: messageId, schema: schemas.longstring },
+    authoredBy: { id: authoredById, schema: schemas.ufoid },
+  } as const,
+);
 
 const CAPSTONE_SIZE = 64;
 
@@ -101,10 +104,15 @@ export class Commit {
 
     const metaId = new UFOID(capstone.slice(0, 16) as FixedUint8Array<16>);
 
-    const [{ verificationMethod }] = find((ctx, {verificationMethod}:{verificationMethod:Variable<UFOID>}) =>
-      commitNS.pattern(ctx, kb,
-        [{[id]: metaId,
-          verificationMethod: verificationMethod}]));
+    const [{ verificationMethod }] = find((
+      ctx,
+      { verificationMethod }: { verificationMethod: Variable<UFOID> },
+    ) =>
+      commitNS.pattern(ctx, kb, [{
+        [id]: metaId,
+        verificationMethod: verificationMethod,
+      }])
+    );
     if (!verificationMethod) {
       throw Error("failed to deserialize: no verification method specified");
     }
@@ -131,10 +139,15 @@ export class Commit {
   serialize() {
     let verifier;
 
-    const [{ verificationMethod }] = find((ctx, {verificationMethod}:{verificationMethod:Variable<UFOID>}) =>
-    commitNS.pattern(ctx, this.kb,
-      [{[id]: this.metaId,
-        verificationMethod: verificationMethod}]));
+    const [{ verificationMethod }] = find((
+      ctx,
+      { verificationMethod }: { verificationMethod: Variable<UFOID> },
+    ) =>
+      commitNS.pattern(ctx, this.kb, [{
+        [id]: this.metaId,
+        verificationMethod: verificationMethod,
+      }])
+    );
     if (!verificationMethod) {
       throw Error("failed to serialize: no verification method specified");
     }
@@ -147,7 +160,9 @@ export class Commit {
     const tribles_count = this.kb.tribleset.count();
     const tribles = this.kb.tribleset.tribles();
 
-    const buffer = new Uint8Array((tribles_count * TRIBLE_SIZE) + CAPSTONE_SIZE);
+    const buffer = new Uint8Array(
+      (tribles_count * TRIBLE_SIZE) + CAPSTONE_SIZE,
+    );
 
     let offset = 0;
     for (const trible of tribles) {
@@ -169,7 +184,8 @@ const udp_max_commit_size = 65535;
 
 export function validateCommitSize(
   max_bytes = udp_max_commit_size,
-  commit: Commit) {
+  commit: Commit,
+) {
   if ((commit.kb.tribleset.count() * TRIBLE_SIZE + CAPSTONE_SIZE) > max_bytes) {
     throw Error(
       `Commit too large: Commit must not be larger than ${max_bytes} bytes.`,

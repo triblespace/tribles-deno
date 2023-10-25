@@ -1,14 +1,13 @@
 // See: https://docs.rs/ultraviolet/latest/ultraviolet/transform/struct.Similarity3.html
 
 import { Schema } from "../schemas.ts";
-import { Value, Blob, LazyBlob } from "../trible.ts";
+import { Blob, LazyBlob, Value } from "../trible.ts";
 
 type Similarty3d32 = {
-  translation: { x: number, y: number, z: number },
-  rotation: { s: number,
-              bv: { xy: number, xz: number, yz: number } },
-  scale: number,
-}
+  translation: { x: number; y: number; z: number };
+  rotation: { s: number; bv: { xy: number; xz: number; yz: number } };
+  scale: number;
+};
 
 function encodeValue(v: Similarty3d32, b: Value): Blob | undefined {
   const view = new DataView(b.buffer, b.byteOffset, b.byteLength);

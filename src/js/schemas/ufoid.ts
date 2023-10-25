@@ -1,5 +1,5 @@
 import { FixedUint8Array, fixedUint8Array } from "../util.ts";
-import { VALUE_SIZE, ID_SIZE, Id, Value, Blob, LazyBlob } from "../trible.ts";
+import { Blob, Id, ID_SIZE, LazyBlob, Value, VALUE_SIZE } from "../trible.ts";
 import { IdSchema } from "../schemas.ts";
 
 export class UFOID {

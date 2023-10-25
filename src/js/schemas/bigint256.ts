@@ -1,5 +1,5 @@
 import { Schema } from "../schemas.ts";
-import { Value, Blob, LazyBlob } from "../trible.ts";
+import { Blob, LazyBlob, Value } from "../trible.ts";
 import { bigIntToBytes, bytesToBigInt } from "./util.ts";
 
 function encodeValue(v: bigint, b: Value): Blob | undefined {

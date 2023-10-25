@@ -3,7 +3,7 @@ import {
   uuidToBytes,
 } from "https://deno.land/std@0.180.0/uuid/_common.ts";
 import { NIL_UUID, v4 } from "https://deno.land/std@0.180.0/uuid/mod.ts";
-import { Value, Blob, LazyBlob } from "../trible.ts";
+import { Blob, LazyBlob, Value } from "../trible.ts";
 import { Schema } from "../schemas.ts";
 
 function encodeValue(v: string, b: Value): Blob | undefined {

@@ -3,7 +3,7 @@ import {
   runBenchmarks,
 } from "https://deno.land/std@0.180.0/testing/bench.ts";
 import { emptyTriblePATCH as baseline, PATCHHash } from "../src/js/patch.ts";
-import { A, E, V, TRIBLE_SIZE } from "../src/js/trible.ts";
+import { A, E, TRIBLE_SIZE, V } from "../src/js/trible.ts";
 import { UFOID } from "../mod.ts";
 
 const variants = [

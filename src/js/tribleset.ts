@@ -1,12 +1,12 @@
 import {
-  Entry,
-  emptyEAVTriblePATCH,
-  emptyEVATriblePATCH,
+  batch,
   emptyAEVTriblePATCH,
   emptyAVETriblePATCH,
-  emptyVEATriblePATCH,
+  emptyEAVTriblePATCH,
+  emptyEVATriblePATCH,
   emptyVAETriblePATCH,
-  batch
+  emptyVEATriblePATCH,
+  Entry,
 } from "./patch.ts";
 import { and } from "./constraints/and.ts";
 import { Trible } from "./trible.ts";
@@ -18,12 +18,12 @@ import { Constraint } from "./constraints/constraint.ts";
  * It supports efficient set operations often take sub-linear time.
  */
 export class TribleSet {
-    EAV: typeof emptyEAVTriblePATCH;
-    EVA: typeof emptyEVATriblePATCH;
-    AEV: typeof emptyAEVTriblePATCH;
-    AVE: typeof emptyAVETriblePATCH;
-    VEA: typeof emptyVEATriblePATCH;
-    VAE: typeof emptyVAETriblePATCH; 
+  EAV: typeof emptyEAVTriblePATCH;
+  EVA: typeof emptyEVATriblePATCH;
+  AEV: typeof emptyAEVTriblePATCH;
+  AVE: typeof emptyAVETriblePATCH;
+  VEA: typeof emptyVEATriblePATCH;
+  VAE: typeof emptyVAETriblePATCH;
 
   constructor(
     EAV = emptyEAVTriblePATCH,
@@ -88,7 +88,11 @@ export class TribleSet {
    * Returns a single trible constraint ensuring that there exists a corresponding
    * eav trible in this set for the passed e, a and v variables.
    */
-  tripleConstraint(e: Variable<unknown>, a: Variable<unknown>, v: Variable<unknown>) {
+  tripleConstraint(
+    e: Variable<unknown>,
+    a: Variable<unknown>,
+    v: Variable<unknown>,
+  ) {
     return new TribleConstraint(this, e, a, v);
   }
 
@@ -98,11 +102,12 @@ export class TribleSet {
    * This is equivalent to performing an `and`/conjunction over multiple tripleConstraint
    * calls, but allows for a potentially more efficient execution (see commits).
    */
-  patternConstraint(triples: (readonly [Variable<unknown>, Variable<unknown>, Variable<unknown>])[]): Constraint {
+  patternConstraint(
+    triples:
+      (readonly [Variable<unknown>, Variable<unknown>, Variable<unknown>])[],
+  ): Constraint {
     return and(
-      ...triples.map(([e, a, v]) =>
-        new TribleConstraint(this, e, a, v)
-      ),
+      ...triples.map(([e, a, v]) => new TribleConstraint(this, e, a, v)),
     );
   }
 

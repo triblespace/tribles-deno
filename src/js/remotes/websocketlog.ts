@@ -3,16 +3,18 @@ import { Commit } from "../commit.ts";
 export const PROTOCOL = "tribles/commit";
 
 export function websocketLog(url: string): {
-  push(commit: Commit): void,
-  pull(): Promise<Commit>,
-  close(): void
+  push(commit: Commit): void;
+  pull(): Promise<Commit>;
+  close(): void;
 } {
   const socket = new WebSocket(url, PROTOCOL);
   socket.binaryType = "arraybuffer";
 
   const commitQueue: Promise<Commit>[] = [];
-  const awaitsQueue: {resolve: (commit: Commit) => void,
-                      reject: (error: Error) => void}[] = [];
+  const awaitsQueue: {
+    resolve: (commit: Commit) => void;
+    reject: (error: Error) => void;
+  }[] = [];
 
   socket.addEventListener("message", (e) => {
     let commit = undefined, error;
@@ -48,12 +50,13 @@ export function websocketLog(url: string): {
       const commit = commitQueue.shift();
       if (commit === undefined) {
         return new Promise((resolve, reject) =>
-        awaitsQueue.push({ resolve, reject }));
+          awaitsQueue.push({ resolve, reject })
+        );
       }
       return commit;
     },
     close() {
       socket.close();
-    }
+    },
   };
 }

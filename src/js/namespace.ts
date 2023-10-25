@@ -1,6 +1,15 @@
 import { Variable, VariableContext } from "./query.ts";
 import { and } from "./constraints/and.ts";
-import { A, E, Trible, TRIBLE_SIZE, V, Value, Blob, VALUE_SIZE } from "./trible.ts";
+import {
+  A,
+  Blob,
+  E,
+  Trible,
+  TRIBLE_SIZE,
+  V,
+  Value,
+  VALUE_SIZE,
+} from "./trible.ts";
 import { KB } from "./kb.ts";
 import { IdSchema, Schema } from "./schemas.ts";
 import { fixedUint8Array } from "./util.ts";
@@ -23,23 +32,40 @@ class IDSequence<T> implements Iterator<T> {
   }
 }
 
-type AttributeDescription<Id, T> = {id: Id, schema: Schema<T>};
+type AttributeDescription<Id, T> = { id: Id; schema: Schema<T> };
 
 // deno-lint-ignore no-explicit-any
-type NSDeclaration<Id> = {[index: string]: AttributeDescription<Id, any>};
+type NSDeclaration<Id> = { [index: string]: AttributeDescription<Id, any> };
 
 // deno-lint-ignore no-explicit-any
 type SchemaT<S extends Schema<any>> = S extends Schema<infer T> ? T : never;
 
-type VariableOrValue<Vars extends false | true, T> = Vars extends true ? Variable<T> | T : T;
+type VariableOrValue<Vars extends false | true, T> = Vars extends true
+  ? Variable<T> | T
+  : T;
 
-type Unknowns<Vars, T> = Iterator<Vars extends true? T | Variable<T> : T>;
+type Unknowns<Vars, T> = Iterator<Vars extends true ? T | Variable<T> : T>;
 
-type Triple<Vars extends boolean, Id, Decl extends NSDeclaration<Id>> =
-  {[Name in keyof Decl]: [VariableOrValue<Vars, Id>, Name & string, VariableOrValue<Vars, SchemaT<Decl[Name]["schema"]>>]}[keyof Decl];
+type Triple<Vars extends boolean, Id, Decl extends NSDeclaration<Id>> = {
+  [Name in keyof Decl]: [
+    VariableOrValue<Vars, Id>,
+    Name & string,
+    VariableOrValue<Vars, SchemaT<Decl[Name]["schema"]>>,
+  ];
+}[keyof Decl];
 
-type EntityDescription<Vars extends boolean, Id, Decl extends NSDeclaration<Id>> = 
-  {[id]?: Id} & {[Name in keyof Decl]+?: VariableOrValue<Vars, SchemaT<Decl[Name]["schema"]>>};
+type EntityDescription<
+  Vars extends boolean,
+  Id,
+  Decl extends NSDeclaration<Id>,
+> =
+  & { [id]?: Id }
+  & {
+    [Name in keyof Decl]+?: VariableOrValue<
+      Vars,
+      SchemaT<Decl[Name]["schema"]>
+    >;
+  };
 
 export class NS<Id, Decl extends NSDeclaration<Id>> {
   ids: IdSchema<Id>;
@@ -54,18 +80,22 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
     unknowns: Unknowns<Vars, unknown>,
     entityDescription: EntityDescription<Vars, Id, Decl>,
   ) {
-    const entity: VariableOrValue<Vars, Id> = entityDescription[id] || unknowns.next().value;
+    const entity: VariableOrValue<Vars, Id> = entityDescription[id] ||
+      unknowns.next().value;
     for (const entry of Object.entries(entityDescription)) {
       const attributeName: keyof Decl & string = entry[0];
       const value = entry[1];
-      if(value !== undefined) {
+      if (value !== undefined) {
         const triple: Triple<Vars, Id, Decl> = [entity, attributeName, value];
         out.push(triple);
       }
     }
   }
 
-  entitiesToTriples<Vars extends boolean>(unknowns: Unknowns<Vars, unknown>, entities: EntityDescription<Vars, Id, Decl>[]): Triple<Vars, Id, Decl>[] {
+  entitiesToTriples<Vars extends boolean>(
+    unknowns: Unknowns<Vars, unknown>,
+    entities: EntityDescription<Vars, Id, Decl>[],
+  ): Triple<Vars, Id, Decl>[] {
     const triples: Triple<Vars, Id, Decl>[] = [];
 
     for (const entity of entities) {
@@ -75,16 +105,18 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
     return triples;
   }
 
-  triplesToTribles(triples: Triple<false, Id, Decl>[]): {tribles: Trible[], blobs: [Trible, Blob][]} {
+  triplesToTribles(
+    triples: Triple<false, Id, Decl>[],
+  ): { tribles: Trible[]; blobs: [Trible, Blob][] } {
     const tribles = [];
-    const blobs:[Trible, Blob][]  = [];
+    const blobs: [Trible, Blob][] = [];
     for (const [e, a, v] of triples) {
       const attributeDescription = this.attributes[a];
 
       const trible = fixedUint8Array(TRIBLE_SIZE);
       this.ids.encodeId(e, E(trible));
       this.ids.encodeId(attributeDescription.id, A(trible));
-      
+
       let blob;
       try {
         blob = attributeDescription.schema.encodeValue(v, V(trible));
@@ -102,9 +134,17 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
     return { tribles, blobs };
   }
 
-  triplesToPattern(ctx: VariableContext, triples: readonly Triple<true, Id, Decl>[]): 
-  {pattern: (readonly [Variable<Id>, Variable<Id>, Variable<SchemaT<Decl[keyof Decl]["schema"]>>])[],
-   constraints: Constraint[]} {
+  triplesToPattern(
+    ctx: VariableContext,
+    triples: readonly Triple<true, Id, Decl>[],
+  ): {
+    pattern: (readonly [
+      Variable<Id>,
+      Variable<Id>,
+      Variable<SchemaT<Decl[keyof Decl]["schema"]>>,
+    ])[];
+    constraints: Constraint[];
+  } {
     const pattern = [];
     const constraints = [];
     for (const [e, a, v] of triples) {
@@ -171,7 +211,10 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
    * @param entities - A function/generator returning/yielding entities.
    * @returns A new KB with the entities.
    */
-  entities(entities: (unknowns: Iterator<Id>) => EntityDescription<false, Id, Decl>[], kb: KB = new KB()): KB{
+  entities(
+    entities: (unknowns: Iterator<Id>) => EntityDescription<false, Id, Decl>[],
+    kb: KB = new KB(),
+  ): KB {
     const ids = new IDSequence(this.ids);
     const createdEntities = entities(ids);
     const triples = this.entitiesToTriples(
@@ -185,7 +228,11 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
     return new KB(newTribleSet, newBlobCache);
   }
 
-  pattern(ctx: VariableContext, source: KB, entities: EntityDescription<true, Id, Decl>[]) {
+  pattern(
+    ctx: VariableContext,
+    source: KB,
+    entities: EntityDescription<true, Id, Decl>[],
+  ) {
     const triples = this.entitiesToTriples(
       ctx.anonVars(),
       entities,

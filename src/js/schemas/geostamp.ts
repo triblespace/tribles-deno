@@ -1,10 +1,12 @@
 import { Schema } from "../schemas.ts";
-import { LazyBlob, Value, Blob } from "../trible.ts";
+import { Blob, LazyBlob, Value } from "../trible.ts";
 
-type Geostamp = {timestamp: number,
-                 altitude: number,
-                 latitude: number,
-                 longitude: number};
+type Geostamp = {
+  timestamp: number;
+  altitude: number;
+  latitude: number;
+  longitude: number;
+};
 
 function encodeValue(v: Geostamp, b: Value): Blob | undefined {
   const view = new DataView(b.buffer, b.byteOffset, b.byteLength);

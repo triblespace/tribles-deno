@@ -3,7 +3,7 @@ import {
   runBenchmarks,
 } from "https://deno.land/std@0.180.0/testing/bench.ts";
 import { emptyValuePATCH } from "../src/js/patch.js";
-import { A, E, V,TRIBLE_SIZE} from "../src/js/trible.js";
+import { A, E, TRIBLE_SIZE, V } from "../src/js/trible.js";
 import { UFOID } from "../mod.ts";
 
 function generate_sample(size, sharing_prob = 0.1) {

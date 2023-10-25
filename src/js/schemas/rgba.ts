@@ -1,9 +1,12 @@
 import { Schema } from "../schemas.ts";
-import { Value, Blob, LazyBlob } from "../trible.ts";
+import { Blob, LazyBlob, Value } from "../trible.ts";
 
-type RGBA = {r: number, g: number, b: number, a: number};
+type RGBA = { r: number; g: number; b: number; a: number };
 
-function encodeValue({ r = 0, g = 0, b = 0, a = 1 }, buff: Value): Blob | undefined {
+function encodeValue(
+  { r = 0, g = 0, b = 0, a = 1 },
+  buff: Value,
+): Blob | undefined {
   const view = new DataView(buff.buffer, buff.byteOffset, buff.byteLength);
   view.setFloat64(0, a);
   view.setFloat64(8, r);

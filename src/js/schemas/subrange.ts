@@ -1,12 +1,14 @@
 import { Schema } from "../schemas.ts";
-import { Value, Blob, LazyBlob } from "../trible.ts";
+import { Blob, LazyBlob, Value } from "../trible.ts";
 
-type Subrange = {range_start: bigint,
-                 range_end: bigint,
-                 sub_start: bigint,
-                 sub_end: bigint};
+type Subrange = {
+  range_start: bigint;
+  range_end: bigint;
+  sub_start: bigint;
+  sub_end: bigint;
+};
 
-function encodeValue(v: Subrange , b: Value): Blob | undefined {
+function encodeValue(v: Subrange, b: Value): Blob | undefined {
   const view = new DataView(b.buffer, b.byteOffset, b.byteLength);
   view.setBigUint64(0, v.range_start);
   view.setBigUint64(8, v.range_end);

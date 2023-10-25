@@ -9,7 +9,7 @@ import { schema as bigint256_schema } from "./schemas/bigint256.ts";
 import { schema as hex_schema } from "./schemas/hex.ts";
 import { schema as rgba_schema } from "./schemas/rgba.ts";
 import { schema as geostamp_schema } from "./schemas/geostamp.ts";
-import { Id, Value, Blob, LazyBlob } from "./trible.ts";
+import { Blob, Id, LazyBlob, Value } from "./trible.ts";
 
 export interface Schema<T> {
   encodeValue(value: T, buffer: Value): Blob | undefined;

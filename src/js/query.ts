@@ -1,5 +1,5 @@
 import { ByteBitset } from "./bitset.ts";
-import { Entry, batch, emptyValuePATCH } from "./patch.ts";
+import { batch, emptyValuePATCH, Entry } from "./patch.ts";
 import { ConstantConstraint } from "./constraints/constant.ts";
 import { BlobCache } from "../../mod.ts";
 import { Schema } from "./schemas.ts";
@@ -36,13 +36,19 @@ export class Binding {
 
   get<T>(variable_index: number): Value | undefined {
     if (this.bound().has(variable_index)) {
-      return this.buffer.subarray(32 + variable_index * 32, 32 + (variable_index + 1) * 32) as Value;
+      return this.buffer.subarray(
+        32 + variable_index * 32,
+        32 + (variable_index + 1) * 32,
+      ) as Value;
     }
   }
 
   set<T>(variable_index: number, value: Value) {
     const copy = this.copy();
-    this.buffer.subarray(32 + variable_index * 32, 32 + (variable_index + 1) * 32).set(value);
+    this.buffer.subarray(
+      32 + variable_index * 32,
+      32 + (variable_index + 1) * 32,
+    ).set(value);
     copy.bound().set(variable_index);
     return copy;
   }
@@ -57,14 +63,18 @@ export class Binding {
  * gets assigned different values when a query is evaluated.
  */
 export class Variable<T> {
-  context: VariableContext
+  context: VariableContext;
   index: number;
   name: string | undefined;
   blobcache: BlobCache | undefined;
   schema: Schema<T> | undefined;
   constant: T | undefined;
 
-  constructor(context: VariableContext, index: number, name: string | undefined = undefined) {
+  constructor(
+    context: VariableContext,
+    index: number,
+    name: string | undefined = undefined,
+  ) {
     this.context = context;
     this.index = index;
     this.name = name;
@@ -126,7 +136,7 @@ export class Variable<T> {
 }
 
 // deno-lint-ignore no-explicit-any
-type NamedVars = { [name: string]: Variable<any>; };
+type NamedVars = { [name: string]: Variable<any> };
 
 /**
  * Represents a collection of Variables used together, e.g. in a query.
@@ -196,8 +206,7 @@ export class VariableContext {
     // deno-lint-ignore no-this-alias
     const self = this;
     // deno-lint-ignore no-explicit-any
-    const iter: Iterable<Variable<any>> & Iterator<Variable<any>> =
-    {
+    const iter: Iterable<Variable<any>> & Iterator<Variable<any>> = {
       [Symbol.iterator]() {
         return this;
       },
@@ -211,8 +220,9 @@ export class VariableContext {
 }
 
 // deno-lint-ignore no-explicit-any
-type VariableT<V extends Variable<any>> = V extends Variable<infer T> ? T : never;
-type Results<V extends NamedVars> = {[K in keyof V]: VariableT<V[K]>};
+type VariableT<V extends Variable<any>> = V extends Variable<infer T> ? T
+  : never;
+type Results<V extends NamedVars> = { [K in keyof V]: VariableT<V[K]> };
 
 /**
  * A query represents the process of finding variable asignment
@@ -263,7 +273,7 @@ export class Query<V extends NamedVars> {
 
   *[Symbol.iterator](): Iterator<Results<V>> {
     for (const binding of this.bindAll(new Binding(this.variables.count()))) {
-      const result: {[K in keyof V]?: VariableT<V[K]>}  = {};
+      const result: { [K in keyof V]?: VariableT<V[K]> } = {};
       for (
         const entry of Object.entries(this.ctx.namedVariables as V)
       ) {
@@ -273,14 +283,14 @@ export class Query<V extends NamedVars> {
           schema,
           blobcache,
         } = entry[1];
-        if(schema === undefined) {
+        if (schema === undefined) {
           throw Error("untyped Variable in query");
         }
-        if(blobcache === undefined) {
+        if (blobcache === undefined) {
           throw Error("missing blobcache for Variable in query");
         }
         const encoded = binding.get(index);
-        if(encoded === undefined) {
+        if (encoded === undefined) {
           throw Error("variable not bound after evaluation");
         }
 
@@ -303,7 +313,11 @@ export class Query<V extends NamedVars> {
  * returns a constraint builder that can be used to enumerate query results
  * with a call to find.
  */
-type QueryFn<V extends NamedVars> = (ctx: VariableContext, namedVars: V, anonVars: Iterable<Variable<unknown>>) => Constraint;
+type QueryFn<V extends NamedVars> = (
+  ctx: VariableContext,
+  namedVars: V,
+  anonVars: Iterable<Variable<unknown>>,
+) => Constraint;
 
 /**
  * Create an iterable query object from the provided constraint function.

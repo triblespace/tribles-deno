@@ -5,7 +5,7 @@ export const TRIBLE_SIZE = 64;
 export const ID_SIZE = 16;
 export const VALUE_SIZE = 32;
 
-export type Trible = FixedUint8Array<typeof TRIBLE_SIZE>
+export type Trible = FixedUint8Array<typeof TRIBLE_SIZE>;
 export type Id = FixedUint8Array<typeof ID_SIZE>;
 export type Value = FixedUint8Array<typeof VALUE_SIZE>;
 
@@ -29,11 +29,12 @@ export const zeroValue = fixedUint8Array(VALUE_SIZE);
 
 export const E = (trible: Trible): Id => trible.subarray(E_START, E_END) as Id;
 export const A = (trible: Trible): Id => trible.subarray(A_START, A_END) as Id;
-export const V = (trible: Trible): Value => trible.subarray(V_START, V_END) as Value;
+export const V = (trible: Trible): Value =>
+  trible.subarray(V_START, V_END) as Value;
 
 export const valueAsId = (v: Value): Id | undefined => {
   const view = new Uint32Array(v.buffer, v.byteOffset + 16, 4);
-  if(view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0) {
+  if (view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0) {
     return v.subarray(16, 32) as Id;
   }
 };
@@ -44,11 +45,15 @@ export const idToValue = (id: Id): Value => {
   return v;
 };
 
-export function tribleFromValues(e: Value, a: Value, v: Value): Trible | undefined {
+export function tribleFromValues(
+  e: Value,
+  a: Value,
+  v: Value,
+): Trible | undefined {
   const eId = valueAsId(e);
-  if(eId === undefined) return;
+  if (eId === undefined) return;
   const aId = valueAsId(a);
-  if(aId === undefined) return;
+  if (aId === undefined) return;
 
   const trible: Trible = fixedUint8Array(TRIBLE_SIZE);
   E(trible).set(eId);
@@ -59,10 +64,10 @@ export function tribleFromValues(e: Value, a: Value, v: Value): Trible | undefin
 }
 
 export const TribleSegmentation = (at_depth: number) => {
-  if(at_depth < E_END) return 0;
-  if(at_depth < A_END) return 1;
+  if (at_depth < E_END) return 0;
+  if (at_depth < A_END) return 1;
   return 2;
-}
+};
 
 export const EAVOrder = {
   keyToTree: (at_depth: number) => at_depth,

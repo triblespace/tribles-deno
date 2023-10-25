@@ -23,10 +23,10 @@ export {
   masked,
   NS,
   ranged,
-  TribleSet,
+  s3Store,
   schemas,
+  TribleSet,
   UFOID,
   validateCommitSize,
   websocketLog,
-  s3Store
 };

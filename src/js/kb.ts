@@ -14,7 +14,10 @@ export class KB {
    * @param tribleset - The tribles stored.
    * @param blobcache - The blobs associated with the tribles.
    */
-  constructor(tribleset: TribleSet = new TribleSet(), blobcache: BlobCache = new BlobCache()) {
+  constructor(
+    tribleset: TribleSet = new TribleSet(),
+    blobcache: BlobCache = new BlobCache(),
+  ) {
     this.tribleset = tribleset;
     this.blobcache = blobcache;
   }
@@ -24,7 +27,9 @@ export class KB {
    * @param pattern - A function/generator returning/yielding a pattern of triples to be matched.
    * @returns - A constraint that can be used in a `find` call.
    */
-  patternConstraint<Id, Decl>(pattern: (readonly [Variable<Id>, Variable<Id>, Variable<unknown>])[]): Constraint {
+  patternConstraint<Id, Decl>(
+    pattern: (readonly [Variable<Id>, Variable<Id>, Variable<unknown>])[],
+  ): Constraint {
     for (const [_e, _a, v] of pattern) {
       v.proposeBlobCache(this.blobcache);
     }
@@ -47,7 +52,7 @@ export class KB {
   }
 
   /**
-   * Checks if this KB contains the same tribles as the other KB. 
+   * Checks if this KB contains the same tribles as the other KB.
    */
   isEqual(other: KB) {
     return this.tribleset.isEqual(other.tribleset);

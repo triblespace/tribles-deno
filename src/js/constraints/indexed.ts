@@ -42,6 +42,9 @@ class IndexConstraint implements Constraint {
  * @param index - The constant values.
  * @returns The constraint usable with other constraints or `find`.
  */
-export function indexed<T>(variable: Variable<T>, index: typeof emptyValuePATCH): Constraint {
+export function indexed<T>(
+  variable: Variable<T>,
+  index: typeof emptyValuePATCH,
+): Constraint {
   return new IndexConstraint(variable.index, index);
 }

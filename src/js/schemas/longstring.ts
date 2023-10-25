@@ -1,5 +1,5 @@
 import { Schema } from "../schemas.ts";
-import { Value, Blob, LazyBlob } from "../trible.ts";
+import { Blob, LazyBlob, Value } from "../trible.ts";
 import { blake3 } from "../wasm.js";
 
 function encodeValue(v: string, b: Value): Blob {

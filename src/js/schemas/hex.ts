@@ -1,6 +1,6 @@
 import * as hex from "https://deno.land/std@0.180.0/encoding/hex.ts";
 import { Schema } from "../schemas.ts";
-import { LazyBlob, Value, Blob } from "../trible.ts";
+import { Blob, LazyBlob, Value } from "../trible.ts";
 
 function encodeValue(v: string, b: Value): Blob | undefined {
   if (v.length !== 64) {

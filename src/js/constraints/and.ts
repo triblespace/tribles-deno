@@ -27,11 +27,15 @@ class IntersectionConstraint implements Constraint {
   }
 
   propose(variable_index: number, binding: Binding): Value[] {
-    const relevant_constraints = this.constraints.filter((c) => c.variables().has(variable_index));
-    relevant_constraints.sort((a, b) => a.estimate(variable_index, binding) - b.estimate(variable_index, binding))
+    const relevant_constraints = this.constraints.filter((c) =>
+      c.variables().has(variable_index)
+    );
+    relevant_constraints.sort((a, b) =>
+      a.estimate(variable_index, binding) - b.estimate(variable_index, binding)
+    );
 
     const proposal = relevant_constraints[0].propose(variable_index, binding);
-    for(let i = 1; i < relevant_constraints.length; i++) {
+    for (let i = 1; i < relevant_constraints.length; i++) {
       relevant_constraints[i].confirm(variable_index, binding, proposal);
     }
 

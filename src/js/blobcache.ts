@@ -1,5 +1,13 @@
-import { Entry, PATCH, naturalOrder, singleSegment, batch } from "./patch.ts";
-import { V, VAEOrder, TRIBLE_SIZE, TribleSegmentation, VALUE_SIZE, Value, Blob } from "./trible.ts";
+import { batch, Entry, naturalOrder, PATCH, singleSegment } from "./patch.ts";
+import {
+  Blob,
+  TRIBLE_SIZE,
+  TribleSegmentation,
+  V,
+  VAEOrder,
+  Value,
+  VALUE_SIZE,
+} from "./trible.ts";
 import { FixedUint8Array, fixedUint8Array } from "./util.ts";
 
 // TODO I think we can split this into a strongly referencing core type
@@ -14,8 +22,18 @@ import { FixedUint8Array, fixedUint8Array } from "./util.ts";
  * memory consumption require it.
  */
 export class BlobCache {
-  strong: PATCH<typeof TRIBLE_SIZE, typeof VAEOrder, typeof TribleSegmentation, Uint8Array>;
-  weak: PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, WeakRef<Uint8Array>>
+  strong: PATCH<
+    typeof TRIBLE_SIZE,
+    typeof VAEOrder,
+    typeof TribleSegmentation,
+    Uint8Array
+  >;
+  weak: PATCH<
+    typeof VALUE_SIZE,
+    typeof naturalOrder,
+    typeof singleSegment,
+    WeakRef<Uint8Array>
+  >;
   onMiss: (value: FixedUint8Array<typeof VALUE_SIZE>) => Promise<Uint8Array>;
 
   /**
@@ -25,9 +43,21 @@ export class BlobCache {
    * @param weak - A PATCH storing the weak blobs.
    */
   constructor(
-    onMiss: (value: FixedUint8Array<typeof VALUE_SIZE>) => Promise<Uint8Array> = (_value: FixedUint8Array<typeof VALUE_SIZE>) => Promise.reject(Error("no onMiss handler provided")),
-    strong = new PATCH<typeof TRIBLE_SIZE, typeof VAEOrder, typeof TribleSegmentation, Uint8Array>(TRIBLE_SIZE, VAEOrder, TribleSegmentation, undefined),
-    weak = new PATCH<typeof VALUE_SIZE, typeof naturalOrder, typeof singleSegment, WeakRef<Uint8Array>>(VALUE_SIZE, naturalOrder, singleSegment, undefined),
+    onMiss: (value: FixedUint8Array<typeof VALUE_SIZE>) => Promise<Uint8Array> =
+      (_value: FixedUint8Array<typeof VALUE_SIZE>) =>
+        Promise.reject(Error("no onMiss handler provided")),
+    strong = new PATCH<
+      typeof TRIBLE_SIZE,
+      typeof VAEOrder,
+      typeof TribleSegmentation,
+      Uint8Array
+    >(TRIBLE_SIZE, VAEOrder, TribleSegmentation, undefined),
+    weak = new PATCH<
+      typeof VALUE_SIZE,
+      typeof naturalOrder,
+      typeof singleSegment,
+      WeakRef<Uint8Array>
+    >(VALUE_SIZE, naturalOrder, singleSegment, undefined),
   ) {
     this.strong = strong;
     this.weak = weak;
@@ -39,7 +69,9 @@ export class BlobCache {
    * @param blobs - A collection of `[trible, blob]` pairs.
    * @return A new blobcache.
    */
-  with(blobs: Iterable<[FixedUint8Array<typeof TRIBLE_SIZE>, Uint8Array]>): BlobCache {
+  with(
+    blobs: Iterable<[FixedUint8Array<typeof TRIBLE_SIZE>, Uint8Array]>,
+  ): BlobCache {
     const btch = batch();
 
     let weak = this.weak;
@@ -51,7 +83,7 @@ export class BlobCache {
 
       let new_or_cached_blob = blob;
       if (cached_blob === undefined) {
-        weak = weak.put(btch, new Entry(key ,new WeakRef(blob)));
+        weak = weak.put(btch, new Entry(key, new WeakRef(blob)));
       } else {
         new_or_cached_blob = cached_blob;
       }
@@ -81,7 +113,12 @@ export class BlobCache {
   }
 
   strongBlobs() {
-    return this.strong.infixes((trible, blob) => ({key: V(trible), blob }), fixedUint8Array(64), 0, VALUE_SIZE);
+    return this.strong.infixes(
+      (trible, blob) => ({ key: V(trible), blob }),
+      fixedUint8Array(64),
+      0,
+      VALUE_SIZE,
+    );
   }
 
   clear() {

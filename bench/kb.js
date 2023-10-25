@@ -2,15 +2,7 @@ import {
   bench,
   runBenchmarks,
 } from "https://deno.land/std@0.180.0/testing/bench.ts";
-import {
-  find,
-  id,
-  IDOwner,
-  KB,
-  NS,
-  schemas,
-  UFOID,
-} from "../mod.ts";
+import { find, id, IDOwner, KB, NS, schemas, UFOID } from "../mod.ts";
 
 const nameId = UFOID.now();
 const lastNameId = UFOID.now();

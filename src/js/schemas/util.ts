@@ -1,4 +1,9 @@
-export const bigIntToBytes = (n: bigint, b: Uint8Array, offset: number, length: number): Uint8Array => {
+export const bigIntToBytes = (
+  n: bigint,
+  b: Uint8Array,
+  offset: number,
+  length: number,
+): Uint8Array => {
   for (let i = offset + length - 1; offset <= i; i--) {
     b[i] = new Number(n & 0xffn) as number;
     n = n >> 8n;
@@ -6,7 +11,11 @@ export const bigIntToBytes = (n: bigint, b: Uint8Array, offset: number, length: 
   return b;
 };
 
-export const bytesToBigInt = (b: Uint8Array, offset: number, length: number): bigint => {
+export const bytesToBigInt = (
+  b: Uint8Array,
+  offset: number,
+  length: number,
+): bigint => {
   let n = 0n;
   const end = offset + length;
   for (let i = offset; i < end; i++) {

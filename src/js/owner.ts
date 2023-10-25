@@ -1,5 +1,5 @@
 import { Commit } from "./commit.ts";
-import { Entry, batch, emptyIdPATCH } from "./patch.ts";
+import { batch, emptyIdPATCH, Entry } from "./patch.ts";
 import { IdSchema } from "./schemas.ts";
 import { ID_SIZE } from "./trible.ts";
 import { fixedUint8Array } from "./util.ts";
@@ -17,8 +17,8 @@ export class IDOwner<Id> {
       schema.encodeId(id, b);
       this.ids.put(batch(), new Entry(b, undefined));
       return id;
-    }
-    
+    };
+
     this.schema = {
       ...schema,
       factory,

@@ -1,5 +1,5 @@
 import { Schema } from "../schemas.ts";
-import { Value, Blob, LazyBlob } from "../trible.ts";
+import { Blob, LazyBlob, Value } from "../trible.ts";
 
 function encodeValue(v: string, b: Value): Blob | undefined {
   const d = new TextEncoder().encode(v);

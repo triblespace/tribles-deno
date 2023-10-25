@@ -36,8 +36,7 @@ class RangeConstraint implements Constraint {
   confirm(_variable_index: number, _binding: Binding, values: Value[]): void {
     filterInPlace(values, (value) =>
       !lessValue(value, this.lowerBound) &&
-      !lessValue(this.upperBound, value)
-    );
+      !lessValue(this.upperBound, value));
   }
 }
 
@@ -50,7 +49,7 @@ class RangeConstraint implements Constraint {
  */
 export function ranged<T>(
   variable: Variable<T>,
-  { lower, upper }: {lower: T, upper: T},
+  { lower, upper }: { lower: T; upper: T },
 ) {
   assert(variable.schema);
 

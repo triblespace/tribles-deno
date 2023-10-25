@@ -8,13 +8,7 @@ fc.configureGlobal({
   interruptAfterTimeLimit: 1000 * 5,
 });
 
-import {
-  id,
-  IDOwner,
-  NS,
-  types,
-  UFOID,
-} from "../mod.ts";
+import { id, IDOwner, NS, types, UFOID } from "../mod.ts";
 
 const nameId = UFOID.now();
 const lovesId = UFOID.now();

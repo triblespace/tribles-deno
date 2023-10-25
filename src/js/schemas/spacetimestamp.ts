@@ -1,5 +1,5 @@
 import { Schema } from "../schemas.ts";
-import { Value, Blob, LazyBlob } from "../trible.ts";
+import { Blob, LazyBlob, Value } from "../trible.ts";
 import {
   bigIntToBytes,
   bytesToBigInt,
@@ -8,10 +8,10 @@ import {
 } from "./util.ts";
 
 type Spacetimestamp = {
-  t: bigint,
-  x: bigint,
-  y: bigint,
-  z: bigint
+  t: bigint;
+  x: bigint;
+  y: bigint;
+  z: bigint;
 };
 
 function encodeValue(v: Spacetimestamp, b: Value): Blob | undefined {
@@ -54,5 +54,5 @@ function decodeValue(b: Value, _blob: LazyBlob): Spacetimestamp {
 
 export const schema: Schema<Spacetimestamp> = {
   encodeValue,
-  decodeValue
+  decodeValue,
 };

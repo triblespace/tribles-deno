@@ -31,7 +31,7 @@ export class Entry<L extends number, V> {
   leaf<O extends Ordering<L>, S extends Segmentation<L>>(): Leaf<L, O, S, V> {
     return this.sharedLeaf;
   }
-};
+}
 
 type Batch = object;
 
@@ -39,16 +39,26 @@ export function batch(): Batch {
   return {};
 }
 
-type ChildTable<L extends number, O extends Ordering<L>, S extends Segmentation<S>, V> = Node<L, O, S, V>[];
+type ChildTable<
+  L extends number,
+  O extends Ordering<L>,
+  S extends Segmentation<S>,
+  V,
+> = Node<L, O, S, V>[];
 
-function _union<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V>(
+function _union<
+  L extends number,
+  O extends Ordering<L>,
+  S extends Segmentation<L>,
+  V,
+>(
   keyLength: L,
   order: O,
   segments: S,
   batch: Batch,
   leftNode: Node<L, O, S, V>,
   rightNode: Node<L, O, S, V>,
-  depth: number = 0
+  depth: number = 0,
 ): Node<L, O, S, V> {
   if (hash_equal(leftNode.hash(), rightNode.hash())) {
     return leftNode;
@@ -68,10 +78,10 @@ function _union<L extends number, O extends Ordering<L>, S extends Segmentation<
       children[rightByte] = rightNode;
 
       const hash = hash_combine(leftNode.hash(), rightNode.hash()) as Hash;
-      const count = leftNode.count()
-                + rightNode.count();
-      const segmentCount = leftNode.segmentCount(order, segments, depth)
-                       + rightNode.segmentCount(order, segments, depth);
+      const count = leftNode.count() +
+        rightNode.count();
+      const segmentCount = leftNode.segmentCount(order, segments, depth) +
+        rightNode.segmentCount(order, segments, depth);
       const leaf = leftNode.leaf();
 
       return new Branch(
@@ -82,10 +92,10 @@ function _union<L extends number, O extends Ordering<L>, S extends Segmentation<
         hash,
         count,
         segmentCount,
-      )
-    };
+      );
+    }
   }
-  
+
   if (depth === keyLength) return leftNode;
 
   const children: ChildTable<L, O, S, V> = [];
@@ -100,16 +110,32 @@ function _union<L extends number, O extends Ordering<L>, S extends Segmentation<
 
   if (rightBranchDepth <= leftBranchDepth) {
     rightNode.eachChild((child, index) => {
-      if(index in children) {
-        children[index] = _union(keyLength, order, segments, batch, children[index], child, branchDepth);
+      if (index in children) {
+        children[index] = _union(
+          keyLength,
+          order,
+          segments,
+          batch,
+          children[index],
+          child,
+          branchDepth,
+        );
       } else {
         children[index] = child;
       }
     });
   } else {
     const index = rightNode.peek(order, depth);
-    if(index in children) {
-      children[index] = _union(keyLength, order, segments, batch, children[index], rightNode, branchDepth);
+    if (index in children) {
+      children[index] = _union(
+        keyLength,
+        order,
+        segments,
+        batch,
+        children[index],
+        rightNode,
+        branchDepth,
+      );
     } else {
       children[index] = rightNode;
     }
@@ -118,8 +144,8 @@ function _union<L extends number, O extends Ordering<L>, S extends Segmentation<
   let hash = fixedUint8Array(16);
   let count = 0;
   let segmentCount = 0;
-  
-  children.forEach(child => {
+
+  children.forEach((child) => {
     hash = hash_combine(hash, child.hash()) as Hash;
     count += child.count();
     segmentCount += child.segmentCount(order, segments, depth);
@@ -240,7 +266,7 @@ function _intersect<L extends number, Value>(
       return undefined;
     };
   }
-  
+
   if (depth === keyLength) return leftNode;
 
   const left_children: ChildTable<L, Value> = [];
@@ -327,7 +353,7 @@ function _difference<L extends number, Value>(
       )
     };
   }
-  
+
   if (depth === keyLength) return undefined;
 
   const children: ChildTable<L, Value> = [];
@@ -445,7 +471,12 @@ function _isIntersecting(leftNode, rightNode, depth = 0) {
 }
 */
 
-class Leaf<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V> implements Node<L, O, S, V>{
+class Leaf<
+  L extends number,
+  O extends Ordering<L>,
+  S extends Segmentation<L>,
+  V,
+> implements Node<L, O, S, V> {
   key: FixedUint8Array<L>;
   value: V;
 
@@ -466,7 +497,7 @@ class Leaf<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V
     return this.key[order.treeToKey(depth)];
   }
 
-  eachChild(f: (child: Node<L, O, S, V>, index: number) => void):void {
+  eachChild(f: (child: Node<L, O, S, V>, index: number) => void): void {
     return;
   }
 
@@ -482,7 +513,14 @@ class Leaf<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V
     return this;
   }
 
-  put(keyLength: L, order: O, _segment: S, batch: Batch, entry: Entry<L, V>, at_depth: number): Node<L, O, S, V> | undefined {
+  put(
+    keyLength: L,
+    order: O,
+    _segment: S,
+    batch: Batch,
+    entry: Entry<L, V>,
+    at_depth: number,
+  ): Node<L, O, S, V> | undefined {
     let depth = at_depth;
     for (; depth < this.key.length; depth++) {
       let key_depth = order.treeToKey(depth);
@@ -492,7 +530,9 @@ class Leaf<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V
         const branchChildren: Node<L, O, S, V>[] = [];
         branchChildren[own_key] = this;
         branchChildren[entry_key] = entry.leaf();
-        const hash = hash_combine(this.hash(), entry.hash) as FixedUint8Array<16>;
+        const hash = hash_combine(this.hash(), entry.hash) as FixedUint8Array<
+          16
+        >;
 
         return new Branch(
           batch,
@@ -507,11 +547,21 @@ class Leaf<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V
     }
   }
 
-  segmentCount(_order: Ordering<L>, _segment: Segmentation<L>, _at_depth: number): number {
+  segmentCount(
+    _order: Ordering<L>,
+    _segment: Segmentation<L>,
+    _at_depth: number,
+  ): number {
     return 1;
   }
 
-  prefixSegmentCount(order: O, _segment: S, key: FixedUint8Array<L>, key_start_depth: number, at_depth: number): number {
+  prefixSegmentCount(
+    order: O,
+    _segment: S,
+    key: FixedUint8Array<L>,
+    key_start_depth: number,
+    at_depth: number,
+  ): number {
     const tree_start_depth = order.keyToTree(key_start_depth);
     for (let depth = at_depth; depth < tree_start_depth; depth++) {
       let key_depth = order.treeToKey(depth);
@@ -522,10 +572,15 @@ class Leaf<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V
     return 1;
   }
 
-  infixes<Out>(order: O, key: FixedUint8Array<L>,
-    tree_start_depth: number, _tree_end_depth: number,
-    fn: (key: FixedUint8Array<L>, value: V) => Out, out: Out[],
-    at_depth: number) {
+  infixes<Out>(
+    order: O,
+    key: FixedUint8Array<L>,
+    tree_start_depth: number,
+    _tree_end_depth: number,
+    fn: (key: FixedUint8Array<L>, value: V) => Out,
+    out: Out[],
+    at_depth: number,
+  ) {
     for (let depth = at_depth; depth < tree_start_depth; depth++) {
       const key_depth = order.treeToKey(depth);
       if (this.key[key_depth] != key[key_depth]) {
@@ -535,7 +590,12 @@ class Leaf<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V
     out.push(fn(this.key, this.value));
   }
 
-  hasPrefix(order: O, key: FixedUint8Array<L>, end_depth: number, at_depth: number) {
+  hasPrefix(
+    order: O,
+    key: FixedUint8Array<L>,
+    end_depth: number,
+    at_depth: number,
+  ) {
     for (let depth = at_depth; depth <= end_depth; depth++) {
       const key_depth = order.treeToKey(depth);
       if (this.key[key_depth] != key[key_depth]) {
@@ -545,7 +605,12 @@ class Leaf<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V
     return true;
   }
 
-  get(keyLength: L, order: O, key: FixedUint8Array<L>, at_depth: number): V | undefined {
+  get(
+    keyLength: L,
+    order: O,
+    key: FixedUint8Array<L>,
+    at_depth: number,
+  ): V | undefined {
     for (let depth = at_depth; depth <= keyLength; depth++) {
       let key_depth = order.treeToKey(depth);
       if (this.key[key_depth] != key[key_depth]) {
@@ -554,9 +619,14 @@ class Leaf<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V
     }
     return this.value;
   }
-};
+}
 
-class Branch<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V> implements Node<L, O, S, V> {
+class Branch<
+  L extends number,
+  O extends Ordering<L>,
+  S extends Segmentation<L>,
+  V,
+> implements Node<L, O, S, V> {
   batch: Batch;
   children: ChildTable<L, O, S, V>;
   _leaf: Leaf<L, O, S, V>;
@@ -599,7 +669,7 @@ class Branch<L extends number, O extends Ordering<L>, S extends Segmentation<L>,
     return this._count;
   }
 
-  eachChild(f: (child: Node<L, O, S, V>, index: number) => void):void {
+  eachChild(f: (child: Node<L, O, S, V>, index: number) => void): void {
     this.children.forEach(f);
   }
 
@@ -611,7 +681,14 @@ class Branch<L extends number, O extends Ordering<L>, S extends Segmentation<L>,
     return this.children[byte];
   }
 
-  put(keyLength: L, order: O, segments: S, batch: Batch, entry: Entry<L, V>, at_depth: number): Node<L, O, S, V> | undefined {
+  put(
+    keyLength: L,
+    order: O,
+    segments: S,
+    batch: Batch,
+    entry: Entry<L, V>,
+    at_depth: number,
+  ): Node<L, O, S, V> | undefined {
     let depth = at_depth;
     for (; depth < this._branchDepth; depth++) {
       const key_order = order.treeToKey(depth);
@@ -648,10 +725,25 @@ class Branch<L extends number, O extends Ordering<L>, S extends Segmentation<L>,
       //We need to update the child where this key would belong.
       const oldChildHash = child.hash;
       const oldChildCount = child.count();
-      const oldChildSegmentCount = child.segmentCount(order, segments, this._branchDepth);
-      nchild = child.put(keyLength, order, segments, batch, entry, this._branchDepth);
+      const oldChildSegmentCount = child.segmentCount(
+        order,
+        segments,
+        this._branchDepth,
+      );
+      nchild = child.put(
+        keyLength,
+        order,
+        segments,
+        batch,
+        entry,
+        this._branchDepth,
+      );
       if (!nchild) return undefined;
-      hash = hash_update(this.hash, oldChildHash, nchild.hash) as FixedUint8Array<16>;
+      hash = hash_update(
+        this.hash,
+        oldChildHash,
+        nchild.hash,
+      ) as FixedUint8Array<16>;
       count = this._count - oldChildCount + nchild.count();
       segmentCount = this._segmentCount -
         oldChildSegmentCount +
@@ -688,7 +780,10 @@ class Branch<L extends number, O extends Ordering<L>, S extends Segmentation<L>,
     // Because a patch might compress an entire segment within a node below it,
     // we need to make sure that our current node is actually inside that
     // segment and not in a segment below it.
-    if (segment(order.treeToKey(at_depth)) === segment(order.treeToKey(this._branchDepth))) {
+    if (
+      segment(order.treeToKey(at_depth)) ===
+        segment(order.treeToKey(this._branchDepth))
+    ) {
       return this._segmentCount;
     } else {
       return 1;
@@ -703,14 +798,20 @@ class Branch<L extends number, O extends Ordering<L>, S extends Segmentation<L>,
     at_depth: number,
   ): number {
     const tree_start_depth = order.keyToTree(key_start_depth);
-    for (let depth = at_depth; depth < Math.min(tree_start_depth, this._branchDepth); depth++) {
+    for (
+      let depth = at_depth;
+      depth < Math.min(tree_start_depth, this._branchDepth);
+      depth++
+    ) {
       const key_depth = order.treeToKey(depth);
       if (this._leaf.key[key_depth] != key[key_depth]) {
         return 0;
       }
     }
     if (tree_start_depth <= this._branchDepth) {
-      if (segment(key_start_depth) != segment(order.treeToKey(this._branchDepth))) {
+      if (
+        segment(key_start_depth) != segment(order.treeToKey(this._branchDepth))
+      ) {
         return 1;
       } else {
         return this._segmentCount;
@@ -730,10 +831,14 @@ class Branch<L extends number, O extends Ordering<L>, S extends Segmentation<L>,
   }
 
   infixes<Out>(
-    order: O, key: FixedUint8Array<L>,
-    tree_start_depth: number, tree_end_depth: number,
-    fn: (key: FixedUint8Array<L>, value: V) => Out, out: Out[],
-    at_depth: number) {
+    order: O,
+    key: FixedUint8Array<L>,
+    tree_start_depth: number,
+    tree_end_depth: number,
+    fn: (key: FixedUint8Array<L>, value: V) => Out,
+    out: Out[],
+    at_depth: number,
+  ) {
     for (
       let depth = at_depth;
       depth < Math.min(tree_start_depth, this._branchDepth);
@@ -776,7 +881,12 @@ class Branch<L extends number, O extends Ordering<L>, S extends Segmentation<L>,
     );
   }
 
-  hasPrefix(order: O, key: FixedUint8Array<L>, end_depth: number, at_depth: number) {
+  hasPrefix(
+    order: O,
+    key: FixedUint8Array<L>,
+    end_depth: number,
+    at_depth: number,
+  ) {
     for (
       let depth = at_depth;
       depth < Math.min(end_depth, this._branchDepth);
@@ -803,7 +913,12 @@ class Branch<L extends number, O extends Ordering<L>, S extends Segmentation<L>,
     return false;
   }
 
-  get(keyLength: L, order: O, key: FixedUint8Array<L>, at_depth: number): V | undefined {
+  get(
+    keyLength: L,
+    order: O,
+    key: FixedUint8Array<L>,
+    at_depth: number,
+  ): V | undefined {
     for (
       let depth = at_depth;
       depth < this._branchDepth;
@@ -826,16 +941,21 @@ class Branch<L extends number, O extends Ordering<L>, S extends Segmentation<L>,
     }
     return undefined;
   }
-};
+}
 
 type Ordering<L> = {
-  treeToKey: (at_depth: number) => number,
-  keyToTree: (at_depth: number) => number
+  treeToKey: (at_depth: number) => number;
+  keyToTree: (at_depth: number) => number;
 };
 
 type Segmentation<L> = (at_depth: number) => number;
 
-interface Node<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V> {
+interface Node<
+  L extends number,
+  O extends Ordering<L>,
+  S extends Segmentation<L>,
+  V,
+> {
   branchDepth(keyLength: L): number;
 
   count(): number;
@@ -846,11 +966,18 @@ interface Node<L extends number, O extends Ordering<L>, S extends Segmentation<L
 
   peek(order: O, depth: number): number;
 
-  eachChild(f: (child: Node<L, O, S, V>, index: number) => void):void;
+  eachChild(f: (child: Node<L, O, S, V>, index: number) => void): void;
 
   branch(byte: number): Node<L, O, S, V> | undefined;
 
-  put(keyLength: L, order: O, segment: S, batch: Batch, entry: Entry<L, V>, at_depth: number): Node<L, O, S, V> | undefined;
+  put(
+    keyLength: L,
+    order: O,
+    segment: S,
+    batch: Batch,
+    entry: Entry<L, V>,
+    at_depth: number,
+  ): Node<L, O, S, V> | undefined;
 
   segmentCount(order: O, segment: S, at_depth: number): number;
 
@@ -862,20 +989,43 @@ interface Node<L extends number, O extends Ordering<L>, S extends Segmentation<L
     at_depth: number,
   ): number;
 
-  infixes<Out>(order: O, key: FixedUint8Array<L>, tree_start_depth: number, tree_end_depth: number, fn: (key: FixedUint8Array<L>, value: V) => Out, out: Out[], at_depth: number): void;
+  infixes<Out>(
+    order: O,
+    key: FixedUint8Array<L>,
+    tree_start_depth: number,
+    tree_end_depth: number,
+    fn: (key: FixedUint8Array<L>, value: V) => Out,
+    out: Out[],
+    at_depth: number,
+  ): void;
 
   hasPrefix(order: O, key: any, end_depth: number, at_depth: number): boolean;
 
-  get(keyLength: L, order: O, key: FixedUint8Array<L>, at_depth: number): V | undefined;
+  get(
+    keyLength: L,
+    order: O,
+    key: FixedUint8Array<L>,
+    at_depth: number,
+  ): V | undefined;
 }
 
-export class PATCH<L extends number, O extends Ordering<L>, S extends Segmentation<L>, V> {
+export class PATCH<
+  L extends number,
+  O extends Ordering<L>,
+  S extends Segmentation<L>,
+  V,
+> {
   keyLength: L;
   order: O;
   segments: S;
   child: Node<L, O, S, V> | undefined;
 
-  constructor(keyLength: L, order: O, segments: S, child: Node<L, O, S, V> | undefined) {
+  constructor(
+    keyLength: L,
+    order: O,
+    segments: S,
+    child: Node<L, O, S, V> | undefined,
+  ) {
     this.keyLength = keyLength;
     this.order = order;
     this.segments = segments;
@@ -895,17 +1045,26 @@ export class PATCH<L extends number, O extends Ordering<L>, S extends Segmentati
 
   put(batch: Batch, entry: Entry<L, V>): PATCH<L, O, S, V> {
     if (this.child === undefined) {
-      return new PATCH<L, O, S, V>(this.keyLength, this.order, this.segments, entry.leaf());
+      return new PATCH<L, O, S, V>(
+        this.keyLength,
+        this.order,
+        this.segments,
+        entry.leaf(),
+      );
     }
-    return new PATCH(this.keyLength, this.order, this.segments,
-      this.child.put(
+    return new PATCH(
       this.keyLength,
       this.order,
       this.segments,
-      batch,
-      entry,
-      0,
-    ));
+      this.child.put(
+        this.keyLength,
+        this.order,
+        this.segments,
+        batch,
+        entry,
+        0,
+      ),
+    );
   }
 
   get(key: FixedUint8Array<L>): V | undefined {
@@ -913,27 +1072,35 @@ export class PATCH<L extends number, O extends Ordering<L>, S extends Segmentati
   }
 
   has(key: FixedUint8Array<L>): boolean {
-    if(this.child === undefined) {
+    if (this.child === undefined) {
       return false;
     }
     return this.child.hasPrefix(this.order, key, this.keyLength, 0);
   }
 
   prefixSegmentCount(key: FixedUint8Array<L>, start_depth: number) {
-    if(this.child === undefined) {
+    if (this.child === undefined) {
       return 0;
     }
-    return this.child.prefixSegmentCount(this.order, this.segments, key, start_depth, 0);
+    return this.child.prefixSegmentCount(
+      this.order,
+      this.segments,
+      key,
+      start_depth,
+      0,
+    );
   }
 
   infixes<Out>(
     fn: (key: FixedUint8Array<L>, value: V) => Out,
-    key: FixedUint8Array<L> = new Uint8Array(this.keyLength) as FixedUint8Array<L>,
+    key: FixedUint8Array<L> = new Uint8Array(this.keyLength) as FixedUint8Array<
+      L
+    >,
     start: number = 0,
     end: number = this.keyLength,
   ): Out[] {
     const out: Out[] = [];
-    if(this.child !== undefined) {
+    if (this.child !== undefined) {
       this.child.infixes(
         this.order,
         key,
@@ -992,8 +1159,20 @@ export class PATCH<L extends number, O extends Ordering<L>, S extends Segmentati
     if (!other.child) {
       return this;
     }
-    return new PATCH(this.keyLength, this.order, this.segments,
-      _union(this.keyLength, this.order, this.segments, batch(), this.child, other.child, 0));
+    return new PATCH(
+      this.keyLength,
+      this.order,
+      this.segments,
+      _union(
+        this.keyLength,
+        this.order,
+        this.segments,
+        batch(),
+        this.child,
+        other.child,
+        0,
+      ),
+    );
   }
 
   /*
@@ -1040,7 +1219,7 @@ export class PATCH<L extends number, O extends Ordering<L>, S extends Segmentati
     return new Tree(_difference(this.child, other.child));
   }
   */
-};
+}
 
 export function singleSegment(at_depth: number) {
   return 0;
@@ -1051,13 +1230,52 @@ export const naturalOrder = {
   keyToTree: (at_depth: number) => at_depth,
 };
 
-export const emptyEAVTriblePATCH = new PATCH(TRIBLE_SIZE, EAVOrder, TribleSegmentation, undefined);
-export const emptyEVATriblePATCH = new PATCH(TRIBLE_SIZE, EVAOrder, TribleSegmentation, undefined);
-export const emptyAEVTriblePATCH = new PATCH(TRIBLE_SIZE, AEVOrder, TribleSegmentation, undefined);
-export const emptyAVETriblePATCH = new PATCH(TRIBLE_SIZE, AVEOrder, TribleSegmentation, undefined);
-export const emptyVEATriblePATCH = new PATCH(TRIBLE_SIZE, VEAOrder, TribleSegmentation, undefined);
-export const emptyVAETriblePATCH = new PATCH(TRIBLE_SIZE, VAEOrder, TribleSegmentation, undefined);
+export const emptyEAVTriblePATCH = new PATCH(
+  TRIBLE_SIZE,
+  EAVOrder,
+  TribleSegmentation,
+  undefined,
+);
+export const emptyEVATriblePATCH = new PATCH(
+  TRIBLE_SIZE,
+  EVAOrder,
+  TribleSegmentation,
+  undefined,
+);
+export const emptyAEVTriblePATCH = new PATCH(
+  TRIBLE_SIZE,
+  AEVOrder,
+  TribleSegmentation,
+  undefined,
+);
+export const emptyAVETriblePATCH = new PATCH(
+  TRIBLE_SIZE,
+  AVEOrder,
+  TribleSegmentation,
+  undefined,
+);
+export const emptyVEATriblePATCH = new PATCH(
+  TRIBLE_SIZE,
+  VEAOrder,
+  TribleSegmentation,
+  undefined,
+);
+export const emptyVAETriblePATCH = new PATCH(
+  TRIBLE_SIZE,
+  VAEOrder,
+  TribleSegmentation,
+  undefined,
+);
 
-export const emptyIdPATCH = new PATCH(ID_SIZE, naturalOrder, singleSegment, undefined);
-export const emptyValuePATCH = new PATCH(VALUE_SIZE, naturalOrder, singleSegment, undefined);
-
+export const emptyIdPATCH = new PATCH(
+  ID_SIZE,
+  naturalOrder,
+  singleSegment,
+  undefined,
+);
+export const emptyValuePATCH = new PATCH(
+  VALUE_SIZE,
+  naturalOrder,
+  singleSegment,
+  undefined,
+);
