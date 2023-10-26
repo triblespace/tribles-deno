@@ -138,7 +138,7 @@ export class Variable<T> {
 // deno-lint-ignore no-explicit-any
 type NamedVars = { [name: string]: Variable<any> };
 // deno-lint-ignore no-explicit-any
-type AnonVars = { [index: number]: Variable<any> };
+type AnonVars = { [index: number]: Variable<any> } & any[];
 
 
 /**

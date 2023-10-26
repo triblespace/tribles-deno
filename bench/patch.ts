@@ -1,11 +1,11 @@
-import { emptyTriblePATCH } from "../src/js/patch.ts";
+import { Entry, batch, emptyEAVTriblePATCH } from "../src/js/patch.ts";
 import { A, E, TRIBLE_SIZE, V } from "../src/js/trible.ts";
-import { UFOID } from "../mod.ts";
+import { Trible, UFOID } from "../mod.ts";
 import { fixedUint8Array } from "../src/js/util.ts";
 
-function generate_sample(size, sharing_prob = 0.1) {
+function generate_sample(size: number, sharing_prob = 0.1): Trible[] {
   const tribles = [];
-  const trible = new fixedUint8Array(TRIBLE_SIZE);
+  const trible = fixedUint8Array(TRIBLE_SIZE);
   for (let i = 0; i < size; i++) {
     if (sharing_prob < Math.random()) {
       E(trible).set(UFOID.now().toId());
@@ -14,45 +14,47 @@ function generate_sample(size, sharing_prob = 0.1) {
       A(trible).set(UFOID.now().toId());
     }
     if (sharing_prob < Math.random()) {
-      V(trible).set(UFOID.now().toId());
+      V(trible).set(UFOID.now().toValue());
     }
-    tribles.push(Uint8Array.from(trible));
+    tribles.push(Uint8Array.from(trible) as Trible);
   }
   return tribles;
 }
 
-function persistentPut(b, patchType, size) {
-  const sample = generate_sample(size);
-  let patch = patchType;
+Deno.bench("put1e3", (b) => {
+  const size = 1e3;
+  let patch = emptyEAVTriblePATCH;
   b.start();
-  for (const t of sample) {
-    patch = patch.put(t);
+  for (const t of generate_sample(size)) {
+    patch = patch.put(new Entry(t, undefined));
   }
-  b.stop();
-}
-
-benchAllPATCH({
-  name: "put",
-  func: persistentPut,
+  b.end();
 });
 
-function batchedPut(b, patchType, size) {
-  const sample = generate_sample(size);
-  const patch = patchType;
+Deno.bench("putBatch1e3", (b) => {
+  const size = 1e3;
+  let patch = emptyEAVTriblePATCH;
+  const bt = batch();
   b.start();
-  const batch = patch.batch();
-  for (const t of sample) {
-    batch.put(t);
+  for (const t of generate_sample(size)) {
+    patch = patch.put(new Entry(t, undefined), bt);
   }
-  batch.complete();
-  b.stop();
-}
-
-benchAllPATCH({
-  name: "putBatch",
-  func: batchedPut,
+  b.end();
 });
 
+Deno.bench("iterate1e3", (b) => {
+  const size = 1e3;
+  let patch = emptyEAVTriblePATCH;
+  const bt = batch();
+  for (const t of generate_sample(size)) {
+    patch.put(new Entry(t, undefined), bt);
+  }
+  b.start();
+  patch.keys();
+  b.end();
+});
+
+/*
 function setUnion(b, patchType, size) {
   let patchA = patchType.batch();
   let patchB = patchType.batch();
@@ -66,7 +68,7 @@ function setUnion(b, patchType, size) {
   patchB = patchB.complete();
   b.start();
   patchA.union(patchB);
-  b.stop();
+  b.end();
 }
 
 benchAllPATCH({
@@ -94,7 +96,7 @@ function setIntersect(b, patchType, size) {
   patchC = patchC.complete();
   b.start();
   patchB.intersect(patchC);
-  b.stop();
+  b.end();
 }
 
 benchAllPATCH({
@@ -122,7 +124,7 @@ function setSubtract(b, patchType, size) {
   patchC = patchC.complete();
   b.start();
   patchB.subtract(patchC);
-  b.stop();
+  b.end();
 }
 
 benchAllPATCH({
@@ -150,7 +152,7 @@ function setDifference(b, patchType, size) {
   patchC = patchC.complete();
   b.start();
   patchB.difference(patchC);
-  b.stop();
+  b.end();
 }
 
 benchAllPATCH({
@@ -179,11 +181,11 @@ function setSubsetOf(b, patchType, size) {
   if (0.5 < Math.random()) {
     b.start();
     patchB.isSubsetOf(patchC);
-    b.stop();
+    b.end();
   } else {
     b.start();
     patchA.isSubsetOf(patchC);
-    b.stop();
+    b.end();
   }
 }
 
@@ -213,11 +215,11 @@ function setIntersecting(b, patchType, size) {
   if (0.5 < Math.random()) {
     b.start();
     patchB.isIntersecting(patchC);
-    b.stop();
+    b.end();
   } else {
     b.start();
     patchA.isIntersecting(patchC);
-    b.stop();
+    b.end();
   }
 }
 
@@ -225,22 +227,4 @@ benchAllPATCH({
   name: "SetIntersecting",
   func: setIntersecting,
 });
-
-function iterate(b, patchType, size) {
-  let patch = patchType.batch();
-  for (const t of generate_sample(size)) {
-    patch.put(t);
-  }
-  patch = patch.complete();
-  b.start();
-  let i = 0;
-  for (const k of patch.keys()) {
-    i++;
-  }
-  b.stop();
-}
-
-benchAllPATCH({
-  name: "Iterate",
-  func: iterate,
-});
+*/

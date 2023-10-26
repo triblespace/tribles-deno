@@ -27,15 +27,15 @@ function kbWith(b: Deno.BenchContext, size: number) {
       {
         [id]: romeo,
         name: `Romeo${i}`,
-        titles: ["fool", "prince"],
         loves: juliet,
       },
+      ...["fool", "prince"].map(title => ({[id]: romeo, titles: title})),
       {
         [id]: juliet,
         name: `Juliet${i}`,
-        titles: ["the lady", "princess"],
         loves: romeo,
       },
+      ...["the lady", "princess"].map(title => ({[id]: juliet, titles: title})),
     ], knightskb);
   }
   b.end();
@@ -51,15 +51,15 @@ function kbQuery(b: Deno.BenchContext, size: number) {
       {
         [id]: romeo,
         name: `${i}LovingRomeo`,
-        titles: ["fool", "prince"],
         loves: juliet,
       },
+      ...["fool", "prince"].map(title => ({[id]: romeo, titles: title})),
       {
         [id]: juliet,
         name: "Juliet",
-        titles: ["the lady", "princess"],
         loves: romeo,
       },
+      ...["the lady", "princess"].map(title => ({[id]: juliet, titles: title})),
     ], knightskb);
   }
 
@@ -68,15 +68,15 @@ function kbQuery(b: Deno.BenchContext, size: number) {
       {
         [id]: romeo,
         name: `${i}Romeo`,
-        titles: ["fool", "prince"],
         loves: juliet,
       },
+      ...["fool", "prince"].map(title => ({[id]: romeo, titles: title})),
       {
         [id]: juliet,
         name: `${i}Juliet`,
-        titles: ["the lady", "princess"],
         loves: romeo,
       },
+      ...["the lady", "princess"].map(title => ({[id]: juliet, titles: title})),
     ], knightskb);
   }
 
@@ -100,11 +100,11 @@ function kbQuery(b: Deno.BenchContext, size: number) {
   console.log(results.length, knightskb.tribleset.count());
 }
 
-function getRandomInt(max) {
+function getRandomInt(max: number): number {
   return Math.floor(Math.random() * max);
 }
 
-function kbDSQuery(b) {
+function kbDSQuery(b: Deno.BenchContext) {
   // Add some data.
 
   let peoplekb = new KB();
@@ -115,7 +115,7 @@ function kbDSQuery(b) {
         name: "Ivan",
         lastName: `IvanSon${i}`,
         eyeColor: "blue",
-        age: getRandomInt(100),
+        age: getRandomInt(100).toString(),
       },
     ], peoplekb);
   }
@@ -127,26 +127,27 @@ function kbDSQuery(b) {
         name: "Ivan",
         lastName: `IvanSon${i}`,
         eyeColor: "green",
-        age: getRandomInt(100),
+        age: getRandomInt(100).toString(),
       },
       {
         [id]: bob,
         name: `${i}Bob`,
         lastName: `${i}Smith`,
         eyeColor: "green",
-        age: getRandomInt(100),
+        age: getRandomInt(100).toString(),
       },
       {
         [id]: bob2,
         name: `${i}Bob`,
         lastName: `${i}Smith`,
         eyeColor: "blue",
-        age: getRandomInt(100),
+        age: getRandomInt(100).toString(),
       },
     ], peoplekb);
   }
 
   // Query some data.
+  // deno-lint-ignore no-empty-pattern
   const q = find((ctx, { age, lastName }, []) =>
     knightsNS.pattern(ctx, peoplekb, [
       {
@@ -165,7 +166,7 @@ function kbDSQuery(b) {
   console.log(results.length, peoplekb.tribleset.count());
 }
 
-function kbWithPeople(b, size) {
+function kbWithPeople(b: Deno.BenchContext, size: number) {
   b.start();
   let peoplekb = new KB();
 
@@ -176,28 +177,28 @@ function kbWithPeople(b, size) {
         name: "Ivan",
         lastName: `IvanSon${i}`,
         eyeColor: "blue",
-        age: getRandomInt(100),
+        age: getRandomInt(100).toString(),
       },
       {
         [id]: ivan2,
         name: "Ivan",
         lastName: `IvanSon${i}`,
         eyeColor: "green",
-        age: getRandomInt(100),
+        age: getRandomInt(100).toString(),
       },
       {
         [id]: bob,
         name: `${i}Bob`,
         lastName: `${i}Smith`,
         eyeColor: "green",
-        age: getRandomInt(100),
+        age: getRandomInt(100).toString(),
       },
       {
         [id]: bob2,
         name: `${i}Bob`,
         lastName: `${i}Smith`,
         eyeColor: "blue",
-        age: getRandomInt(100),
+        age: getRandomInt(100).toString(),
       },
     ], peoplekb);
   }

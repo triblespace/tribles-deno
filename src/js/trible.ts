@@ -1,4 +1,3 @@
-import { func } from "https://cdn.skypack.dev/fast-check";
 import { FixedUint8Array, fixedUint8Array } from "./util.ts";
 
 export const TRIBLE_SIZE = 64;
