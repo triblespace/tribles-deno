@@ -129,7 +129,7 @@ export class Variable<T> {
     for (const constant of collection) {
       const value = fixedUint8Array(32);
       this.schema.encodeValue(constant, value);
-      index.put(b, new Entry(value, undefined));
+      index.put(new Entry(value, undefined), b);
     }
     return indexed(this, index);
   }

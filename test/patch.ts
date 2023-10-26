@@ -2,7 +2,7 @@ import {
   assert,
   assertEquals,
 } from "https://deno.land/std@0.180.0/testing/asserts.ts";
-import fc from "https://cdn.skypack.dev/fast-check";
+import fc from "npm:fast-check";
 
 /*
 fc.configureGlobal({
@@ -13,9 +13,11 @@ fc.configureGlobal({
 
 import { encode } from "https://deno.land/std@0.180.0/encoding/base64.ts";
 
-import { equalValue } from "../src/js/trible.js";
-import { emptyValuePATCH, makePATCH } from "../src/js/patch.js";
+import { equalValue, Value } from "../src/js/trible.ts";
+import { batch, emptyValuePATCH, Entry } from "../src/js/patch.ts";
+import { fixedUint8Array } from "../src/js/util.ts";
 
+/*
 const arb_number_of_segments = fc.integer({ min: 1, max: 3 });
 const arb_segment_size = fc.integer({ min: 1, max: 3 });
 const arb_segment_sizes = arb_number_of_segments.chain((n) =>
@@ -58,26 +60,26 @@ const arb_patch_and_content = arb_segment_sizes.chain((segments) =>
     }),
   )
 );
-const e = fc.uint8Array({ minLength: 16, maxLength: 16 });
-const a = fc.uint8Array({ minLength: 16, maxLength: 16 });
-const v = fc.uint8Array({ minLength: 32, maxLength: 32 });
-const trible = fc
-  .tuple(e, a, v)
-  .map((t) => new Uint8Array([...t[0], ...t[1], ...t[2]]));
-const tribles = fc.array(trible, { maxLength: 1e5 });
+*/
 
 Deno.test("patch insert", () => {
   const value = fc
     .array(fc.nat(255), { minLength: 32, maxLength: 32 })
-    .map((a) => new Uint8Array(a));
-  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+    .map((a: number[]) => new Uint8Array(a) as Value);
+  const values = fc.uniqueArray(value, {
+    comparator: equalValue,
+    maxLength: 1000,
+  });
 
   fc.assert(
     fc.property(values, (vs) => {
-      const patch = vs.reduce((patch, v) => patch.put(v), emptyValuePATCH);
+      const patch = vs.reduce(
+        (patch, v) => patch.put(new Entry(v, undefined)),
+        emptyValuePATCH,
+      );
 
       const jsSet = new Set(vs.map((t) => encode(t)));
-      const patchSet = new Set([...patch.keys()].map((t) => encode(t)));
+      const patchSet = new Set(patch.keys().map((t) => encode(t)));
 
       assertEquals(patchSet, jsSet);
     }),
@@ -87,17 +89,24 @@ Deno.test("patch insert", () => {
 Deno.test("patch batch insert", () => {
   const value = fc
     .array(fc.nat(255), { minLength: 32, maxLength: 32 })
-    .map((a) => new Uint8Array(a));
-  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+    .map((a) => new Uint8Array(a) as Value);
+  const values = fc.uniqueArray(value, {
+    comparator: equalValue,
+    maxLength: 1000,
+  });
 
   fc.assert(
     fc.property(values, (vs) => {
-      const patch = vs
-        .reduce((patch, v) => patch.put(v), emptyValuePATCH.batch())
-        .complete();
+      const patch = vs.reduce(
+        ({ patch, batch }, v) => ({
+          patch: patch.put(new Entry(v, undefined), batch),
+          batch,
+        }),
+        { patch: emptyValuePATCH, batch: batch() },
+      ).patch;
 
       const jsSet = new Set(vs.map((t) => encode(t)));
-      const patchSet = new Set([...patch.keys()].map((t) => encode(t)));
+      const patchSet = new Set(patch.keys().map((t) => encode(t)));
 
       assertEquals(patchSet, jsSet);
     }),
@@ -107,50 +116,78 @@ Deno.test("patch batch insert", () => {
 Deno.test("patch multi batch insert", () => {
   const value = fc
     .array(fc.nat(255), { minLength: 32, maxLength: 32 })
-    .map((a) => new Uint8Array(a));
-  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+    .map((a) => new Uint8Array(a) as Value);
+  const values = fc.uniqueArray(value, {
+    comparator: equalValue,
+    maxLength: 1000,
+  });
 
   fc.assert(
     fc.property(values, values, values, (vsA, vsB, vsC) => {
       const patchA = vsA
-        .reduce((patch, v) => patch.put(v), emptyValuePATCH.batch())
-        .complete();
+        .reduce(
+          ({ patch, batch }, v) => ({
+            patch: patch.put(new Entry(v, undefined), batch),
+            batch,
+          }),
+          { patch: emptyValuePATCH, batch: batch() },
+        ).patch;
 
-      const patchB = vsB
-        .reduce((patch, v) => patch.put(v), patchA.batch())
-        .complete();
+      const _patchB = vsB
+        .reduce(
+          ({ patch, batch }, v) => ({
+            patch: patch.put(new Entry(v, undefined), batch),
+            batch,
+          }),
+          { patch: patchA, batch: batch() },
+        ).patch;
 
       const patchC = vsC
-        .reduce((patch, v) => patch.put(v), patchA.batch())
-        .complete();
+        .reduce(
+          ({ patch, batch }, v) => ({
+            patch: patch.put(new Entry(v, undefined), batch),
+            batch,
+          }),
+          { patch: patchA, batch: batch() },
+        ).patch;
 
       const jsSet = new Set([
         ...vsA.map((t) => encode(t)),
         ...vsC.map((t) => encode(t)),
       ]);
-      const patchSet = new Set([...patchC.keys()].map((t) => encode(t)));
+      const patchSet = new Set(patchC.keys().map((t) => encode(t)));
 
       assertEquals(patchSet, jsSet);
     }),
   );
 });
 
-const isSetsEqual = (a, b) =>
-  a.size === b.size && [...a].every((value) => b.has(value));
+function isSetsEqual<T>(a: Set<T>, b: Set<T>) {
+  return a.size === b.size && [...a].every((value) => b.has(value));
+}
 
 Deno.test("equality check", () => {
   const value = fc
     .array(fc.nat(255), { minLength: 32, maxLength: 32 })
-    .map((a) => new Uint8Array(a));
-  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+    .map((a) => new Uint8Array(a) as Value);
+  const values = fc.uniqueArray(value, {
+    comparator: equalValue,
+    maxLength: 1000,
+  });
   const valueSets = values.chain((vs) =>
     fc.tuple(fc.shuffledSubarray(vs), fc.shuffledSubarray(vs))
   );
 
   fc.assert(
     fc.property(valueSets, ([vsA, vsB]) => {
-      const patchA = vsA.reduce((patch, v) => patch.put(v), emptyValuePATCH);
-      const patchB = vsB.reduce((patch, v) => patch.put(v), emptyValuePATCH);
+      const patchA = vsA.reduce(
+        (patch, v) => patch.put(new Entry(v, undefined)),
+        emptyValuePATCH,
+      );
+      const patchB = vsB.reduce(
+        (patch, v) => patch.put(new Entry(v, undefined)),
+        emptyValuePATCH,
+      );
 
       assertEquals(
         patchA.isEqual(patchB),
@@ -163,8 +200,11 @@ Deno.test("equality check", () => {
 Deno.test("equality check batched", () => {
   const value = fc
     .array(fc.nat(255), { minLength: 32, maxLength: 32 })
-    .map((a) => new Uint8Array(a));
-  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+    .map((a) => new Uint8Array(a) as Value);
+  const values = fc.uniqueArray(value, {
+    comparator: equalValue,
+    maxLength: 1000,
+  });
   const valueSets = values.chain((vs) =>
     fc.tuple(fc.shuffledSubarray(vs), fc.shuffledSubarray(vs))
   );
@@ -172,11 +212,21 @@ Deno.test("equality check batched", () => {
   fc.assert(
     fc.property(valueSets, ([vsA, vsB]) => {
       const patchA = vsA
-        .reduce((patch, v) => patch.put(v), emptyValuePATCH.batch())
-        .complete();
+        .reduce(
+          ({ patch, batch }, v) => ({
+            patch: patch.put(new Entry(v, undefined), batch),
+            batch,
+          }),
+          { patch: emptyValuePATCH, batch: batch() },
+        );
       const patchB = vsB
-        .reduce((patch, v) => patch.put(v), emptyValuePATCH.batch())
-        .complete();
+        .reduce(
+          ({ patch, batch }, v) => ({
+            patch: patch.put(new Entry(v, undefined), batch),
+            batch,
+          }),
+          { patch: emptyValuePATCH, batch: batch() },
+        );
 
       assertEquals(
         patchA.isEqual(patchB),

@@ -15,7 +15,7 @@ export class IDOwner<Id> {
       const b = fixedUint8Array(ID_SIZE);
       const id = schema.factory();
       schema.encodeId(id, b);
-      this.ids.put(batch(), new Entry(b, undefined));
+      this.ids.put(new Entry(b, undefined));
       return id;
     };
 

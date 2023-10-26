@@ -72,7 +72,7 @@ export class BlobCache {
   with(
     blobs: Iterable<[FixedUint8Array<typeof TRIBLE_SIZE>, Uint8Array]>,
   ): BlobCache {
-    const btch = batch();
+    const b = batch();
 
     let weak = this.weak;
     let strong = this.strong;
@@ -83,11 +83,11 @@ export class BlobCache {
 
       let new_or_cached_blob = blob;
       if (cached_blob === undefined) {
-        weak = weak.put(btch, new Entry(key, new WeakRef(blob)));
+        weak = weak.put(new Entry(key, new WeakRef(blob)), b);
       } else {
         new_or_cached_blob = cached_blob;
       }
-      strong = strong.put(btch, new Entry(trible, new_or_cached_blob));
+      strong = strong.put(new Entry(trible, new_or_cached_blob), b);
     }
 
     return new BlobCache(this.onMiss, strong, weak);
@@ -107,7 +107,7 @@ export class BlobCache {
       if (blob === undefined) {
         throw Error("No blob for key.");
       }
-      this.weak = this.weak.put(batch(), new Entry(key, new WeakRef(blob)));
+      this.weak = this.weak.put(new Entry(key, new WeakRef(blob)));
     }
     return blob;
   }

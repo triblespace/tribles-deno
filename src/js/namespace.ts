@@ -212,7 +212,7 @@ export class NS<Id, Decl extends NSDeclaration<Id>> {
    * @returns A new KB with the entities.
    */
   entities(
-    entities: (unknowns: Iterator<Id>) => EntityDescription<false, Id, Decl>[],
+    entities: (unknowns: Iterable<Id>) => EntityDescription<false, Id, Decl>[],
     kb: KB = new KB(),
   ): KB {
     const ids = new IDSequence(this.ids);

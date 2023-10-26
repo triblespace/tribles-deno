@@ -1043,7 +1043,7 @@ export class PATCH<
     return this.child.count();
   }
 
-  put(batch: Batch, entry: Entry<L, V>): PATCH<L, O, S, V> {
+  put(entry: Entry<L, V>, b: Batch = batch()): PATCH<L, O, S, V> {
     if (this.child === undefined) {
       return new PATCH<L, O, S, V>(
         this.keyLength,
@@ -1060,7 +1060,7 @@ export class PATCH<
         this.keyLength,
         this.order,
         this.segments,
-        batch,
+        b,
         entry,
         0,
       ),
@@ -1112,6 +1112,15 @@ export class PATCH<
       );
     }
     return out;
+  }
+
+  keys(): FixedUint8Array<L>[] {
+    return this.infixes(
+      (key) => key,
+      fixedUint8Array(this.keyLength),
+      0,
+      this.keyLength,
+    );
   }
 
   hasPrefix(key: FixedUint8Array<L>, end: number): boolean {
@@ -1221,7 +1230,7 @@ export class PATCH<
   */
 }
 
-export function singleSegment(at_depth: number) {
+export function singleSegment(_at_depth: number) {
   return 0;
 }
 

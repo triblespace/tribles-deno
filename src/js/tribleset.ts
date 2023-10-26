@@ -58,12 +58,12 @@ export class TribleSet {
     for (const trible of tribles) {
       const entry: Entry<64, undefined> = new Entry(trible, undefined);
 
-      EAV.put(b, entry);
-      EVA.put(b, entry);
-      AEV.put(b, entry);
-      AVE.put(b, entry);
-      VEA.put(b, entry);
-      VAE.put(b, entry);
+      EAV.put(entry, b);
+      EVA.put(entry, b);
+      AEV.put(entry, b);
+      AVE.put(entry, b);
+      VEA.put(entry, b);
+      VAE.put(entry, b);
     }
 
     return new TribleSet(
