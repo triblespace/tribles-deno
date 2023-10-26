@@ -136,12 +136,7 @@ Deno.test("equality check", () => {
   fc.assert(
     fc.property(valueSets, ([vsA, vsB]) => {
       const patchA = vsA.reduce(
-        (patch, v) => {
-          debugger;
-          const p = patch.put(new Entry(v, undefined));
-          console.log(p.child?.hash());
-          return p;
-        },
+        (patch, v) => patch.put(new Entry(v, undefined)),
         emptyValuePATCH,
       );
       const patchB = vsB.reduce(
