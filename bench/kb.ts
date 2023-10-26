@@ -29,13 +29,16 @@ function kbWith(b: Deno.BenchContext, size: number) {
         name: `Romeo${i}`,
         loves: juliet,
       },
-      ...["fool", "prince"].map(title => ({[id]: romeo, titles: title})),
+      ...["fool", "prince"].map((title) => ({ [id]: romeo, titles: title })),
       {
         [id]: juliet,
         name: `Juliet${i}`,
         loves: romeo,
       },
-      ...["the lady", "princess"].map(title => ({[id]: juliet, titles: title})),
+      ...["the lady", "princess"].map((title) => ({
+        [id]: juliet,
+        titles: title,
+      })),
     ], knightskb);
   }
   b.end();
@@ -53,13 +56,16 @@ function kbQuery(b: Deno.BenchContext, size: number) {
         name: `${i}LovingRomeo`,
         loves: juliet,
       },
-      ...["fool", "prince"].map(title => ({[id]: romeo, titles: title})),
+      ...["fool", "prince"].map((title) => ({ [id]: romeo, titles: title })),
       {
         [id]: juliet,
         name: "Juliet",
         loves: romeo,
       },
-      ...["the lady", "princess"].map(title => ({[id]: juliet, titles: title})),
+      ...["the lady", "princess"].map((title) => ({
+        [id]: juliet,
+        titles: title,
+      })),
     ], knightskb);
   }
 
@@ -70,26 +76,28 @@ function kbQuery(b: Deno.BenchContext, size: number) {
         name: `${i}Romeo`,
         loves: juliet,
       },
-      ...["fool", "prince"].map(title => ({[id]: romeo, titles: title})),
+      ...["fool", "prince"].map((title) => ({ [id]: romeo, titles: title })),
       {
         [id]: juliet,
         name: `${i}Juliet`,
         loves: romeo,
       },
-      ...["the lady", "princess"].map(title => ({[id]: juliet, titles: title})),
+      ...["the lady", "princess"].map((title) => ({
+        [id]: juliet,
+        titles: title,
+      })),
     ], knightskb);
   }
 
   // Query some data.
-  const q = find((ctx, { name, title }, [juliet]:[Variable<UFOID>]) =>
+  const q = find((ctx, { name, title }, [juliet]: [Variable<UFOID>]) =>
     knightsNS.pattern(ctx, knightskb, [
       {
         name,
         titles: title,
         loves: juliet,
       },
-      {[id]: juliet,
-       name: "juliet"}
+      { [id]: juliet, name: "juliet" },
     ])
   );
   b.start();

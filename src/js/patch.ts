@@ -12,7 +12,7 @@ import {
   VALUE_SIZE,
   VEAOrder,
 } from "./trible.ts";
-import { hash_combine, hash_digest, hash_equal, hash_update } from "./wasm.js";
+import { hash_combine, hash_digest, hash_equal, hash_update } from "./wasm.ts";
 import { FixedUint8Array, fixedUint8Array } from "./util.ts";
 
 type Hash = FixedUint8Array<16>;
@@ -700,7 +700,9 @@ class Branch<
         nchildren[entry_key] = entry.leaf();
         const count = this._count + 1;
         const segmentCount = this.segmentCount(order, segments, depth) + 1;
-        const hash = hash_combine(this.hash, entry.hash) as FixedUint8Array<16>;
+        const hash = hash_combine(this.hash(), entry.hash) as FixedUint8Array<
+          16
+        >;
 
         return new Branch(
           batch,
@@ -723,7 +725,7 @@ class Branch<
     const child = this.children[entry_key];
     if (child) {
       //We need to update the child where this key would belong.
-      const oldChildHash = child.hash;
+      const oldChildHash = child.hash();
       const oldChildCount = child.count();
       const oldChildSegmentCount = child.segmentCount(
         order,
@@ -740,9 +742,9 @@ class Branch<
       );
       if (!nchild) return undefined;
       hash = hash_update(
-        this.hash,
+        this.hash(),
         oldChildHash,
-        nchild.hash,
+        nchild.hash(),
       ) as FixedUint8Array<16>;
       count = this._count - oldChildCount + nchild.count();
       segmentCount = this._segmentCount -
@@ -750,7 +752,7 @@ class Branch<
         nchild.segmentCount(order, segments, this._branchDepth);
     } else {
       nchild = entry.leaf();
-      hash = hash_combine(this.hash, entry.hash) as FixedUint8Array<16>;
+      hash = hash_combine(this.hash(), entry.hash) as FixedUint8Array<16>;
       count = this._count + 1;
       segmentCount = this._segmentCount + 1;
     }
@@ -1137,9 +1139,9 @@ export class PATCH<
   isEqual(other: PATCH<L, O, S, V>) {
     return (
       this.child === other.child ||
-      (!!this.child &&
-        !!other.child &&
-        hash_equal(this.child.hash, other.child.hash))
+      (this.child !== undefined &&
+        other.child !== undefined &&
+        hash_equal(this.child.hash(), other.child.hash()))
     );
   }
 

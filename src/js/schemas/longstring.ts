@@ -1,6 +1,6 @@
 import { Schema } from "../schemas.ts";
 import { Blob, LazyBlob, Value } from "../trible.ts";
-import { blake3 } from "../wasm.js";
+import { blake3 } from "../wasm.ts";
 
 function encodeValue(v: string, b: Value): Blob {
   const d = new TextEncoder().encode(v);

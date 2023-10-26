@@ -68,13 +68,13 @@ Deno.test("KB Find", () => {
     ),
   ]);
   assertEquals(
-    results,
     new Set([
       { name: "Romeo", title: "fool" },
       { name: "Romeo", title: "prince" },
       { name: "Juliet", title: "princess" },
       { name: "Juliet", title: "the lady" },
     ]),
+    results,
   );
 });
 
@@ -124,8 +124,8 @@ Deno.test("KB Find Single", () => {
           ),
         ]);
         assertEquals(
+          new Set([{ name: person.name, title: person.titles }]),
           results,
-          new Set([{ name: person.name, title: person.titles[0] }]),
         );
       },
     ),

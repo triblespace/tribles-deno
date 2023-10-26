@@ -21,7 +21,9 @@ class IntersectionConstraint implements Constraint {
   estimate(variable_index: number, binding: Binding): number {
     let min = Number.MAX_VALUE;
     for (const constraint of this.constraints) {
-      min = Math.min(min, constraint.estimate(variable_index, binding));
+      if (constraint.variables().has(variable_index)) {
+        min = Math.min(min, constraint.estimate(variable_index, binding));
+      }
     }
     return min;
   }

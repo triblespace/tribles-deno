@@ -140,7 +140,6 @@ type NamedVars = { [name: string]: Variable<any> };
 // deno-lint-ignore no-explicit-any
 type AnonVars = { [index: number]: Variable<any> } & any[];
 
-
 /**
  * Represents a collection of Variables used together, e.g. in a query.
  * Can be used to generate named an unnamed variables.
@@ -328,8 +327,14 @@ type QueryFn<N extends NamedVars, A extends AnonVars> = (
  * @param postprocessing - A function that maps over the query results and coverts them to usable values.
  * @returns Enumerates possible variable assignments satisfying the input query.
  */
-export function find<N extends NamedVars, A extends AnonVars>(queryfn: QueryFn<N, A>): Query<N> {
+export function find<N extends NamedVars, A extends AnonVars>(
+  queryfn: QueryFn<N, A>,
+): Query<N> {
   const ctx = new VariableContext();
-  const queryConstraint = queryfn(ctx, ctx.namedVars() as N, ctx.anonVars() as unknown as A);
+  const queryConstraint = queryfn(
+    ctx,
+    ctx.namedVars() as N,
+    ctx.anonVars() as unknown as A,
+  );
   return new Query<N>(ctx, queryConstraint);
 }

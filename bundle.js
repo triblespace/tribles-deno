@@ -157,10 +157,11 @@ const base64 = "AGFzbQEAAAABiAETYAJ/fwBgA39/fwF/YAJ/fwF/YAF/AGAAAGAAAX9gA39/fwBg
 const buffer = decode(base64);
 const module = await WebAssembly.compile(buffer);
 const instance = await WebAssembly.instantiate(module, {});
-const _global_hash_secret = new Uint8Array(instance.exports.memory.buffer, instance.exports.global_hash_secret, 16);
-const _global_hash_this = new Uint8Array(instance.exports.memory.buffer, instance.exports.global_hash_this, 16);
-const _global_hash_other = new Uint8Array(instance.exports.memory.buffer, instance.exports.global_hash_other, 16);
-const _global_hash_data = new Uint8Array(instance.exports.memory.buffer, instance.exports.global_hash_data, 64);
+const memory = instance.exports.memory;
+const _global_hash_secret = new Uint8Array(memory.buffer, instance.exports.global_hash_secret.value, 16);
+const _global_hash_this = new Uint8Array(memory.buffer, instance.exports.global_hash_this.value, 16);
+const _global_hash_other = new Uint8Array(memory.buffer, instance.exports.global_hash_other.value, 16);
+const _global_hash_data = new Uint8Array(memory.buffer, instance.exports.global_hash_data.value, 64);
 crypto.getRandomValues(_global_hash_secret);
 function hash_digest(data) {
     _global_hash_data.set(data);
@@ -187,8 +188,8 @@ function hash_equal(l, r) {
     return instance.exports.hash_equal() === 1;
 }
 const blake_buffer_size = 16384;
-const _global_blake3_out = new Uint8Array(instance.exports.memory.buffer, instance.exports.global_blake3_out, 32);
-const _global_blake3_buffer = new Uint8Array(instance.exports.memory.buffer, instance.exports.global_blake3_buffer, 16384);
+const _global_blake3_out = new Uint8Array(memory.buffer, instance.exports.global_blake3_out.value, 32);
+const _global_blake3_buffer = new Uint8Array(memory.buffer, instance.exports.global_blake3_buffer.value, 16384);
 function blake3(data) {
     instance.exports.blake3_init();
     let i = 0;
@@ -409,7 +410,7 @@ class Branch {
                 nchildren[entry_key] = entry.leaf();
                 const count = this._count + 1;
                 const segmentCount = this.segmentCount(order, segments, depth) + 1;
-                const hash = hash_combine(this.hash, entry.hash);
+                const hash = hash_combine(this.hash(), entry.hash);
                 return new Branch(batch, depth, nchildren, this._leaf, hash, count, segmentCount);
             }
         }
@@ -420,17 +421,17 @@ class Branch {
         let segmentCount;
         const child = this.children[entry_key];
         if (child) {
-            const oldChildHash = child.hash;
+            const oldChildHash = child.hash();
             const oldChildCount = child.count();
             const oldChildSegmentCount = child.segmentCount(order, segments, this._branchDepth);
             nchild = child.put(keyLength, order, segments, batch, entry, this._branchDepth);
             if (!nchild) return undefined;
-            hash = hash_update(this.hash, oldChildHash, nchild.hash);
+            hash = hash_update(this.hash(), oldChildHash, nchild.hash());
             count = this._count - oldChildCount + nchild.count();
             segmentCount = this._segmentCount - oldChildSegmentCount + nchild.segmentCount(order, segments, this._branchDepth);
         } else {
             nchild = entry.leaf();
-            hash = hash_combine(this.hash, entry.hash);
+            hash = hash_combine(this.hash(), entry.hash);
             count = this._count + 1;
             segmentCount = this._segmentCount + 1;
         }
@@ -543,11 +544,11 @@ class PATCH {
         }
         return this.child.count();
     }
-    put(batch, entry) {
+    put(entry, b = batch()) {
         if (this.child === undefined) {
             return new PATCH(this.keyLength, this.order, this.segments, entry.leaf());
         }
-        return new PATCH(this.keyLength, this.order, this.segments, this.child.put(this.keyLength, this.order, this.segments, batch, entry, 0));
+        return new PATCH(this.keyLength, this.order, this.segments, this.child.put(this.keyLength, this.order, this.segments, b, entry, 0));
     }
     get(key) {
         return this.child?.get(this.keyLength, this.order, key, 0);
@@ -571,6 +572,9 @@ class PATCH {
         }
         return out;
     }
+    keys() {
+        return this.infixes((key)=>key, fixedUint8Array(this.keyLength), 0, this.keyLength);
+    }
     hasPrefix(key, end) {
         if (this.child === undefined) {
             return false;
@@ -581,7 +585,7 @@ class PATCH {
         return !this.child;
     }
     isEqual(other) {
-        return this.child === other.child || !!this.child && !!other.child && hash_equal(this.child.hash, other.child.hash);
+        return this.child === other.child || this.child !== undefined && other.child !== undefined && hash_equal(this.child.hash(), other.child.hash());
     }
     union(other) {
         if (!this.child) {
@@ -593,7 +597,7 @@ class PATCH {
         return new PATCH(this.keyLength, this.order, this.segments, _union(this.keyLength, this.order, this.segments, batch(), this.child, other.child, 0));
     }
 }
-function singleSegment(at_depth) {
+function singleSegment(_at_depth) {
     return 0;
 }
 const naturalOrder = {
@@ -829,7 +833,9 @@ class IntersectionConstraint {
     estimate(variable_index, binding) {
         let min = Number.MAX_VALUE;
         for (const constraint of this.constraints){
-            min = Math.min(min, constraint.estimate(variable_index, binding));
+            if (constraint.variables().has(variable_index)) {
+                min = Math.min(min, constraint.estimate(variable_index, binding));
+            }
         }
         return min;
     }
@@ -921,7 +927,14 @@ class TribleConstraint {
         if (e_ && a_ && !v_ && !$e && !$a && $v) {
             return this.set.EAV.prefixSegmentCount(trible, V_START);
         }
-        throw Error("invalid state");
+        throw Error(`invalid state ${[
+            e_,
+            a_,
+            v_,
+            $e,
+            $a,
+            $v
+        ]}`);
     }
     propose(variable_index, binding) {
         const e_ = binding.get(this.eVar.index);
@@ -1101,12 +1114,12 @@ class TribleSet {
         const VAE = this.VAE;
         for (const trible of tribles){
             const entry = new Entry(trible, undefined);
-            EAV.put(b, entry);
-            EVA.put(b, entry);
-            AEV.put(b, entry);
-            AVE.put(b, entry);
-            VEA.put(b, entry);
-            VAE.put(b, entry);
+            EAV.put(entry, b);
+            EVA.put(entry, b);
+            AEV.put(entry, b);
+            AVE.put(entry, b);
+            VEA.put(entry, b);
+            VAE.put(entry, b);
         }
         return new TribleSet(EAV, EVA, AEV, AVE, VEA, VAE);
     }
@@ -1145,7 +1158,7 @@ class BlobCache {
         this.onMiss = onMiss;
     }
     with(blobs) {
-        const btch = batch();
+        const b = batch();
         let weak = this.weak;
         let strong = this.strong;
         for (const [trible, blob] of blobs){
@@ -1153,11 +1166,11 @@ class BlobCache {
             const cached_blob = this.weak.get(key)?.deref();
             let new_or_cached_blob = blob;
             if (cached_blob === undefined) {
-                weak = weak.put(btch, new Entry(key, new WeakRef(blob)));
+                weak = weak.put(new Entry(key, new WeakRef(blob)), b);
             } else {
                 new_or_cached_blob = cached_blob;
             }
-            strong = strong.put(btch, new Entry(trible, new_or_cached_blob));
+            strong = strong.put(new Entry(trible, new_or_cached_blob), b);
         }
         return new BlobCache(this.onMiss, strong, weak);
     }
@@ -1168,7 +1181,7 @@ class BlobCache {
             if (blob === undefined) {
                 throw Error("No blob for key.");
             }
-            this.weak = this.weak.put(batch(), new Entry(key, new WeakRef(blob)));
+            this.weak = this.weak.put(new Entry(key, new WeakRef(blob)));
         }
         return blob;
     }
@@ -1341,7 +1354,7 @@ class Variable {
         for (const constant of collection){
             const value = fixedUint8Array(32);
             this.schema.encodeValue(constant, value);
-            emptyValuePATCH.put(b, new Entry(value, undefined));
+            emptyValuePATCH.put(new Entry(value, undefined), b);
         }
         return indexed(this, emptyValuePATCH);
     }
@@ -2075,7 +2088,7 @@ class IDOwner {
             const b = fixedUint8Array(16);
             const id = schema.factory();
             schema.encodeId(id, b);
-            this.ids.put(batch(), new Entry(b, undefined));
+            this.ids.put(new Entry(b, undefined));
             return id;
         };
         this.schema = {
@@ -3454,4 +3467,4 @@ function s3Store(config) {
         flush
     };
 }
-export { and as and, BlobCache as BlobCache, find as find, id as id, IDOwner as IDOwner, KB as KB, masked as masked, NS as NS, ranged as ranged, TribleSet as TribleSet, schemas as schemas, UFOID as UFOID, validateCommitSize as validateCommitSize, websocketLog as websocketLog, s3Store as s3Store };
+export { and as and, BlobCache as BlobCache, find as find, id as id, IDOwner as IDOwner, KB as KB, masked as masked, NS as NS, ranged as ranged, s3Store as s3Store, schemas as schemas, TribleSet as TribleSet, UFOID as UFOID, validateCommitSize as validateCommitSize, websocketLog as websocketLog };

@@ -114,7 +114,7 @@ export class TribleConstraint implements Constraint {
     if (e_ && a_ && !v_ && !$e && !$a && $v) {
       return this.set.EAV.prefixSegmentCount(trible, V_START);
     }
-    throw Error("invalid state");
+    throw Error(`invalid state ${[e_, a_, v_, $e, $a, $v]}`);
   }
 
   propose(variable_index: number, binding: Binding): Value[] {

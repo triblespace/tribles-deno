@@ -1,4 +1,4 @@
-import { Entry, batch, emptyEAVTriblePATCH } from "../src/js/patch.ts";
+import { batch, emptyEAVTriblePATCH, Entry } from "../src/js/patch.ts";
 import { A, E, TRIBLE_SIZE, V } from "../src/js/trible.ts";
 import { Trible, UFOID } from "../mod.ts";
 import { fixedUint8Array } from "../src/js/util.ts";
@@ -47,7 +47,7 @@ Deno.bench("iterate1e3", (b) => {
   let patch = emptyEAVTriblePATCH;
   const bt = batch();
   for (const t of generate_sample(size)) {
-    patch.put(new Entry(t, undefined), bt);
+    patch = patch.put(new Entry(t, undefined), bt);
   }
   b.start();
   patch.keys();

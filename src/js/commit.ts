@@ -2,7 +2,7 @@ import { schemas } from "./schemas.ts";
 import { UFOID } from "./schemas/ufoid.ts";
 import { id } from "./namespace.ts";
 import { equalValue, Trible, TRIBLE_SIZE, Value } from "./trible.ts";
-import { blake3 } from "./wasm.js";
+import { blake3 } from "./wasm.ts";
 import { NS } from "./namespace.ts";
 import { FixedUint8Array } from "./util.ts";
 import { KB } from "./kb.ts";
