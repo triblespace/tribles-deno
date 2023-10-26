@@ -1,8 +1,5 @@
-import {
-  bench,
-  runBenchmarks,
-} from "https://deno.land/std@0.180.0/testing/bench.ts";
 import { find, id, IDOwner, KB, NS, schemas, UFOID } from "../mod.ts";
+import { Variable } from "../src/js/query.ts";
 
 const nameId = UFOID.now();
 const lastNameId = UFOID.now();
@@ -12,19 +9,16 @@ const lovesId = UFOID.now();
 const titlesId = UFOID.now();
 
 const idOwner = new IDOwner(schemas.ufoid);
-const knightsNS = new NS({
-  [id]: { schema: idOwner.type() },
+const knightsNS = new NS(idOwner.schema, {
   name: { id: nameId, schema: schemas.shortstring },
   lastName: { id: lastNameId, schema: schemas.shortstring },
   eyeColor: { id: eyeColorId, schema: schemas.shortstring },
   age: { id: ageId, schema: schemas.shortstring },
-  loves: { id: lovesId, isLink: true },
-  lovedBy: { id: lovesId, isLink: true, isInverse: true },
-  titles: { id: titlesId, isMany: true, schema: schemas.shortstring },
+  loves: { id: lovesId, schema: idOwner.schema },
+  titles: { id: titlesId, schema: schemas.shortstring },
 });
 
-function kbWith(b, size) {
-  // Add some data.
+function kbWith(b: Deno.BenchContext, size: number) {
   let knightskb = new KB();
 
   b.start();
@@ -44,11 +38,11 @@ function kbWith(b, size) {
       },
     ], knightskb);
   }
-  b.stop();
+  b.end();
   console.log(knightskb.tribleset.count());
 }
 
-function kbQuery(b, size) {
+function kbQuery(b: Deno.BenchContext, size: number) {
   // Add some data.
   let knightskb = new KB();
 
@@ -87,20 +81,22 @@ function kbQuery(b, size) {
   }
 
   // Query some data.
-  const q = find((ctx, { name, title }, []) =>
+  const q = find((ctx, { name, title }, [juliet]:[Variable<UFOID>]) =>
     knightsNS.pattern(ctx, knightskb, [
       {
         name,
-        titles: [title],
-        loves: { name: "Juliet" },
+        titles: title,
+        loves: juliet,
       },
+      {[id]: juliet,
+       name: "juliet"}
     ])
   );
   b.start();
 
   const results = [...q];
 
-  b.stop();
+  b.end();
   console.log(results.length, knightskb.tribleset.count());
 }
 
@@ -165,7 +161,7 @@ function kbDSQuery(b) {
 
   const results = [...q];
 
-  b.stop();
+  b.end();
   console.log(results.length, peoplekb.tribleset.count());
 }
 
@@ -206,39 +202,10 @@ function kbWithPeople(b, size) {
     ], peoplekb);
   }
 
-  b.stop();
+  b.end();
   console.log(peoplekb.tribleset.count());
 }
-bench({
-  name: "kbWith1e4",
-  runs: 3,
-  func(b) {
-    kbWith(b, 1e4);
-  },
-});
-
-bench({
-  name: "kbQuery1e5",
-  runs: 3,
-  func(b) {
-    kbQuery(b, 1e5);
-  },
-});
-
-bench({
-  name: "kbDSQuery",
-  runs: 3,
-  func(b) {
-    kbDSQuery(b);
-  },
-});
-
-bench({
-  name: "kbWithPeople20k",
-  runs: 3,
-  func(b) {
-    kbWithPeople(b, 20000);
-  },
-});
-
-runBenchmarks();
+Deno.bench("kbWith1e4", (b) => kbWith(b, 1e4));
+Deno.bench("kbQuery1e5", (b) => kbQuery(b, 1e5));
+Deno.bench("kbDSQuery", (b) => kbDSQuery(b));
+Deno.bench("kbWithPeople20k", (b) => kbWithPeople(b, 20000));

@@ -137,6 +137,9 @@ export class Variable<T> {
 
 // deno-lint-ignore no-explicit-any
 type NamedVars = { [name: string]: Variable<any> };
+// deno-lint-ignore no-explicit-any
+type AnonVars = { [index: number]: Variable<any> };
+
 
 /**
  * Represents a collection of Variables used together, e.g. in a query.
@@ -313,10 +316,10 @@ export class Query<V extends NamedVars> {
  * returns a constraint builder that can be used to enumerate query results
  * with a call to find.
  */
-type QueryFn<V extends NamedVars> = (
+type QueryFn<N extends NamedVars, A extends AnonVars> = (
   ctx: VariableContext,
-  namedVars: V,
-  anonVars: Iterable<Variable<unknown>>,
+  namedVars: N,
+  anonVars: A,
 ) => Constraint;
 
 /**
@@ -325,8 +328,8 @@ type QueryFn<V extends NamedVars> = (
  * @param postprocessing - A function that maps over the query results and coverts them to usable values.
  * @returns Enumerates possible variable assignments satisfying the input query.
  */
-export function find<V extends NamedVars>(queryfn: QueryFn<V>): Query<V> {
+export function find<N extends NamedVars, A extends AnonVars>(queryfn: QueryFn<N, A>): Query<N> {
   const ctx = new VariableContext();
-  const queryConstraint = queryfn(ctx, ctx.namedVars() as V, ctx.anonVars());
-  return new Query<V>(ctx, queryConstraint);
+  const queryConstraint = queryfn(ctx, ctx.namedVars() as N, ctx.anonVars() as unknown as A);
+  return new Query<N>(ctx, queryConstraint);
 }

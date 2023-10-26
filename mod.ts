@@ -12,6 +12,10 @@ import { IDOwner } from "./src/js/owner.ts";
 import { validateCommitSize } from "./src/js/commit.ts";
 import { websocketLog } from "./src/js/remotes/websocketlog.ts";
 import { s3Store } from "./src/js/remotes/s3store.ts";
+import { Trible as T, Value as V } from "./src/js/trible.ts";
+
+export type Trible = T;
+export type Value = V;
 
 export {
   and,

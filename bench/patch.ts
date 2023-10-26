@@ -1,49 +1,11 @@
-import {
-  bench,
-  runBenchmarks,
-} from "https://deno.land/std@0.180.0/testing/bench.ts";
-import { emptyTriblePATCH as baseline, PATCHHash } from "../src/js/patch.ts";
+import { emptyTriblePATCH } from "../src/js/patch.ts";
 import { A, E, TRIBLE_SIZE, V } from "../src/js/trible.ts";
 import { UFOID } from "../mod.ts";
-
-const variants = [
-  {
-    runs: 100,
-    size: 1e2,
-    name: "1e2",
-  },
-  {
-    runs: 50,
-    size: 1e3,
-    name: "1e3",
-  },
-  {
-    runs: 10,
-    size: 1e4,
-    name: "1e4",
-  },
-  {
-    runs: 5,
-    size: 1e5,
-    name: "1e5",
-  },
-];
-
-const benchAllPATCH = ({ name, func }) => {
-  variants.forEach(({ runs, name: variantName, size }) => {
-    bench({
-      name: `baseline@${variantName}:${name}`,
-      runs,
-      func(b) {
-        func(b, baseline, size);
-      },
-    });
-  });
-};
+import { fixedUint8Array } from "../src/js/util.ts";
 
 function generate_sample(size, sharing_prob = 0.1) {
   const tribles = [];
-  const trible = new Uint8Array(TRIBLE_SIZE);
+  const trible = new fixedUint8Array(TRIBLE_SIZE);
   for (let i = 0; i < size; i++) {
     if (sharing_prob < Math.random()) {
       E(trible).set(UFOID.now().toId());
@@ -74,26 +36,6 @@ benchAllPATCH({
   func: persistentPut,
 });
 
-function putPrehashed(b, patchType, size) {
-  const sample = generate_sample(size);
-
-  for (const t of sample) {
-    PATCHHash(t);
-  }
-
-  let patch = patchType;
-  b.start();
-  for (const t of sample) {
-    patch = patch.put(t);
-  }
-  b.stop();
-}
-
-benchAllPATCH({
-  name: "putPrecompHash",
-  func: putPrehashed,
-});
-
 function batchedPut(b, patchType, size) {
   const sample = generate_sample(size);
   const patch = patchType;
@@ -109,28 +51,6 @@ function batchedPut(b, patchType, size) {
 benchAllPATCH({
   name: "putBatch",
   func: batchedPut,
-});
-
-function batchedPutPrehashed(b, patchType, size) {
-  const sample = generate_sample(size);
-
-  for (const t of sample) {
-    PATCHHash(t);
-  }
-
-  const patch = patchType;
-  b.start();
-  const batch = patch.batch();
-  for (const t of sample) {
-    batch.put(t);
-  }
-  batch.complete();
-  b.stop();
-}
-
-benchAllPATCH({
-  name: "putBatchPrecompHash",
-  func: batchedPutPrehashed,
 });
 
 function setUnion(b, patchType, size) {
@@ -324,5 +244,3 @@ benchAllPATCH({
   name: "Iterate",
   func: iterate,
 });
-
-runBenchmarks();

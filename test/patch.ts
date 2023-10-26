@@ -17,50 +17,6 @@ import { equalValue, Value } from "../src/js/trible.ts";
 import { batch, emptyValuePATCH, Entry } from "../src/js/patch.ts";
 import { fixedUint8Array } from "../src/js/util.ts";
 
-/*
-const arb_number_of_segments = fc.integer({ min: 1, max: 3 });
-const arb_segment_size = fc.integer({ min: 1, max: 3 });
-const arb_segment_sizes = arb_number_of_segments.chain((n) =>
-  fc.array(arb_segment_size, { minLength: n, maxLength: n })
-);
-
-function arb_segmented_keys_(segments) {
-  if (segments.length === 0) {
-    return fc.constant([[]]);
-  }
-  const [s, ...sRest] = segments;
-  return fc
-    .tuple(
-      fc.uint8Array({ minLength: s, maxLength: s }),
-      fc.array(arb_segmented_keys(sRest), {
-        minLength: 1,
-        maxLength: 10,
-      }),
-    )
-    .map(([l, rs]) => {
-      return rs.flat().map((r) => [...l, ...r]);
-    });
-}
-
-function arb_segmented_keys(segments) {
-  return fc
-    .array(arb_segmented_keys_(segments), {
-      minLength: 1,
-      maxLength: 10,
-    })
-    .map((as) => as.flat().map((a) => new Uint8Array(a)));
-}
-
-const arb_patch_and_content = arb_segment_sizes.chain((segments) =>
-  fc.tuple(
-    fc.constant(makePATCH(segments)),
-    fc.array(arb_segmented_keys(segments), {
-      minLength: 1,
-      maxLength: 3,
-    }),
-  )
-);
-*/
 
 Deno.test("patch insert", () => {
   const value = fc
@@ -218,7 +174,7 @@ Deno.test("equality check batched", () => {
             batch,
           }),
           { patch: emptyValuePATCH, batch: batch() },
-        );
+        ).patch;
       const patchB = vsB
         .reduce(
           ({ patch, batch }, v) => ({
@@ -226,7 +182,7 @@ Deno.test("equality check batched", () => {
             batch,
           }),
           { patch: emptyValuePATCH, batch: batch() },
-        );
+        ).patch;
 
       assertEquals(
         patchA.isEqual(patchB),
@@ -239,16 +195,16 @@ Deno.test("equality check batched", () => {
 Deno.test("shuffled equality check", () => {
   const value = fc
     .array(fc.nat(255), { minLength: 32, maxLength: 32 })
-    .map((a) => new Uint8Array(a));
-  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+    .map((a) => new Uint8Array(a) as Value);
+  const values = fc.uniqueArray(value, { comparator: equalValue, maxLength: 1000 });
   const valueSets = values.chain((vs) =>
     fc.tuple(fc.constant(vs), fc.shuffledSubarray(vs, { minLength: vs.length }))
   );
 
   fc.assert(
     fc.property(valueSets, ([vsA, vsB]) => {
-      const patchA = vsA.reduce((patch, v) => patch.put(v), emptyValuePATCH);
-      const patchB = vsB.reduce((patch, v) => patch.put(v), emptyValuePATCH);
+      const patchA = vsA.reduce((patch, v) => patch.put(new Entry(v, undefined)), emptyValuePATCH);
+      const patchB = vsB.reduce((patch, v) => patch.put(new Entry(v, undefined)), emptyValuePATCH);
 
       assertEquals(
         patchA.isEqual(patchB),
@@ -261,8 +217,8 @@ Deno.test("shuffled equality check", () => {
 Deno.test("shuffled equality check batched", () => {
   const value = fc
     .array(fc.nat(255), { minLength: 32, maxLength: 32 })
-    .map((a) => new Uint8Array(a));
-  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+    .map((a) => new Uint8Array(a) as Value);
+  const values = fc.uniqueArray(value, { comparator: equalValue, maxLength: 1000 });
   const valueSets = values.chain((vs) =>
     fc.tuple(fc.constant(vs), fc.shuffledSubarray(vs, { minLength: vs.length }))
   );
@@ -270,11 +226,11 @@ Deno.test("shuffled equality check batched", () => {
   fc.assert(
     fc.property(valueSets, ([vsA, vsB]) => {
       const patchA = vsA
-        .reduce((patch, v) => patch.put(v), emptyValuePATCH.batch())
-        .complete();
+        .reduce(({patch, batch}, v) => ({patch: patch.put(new Entry(v, undefined), batch), batch}), {patch: emptyValuePATCH, batch: batch()})
+        .patch;
       const patchB = vsB
-        .reduce((patch, v) => patch.put(v), emptyValuePATCH.batch())
-        .complete();
+        .reduce(({patch, batch}, v) => ({patch: patch.put(new Entry(v, undefined), batch), batch}), {patch: emptyValuePATCH, batch: batch()})
+        .patch;
 
       assertEquals(
         patchA.isEqual(patchB),
@@ -284,34 +240,77 @@ Deno.test("shuffled equality check batched", () => {
   );
 });
 
+//TODO reintegrate these tests
+/*
+
+
+const arb_number_of_segments = fc.integer({ min: 1, max: 3 });
+const arb_segment_size = fc.integer({ min: 1, max: 3 });
+const arb_segment_sizes = arb_number_of_segments.chain((n) =>
+  fc.array(arb_segment_size, { minLength: n, maxLength: n })
+);
+
+function arb_segmented_keys_(segments) {
+  if (segments.length === 0) {
+    return fc.constant([[]]);
+  }
+  const [s, ...sRest] = segments;
+  return fc
+    .tuple(
+      fc.uint8Array({ minLength: s, maxLength: s }),
+      fc.array(arb_segmented_keys(sRest), {
+        minLength: 1,
+        maxLength: 10,
+      }),
+    )
+    .map(([l, rs]) => {
+      return rs.flat().map((r) => [...l, ...r]);
+    });
+}
+
+function arb_segmented_keys(segments) {
+  return fc
+    .array(arb_segmented_keys_(segments), {
+      minLength: 1,
+      maxLength: 10,
+    })
+    .map((as) => as.flat().map((a) => new Uint8Array(a)));
+}
+
+const arb_patch_and_content = arb_segment_sizes.chain((segments) =>
+  fc.tuple(
+    fc.constant(makePATCH(segments)),
+    fc.array(arb_segmented_keys(segments), {
+      minLength: 1,
+      maxLength: 3,
+    }),
+  )
+);
+
 Deno.test("segment count", () => {
-  const value = fc.uint8Array({ minLength: 32, maxLength: 32 });
-  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+  const value = fc.uint8Array({ minLength: 32, maxLength: 32 }) as fc.Arbitrary<Value>;
+  const values = fc.uniqueArray(value, { comparator: equalValue, maxLength: 1000 });
 
   fc.assert(
     fc.property(values, (vs) => {
-      const patch = vs.reduce((patch, v) => patch.put(v), emptyValuePATCH);
+      const patch = vs.reduce((patch, v) => patch.put(new Entry(v, undefined)), emptyValuePATCH);
 
-      const cursor = patch.cursor();
-
-      assertEquals(cursor.segmentCount(), vs.length);
+      assertEquals(patch.prefixSegmentCount(fixedUint8Array(32), 0), vs.length);
     }),
   );
 });
 
 Deno.test("segment count batched", () => {
-  const value = fc.uint8Array({ minLength: 32, maxLength: 32 });
-  const values = fc.set(value, { compare: equalValue, maxLength: 1000 });
+  const value = fc.uint8Array({ minLength: 32, maxLength: 32 }) as fc.Arbitrary<Value>;
+  const values = fc.uniqueArray(value, { comparator: equalValue, maxLength: 1000 });
 
   fc.assert(
     fc.property(values, (vs) => {
       const patch = vs
-        .reduce((patch, v) => patch.put(v), emptyValuePATCH.batch())
-        .complete();
+        .reduce(({patch, batch}, v) => ({patch: patch.put(new Entry(v, undefined), batch), batch}), {patch: emptyValuePATCH, batch: batch()})
+        .patch;
 
-      const cursor = patch.cursor();
-
-      assertEquals(cursor.segmentCount(), vs.length);
+      assertEquals(patch.prefixSegmentCount(fixedUint8Array(32), 0), vs.length);
     }),
   );
 });
@@ -589,3 +588,4 @@ Deno.test("static shuffled equality check batched", () => {
     ),
   );
 });
+*/

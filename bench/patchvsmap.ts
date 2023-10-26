@@ -1,12 +1,8 @@
-import {
-  bench,
-  runBenchmarks,
-} from "https://deno.land/std@0.180.0/testing/bench.ts";
 import { emptyValuePATCH } from "../src/js/patch.js";
 import { A, E, TRIBLE_SIZE, V } from "../src/js/trible.js";
 import { UFOID } from "../mod.ts";
 
-function generate_sample(size, sharing_prob = 0.1) {
+function generate_sample(size: number, sharing_prob = 0.1) {
   const tribles = [];
   const trible = new Uint8Array(TRIBLE_SIZE);
   for (let i = 0; i < size; i++) {
@@ -24,7 +20,7 @@ function generate_sample(size, sharing_prob = 0.1) {
   return tribles;
 }
 
-function persistentPut(b, size) {
+function persistentPut(b: Deno.BenchContext, size: number) {
   const sample = generate_sample(size);
   let patch = emptyValuePATCH;
   b.start();
@@ -187,5 +183,3 @@ benchAllPATCH({
   func: iterateSetWithTransform,
 });
 */
-
-runBenchmarks();

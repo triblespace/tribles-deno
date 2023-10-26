@@ -59,7 +59,7 @@ type EntityDescription<
   Id,
   Decl extends NSDeclaration<Id>,
 > =
-  & { [id]?: Id }
+  & { [id]?: VariableOrValue<Vars, Id> }
   & {
     [Name in keyof Decl]+?: VariableOrValue<
       Vars,
