@@ -800,9 +800,10 @@ class Branch<
     at_depth: number,
   ): number {
     const tree_start_depth = order.keyToTree(key_start_depth);
+    const min_depth = Math.min(tree_start_depth, this._branchDepth);
     for (
       let depth = at_depth;
-      depth < Math.min(tree_start_depth, this._branchDepth);
+      depth < min_depth;
       depth++
     ) {
       const key_depth = order.treeToKey(depth);
@@ -841,9 +842,10 @@ class Branch<
     out: Out[],
     at_depth: number,
   ) {
+    const min_depth = Math.min(tree_start_depth, this._branchDepth);
     for (
       let depth = at_depth;
-      depth < Math.min(tree_start_depth, this._branchDepth);
+      depth < min_depth;
       depth++
     ) {
       const key_depth = order.treeToKey(depth);
@@ -889,12 +891,13 @@ class Branch<
     end_depth: number,
     at_depth: number,
   ) {
+    const depth_min = Math.min(end_depth, this._branchDepth);
     for (
       let depth = at_depth;
-      depth < Math.min(end_depth, this._branchDepth);
+      depth < depth_min;
       depth++
     ) {
-      let key_depth = order.treeToKey(depth);
+      const key_depth = order.treeToKey(depth);
       if (this._leaf.key[key_depth] != key[key_depth]) {
         return false;
       }
@@ -1129,7 +1132,7 @@ export class PATCH<
     if (this.child === undefined) {
       return false;
     }
-    return this.child.hasPrefix(this.order, key, end, 0);
+    return this.child.hasPrefix(this.order, key, this.order.keyToTree(end), 0);
   }
 
   isEmpty() {

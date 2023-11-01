@@ -32,7 +32,7 @@ export const V = (trible: Trible): Value =>
   trible.subarray(V_START, V_END) as Value;
 
 export const valueAsId = (v: Value): Id | undefined => {
-  const view = new Uint32Array(v.buffer, v.byteOffset + 16, 4);
+  const view = new Uint32Array(v.buffer, v.byteOffset, 4);
   if (view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0) {
     return v.subarray(16, 32) as Id;
   }

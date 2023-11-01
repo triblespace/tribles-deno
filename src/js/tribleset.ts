@@ -48,22 +48,22 @@ export class TribleSet {
   with(tribles: Iterable<Trible>) {
     const b = batch();
 
-    const EAV = this.EAV;
-    const EVA = this.EVA;
-    const AEV = this.AEV;
-    const AVE = this.AVE;
-    const VEA = this.VEA;
-    const VAE = this.VAE;
+    let EAV = this.EAV;
+    let EVA = this.EVA;
+    let AEV = this.AEV;
+    let AVE = this.AVE;
+    let VEA = this.VEA;
+    let VAE = this.VAE;
 
     for (const trible of tribles) {
       const entry: Entry<64, undefined> = new Entry(trible, undefined);
 
-      EAV.put(entry, b);
-      EVA.put(entry, b);
-      AEV.put(entry, b);
-      AVE.put(entry, b);
-      VEA.put(entry, b);
-      VAE.put(entry, b);
+      EAV = EAV.put(entry, b);
+      EVA = EVA.put(entry, b);
+      AEV = AEV.put(entry, b);
+      AVE = AVE.put(entry, b);
+      VEA = VEA.put(entry, b);
+      VAE = VAE.put(entry, b);
     }
 
     return new TribleSet(

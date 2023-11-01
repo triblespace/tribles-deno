@@ -57,6 +57,7 @@ Deno.test("KB Find", () => {
     },
   ]);
 
+  debugger;
   // Query some data.
   const results = new Set([
     // deno-lint-ignore no-empty-pattern

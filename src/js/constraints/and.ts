@@ -45,7 +45,14 @@ class IntersectionConstraint implements Constraint {
   }
 
   confirm(variable_index: number, binding: Binding, values: Value[]): void {
-    for (const constraint of this.constraints) {
+    const relevant_constraints = this.constraints.filter((c) =>
+      c.variables().has(variable_index)
+    );
+    relevant_constraints.sort((a, b) =>
+      a.estimate(variable_index, binding) - b.estimate(variable_index, binding)
+    );
+
+    for (const constraint of relevant_constraints) {
       constraint.confirm(variable_index, binding, values);
     }
   }

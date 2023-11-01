@@ -24,7 +24,7 @@ const E = (trible)=>trible.subarray(0, 16);
 const A = (trible)=>trible.subarray(16, A_END);
 const V = (trible)=>trible.subarray(V_START, V_END);
 const valueAsId = (v)=>{
-    const view = new Uint32Array(v.buffer, v.byteOffset + 16, 4);
+    const view = new Uint32Array(v.buffer, v.byteOffset, 4);
     if (view[0] === 0 && view[1] === 0 && view[2] === 0 && view[3] === 0) {
         return v.subarray(16, 32);
     }
